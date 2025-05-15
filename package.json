@@ -31,8 +31,6 @@
     "zustand": "^4.4.7"
   },
   "devDependencies": {
-    "@types/google.maps": "^3.54.10",
-    "@types/react": "^19.1.4",
-    "typescript": "^5.8.3"
+    "@types/google.maps": "^3.54.10"
   }
 }
