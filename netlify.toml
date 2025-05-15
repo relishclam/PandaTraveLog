@@ -1,11 +1,7 @@
 [build]
-  # Explicitly install dependencies to fix module resolution issues
-  command = "npm ci && npm run build"
+  # Install dependencies individually to ensure tailwindcss is available
+  command = "npm install -g tailwindcss postcss autoprefixer && npm ci && npm install tailwindcss postcss autoprefixer --save-dev && npm run build"
   publish = ".next"
-
-# Remove NETLIFY_NEXT_PLUGIN_SKIP - it was preventing the plugin from running
-# [build.environment]
-#   NETLIFY_NEXT_PLUGIN_SKIP = "true"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
