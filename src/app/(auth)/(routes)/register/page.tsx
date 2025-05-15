@@ -208,15 +208,7 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      {step === 1 && (
-        <PandaAssistant
-          emotion={pandaEmotion}
-          message={pandaMessage}
-          position="bottom-right"
-          size="sm" // Smaller size
-          visible={false} // Hide the panda bubble completely
-        />
-      )}
+      {/* PandaAssistant removed to avoid visual hindrance */}
     </div>
   );
 }
