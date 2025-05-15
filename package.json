@@ -12,12 +12,12 @@
     "@google/generative-ai": "^0.2.0",
     "@googlemaps/js-api-loader": "^1.16.2",
     "@supabase/supabase-js": "^2.39.0",
-    "@twilio-labs/serverless-runtime-types": "^2.2.1",
+    "@twilio-labs/serverless-runtime-types": "^4.0.1",
     "autoprefixer": "^10.4.7",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
     "framer-motion": "^10.16.16",
-    "next": "14.0.4",
+    "next": "^14.2.28",
     "postcss": "^8.4.14",
     "react": "18.2.0",
     "react-dom": "18.2.0",
@@ -28,12 +28,8 @@
     "zustand": "^4.4.7"
   },
   "devDependencies": {
-    "@types/google.maps": "^3.54.10",
-    "@types/node": "^20.17.47",
-    "@types/react": "^18.3.21",
-    "@types/react-dom": "^18.3.7",
-    "eslint": "^8.55.0",
-    "eslint-config-next": "14.0.4",
-    "typescript": "^5.8.3"
+    "@types/react": "19.1.4",
+    "typescript": "5.8.3",
+    "@types/google.maps": "^3.54.10"
   }
 }

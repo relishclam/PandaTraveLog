@@ -89,8 +89,10 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
             initial={{ opacity: 0, y: 10, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.9 }}
-            className="mb-3 max-w-xs bg-white rounded-xl p-4 shadow-lg speech-bubble cursor-pointer"
-            onClick={onMessageClick}
+            {...{
+              onClick: onMessageClick,
+              className: "mb-3 max-w-xs bg-white rounded-xl p-4 shadow-lg speech-bubble cursor-pointer"
+            }}
           >
             <div className="flex justify-between items-start">
               <div className="font-medium text-sm">{message}</div>
@@ -114,9 +116,11 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
         animate={bouncing ? { y: [0, -10, 0] } : {}}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        className="cursor-pointer panda-shadow"
+        {...{
+          onMouseEnter: () => setIsHovered(true),
+          onMouseLeave: () => setIsHovered(false),
+          className: "cursor-pointer panda-shadow"
+        }}
       >
         {imageError ? (
           // Fallback for when image fails to load
