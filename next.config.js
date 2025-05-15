@@ -1,8 +1,8 @@
 // next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Removed static export which was causing issues with dynamic routes
-  // output: 'export',
+  // Use standalone output mode for better compatibility with Netlify
+  output: 'standalone',
   
   // Configure image domains if you have any external images
   images: {
