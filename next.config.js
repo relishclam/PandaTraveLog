@@ -1,8 +1,8 @@
 // next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // You need this setting for Netlify deployments
-  output: 'export',
+  // Removed static export which was causing issues with dynamic routes
+  // output: 'export',
   
   // Configure image domains if you have any external images
   images: {
