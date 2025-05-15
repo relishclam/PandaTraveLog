@@ -3,7 +3,7 @@ import { Loader } from '@googlemaps/js-api-loader';
 let loader: Loader | null = null;
 let loadPromise: Promise<typeof google> | null = null;
 
-export const initGoogleMapsLoader = () => {
+export const initGoogleMapsLoader = (): Promise<typeof google> => {
   if (!loader) {
     loader = new Loader({
       apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
