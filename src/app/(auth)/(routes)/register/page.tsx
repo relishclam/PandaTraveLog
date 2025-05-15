@@ -47,14 +47,14 @@ export default function RegisterPage() {
       // Sign up the user
       const { id } = await signUp(data.email, data.password, data.name);
       
-      // Store the user ID for phone verification
-      setUserId(id);
-      
+      // Skip phone verification and redirect directly to trips page
       setPandaEmotion('excited');
-      setPandaMessage('Your account is created! Now let\'s verify your phone number.');
+      setPandaMessage('Your account is created! Redirecting to your dashboard...');
       
-      // Move to phone verification step
-      setStep(2);
+      // Short delay before redirect to show success message
+      setTimeout(() => {
+        router.push('/trips');
+      }, 1500);
     } catch (err: any) {
       console.error('Registration error:', err);
       setError(err.message || 'An error occurred during registration');
@@ -189,12 +189,7 @@ export default function RegisterPage() {
             </form>
           )}
           
-          {step === 2 && userId && (
-            <PhoneVerification
-              onVerified={handlePhoneVerified}
-              userId={userId}
-            />
-          )}
+          {/* Phone verification step removed */}
         </div>
       </div>
       
@@ -218,7 +213,8 @@ export default function RegisterPage() {
           emotion={pandaEmotion}
           message={pandaMessage}
           position="bottom-right"
-          size="md"
+          size="sm" // Smaller size
+          visible={false} // Hide the panda bubble completely
         />
       )}
     </div>
