@@ -1,12 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   images: {
     domains: ['images.unsplash.com', 'xhdcccmzciblpbrcrnii.supabase.co']
   },
   experimental: {
-    serverActions: true,
+    serverActions: {
+      allowedOrigins: ['pandatravelog.netlify.app']
+    }
   }
 };
 
