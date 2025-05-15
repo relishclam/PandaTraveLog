@@ -1,5 +1,6 @@
 [build]
-  command = "npm install --save-dev typescript @types/react @types/node @types/react-dom && npm run build"
+  # Use a clean npm ci followed by explicit TypeScript install to ensure all dependencies are properly installed
+  command = "rm -rf node_modules && npm ci && npm install -g typescript && npm run build"
   publish = ".next"
 
 [[plugins]]
