@@ -1,6 +1,5 @@
 [build]
-  # Install dependencies individually to ensure tailwindcss is available
-  command = "npm install -g tailwindcss postcss autoprefixer && npm ci && npm install tailwindcss postcss autoprefixer --save-dev && npm run build"
+  command = "npm install && npm run build"
   publish = ".next"
 
 [[plugins]]

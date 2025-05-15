@@ -1,13 +1,8 @@
 import type { Metadata } from "next";
-import { Nunito } from "next/font/google";
+// Remove next/font/google import that might be causing build issues
+// import { Nunito } from "next/font/google";
 import { Providers } from "@/app/providers";
 import "./globals.css";
-
-const nunito = Nunito({
-  subsets: ["latin"],
-  variable: "--font-nunito",
-  weight: ["400", "500", "600", "700"],
-});
 
 export const metadata: Metadata = {
   title: "PandaTraveLog - Your AI Travel Planner",
@@ -21,7 +16,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${nunito.variable} antialiased`}>
+      <head>
+        {/* Add Nunito font using standard link method */}
+        <link 
+          href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap" 
+          rel="stylesheet"
+        />
+      </head>
+      <body className="font-nunito antialiased">
         <Providers>
           {children}
         </Providers>

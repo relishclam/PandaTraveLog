@@ -22,6 +22,7 @@ module.exports = {
       },
       fontFamily: {
         'panda': ['Nunito', 'sans-serif'],
+        'nunito': ['Nunito', 'sans-serif'],
       },
       animation: {
         'bounce-slow': 'bounce 3s infinite',
