@@ -1,5 +1,6 @@
 [build]
-  command = "npm run build"
+  # Explicitly install dependencies to fix module resolution issues
+  command = "npm ci && npm run build"
   publish = ".next"
 
 # Remove NETLIFY_NEXT_PLUGIN_SKIP - it was preventing the plugin from running
