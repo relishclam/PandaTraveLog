@@ -1,0 +1,52 @@
+name: Supabase Migrations
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/**'
+      - 'supabase-schema.sql'
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  deploy-migrations:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      
+      - name: Install Supabase CLI
+        run: npm install -g supabase
+      
+      - name: Run SQL migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PROJECT_ID: "xhdcccmzciblpbrcrnii"  # Your Supabase project ID
+        run: |
+          # If using supabase-schema.sql at root
+          if [ -f "supabase-schema.sql" ]; then
+            echo "Running schema migration from root file..."
+            PGPASSWORD=$SUPABASE_DB_PASSWORD psql -h db.$PROJECT_ID.supabase.co -U postgres -f supabase-schema.sql
+          fi
+          
+          # If using Supabase migrations folder structure
+          if [ -d "supabase/migrations" ]; then
+            echo "Running Supabase migrations..."
+            supabase link --project-ref $PROJECT_ID
+            supabase db push
+          fi
+      
+      - name: Notify on success
+        if: success()
+        run: echo "✅ Database migrations completed successfully"
+        
+      - name: Notify on failure
+        if: failure()
+        run: echo "❌ Database migrations failed"

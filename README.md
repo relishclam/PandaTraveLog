@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🐼 PandaTraveLog - AI-Powered Travel Planning Application
 
-## Getting Started
+PandaTraveLog is a comprehensive travel planning application featuring PO, a friendly panda mascot who assists users in creating personalized itineraries and exploring travel destinations.
 
-First, run the development server:
+![PandaTraveLog Logo](/public/images/logo/logo-full.png)
+
+## ✨ Features
+
+- **User Authentication**: Secure sign-up and login with Supabase, including phone verification via Twilio OTP
+- **Trip Planning**: Create and manage trips with detailed information
+- **AI-Generated Content**: Generate personalized travel recommendations and itineraries using Gemini AI
+- **Google Maps Integration**: Search for locations and view them on interactive maps
+- **Companion Management**: Keep track of who's traveling with you
+- **Emergency Contacts**: Store important contact information for each trip
+- **Responsive Design**: Works seamlessly on both desktop and mobile devices
+
+## 🚀 Tech Stack
+
+- **Frontend**: Next.js with TypeScript and Tailwind CSS
+- **Authentication**: Supabase Auth with Twilio OTP verification
+- **Database**: Supabase PostgreSQL
+- **Maps**: Google Maps and Places APIs
+- **AI**: Gemini API for content generation
+- **Deployment**: Netlify
+
+## 🛠️ Getting Started
+
+### Prerequisites
+
+- Node.js 18+ and npm/yarn
+- Supabase account
+- Twilio account with Verify service
+- Google Maps API key
+- Gemini API key
+
+### Installation
+
+1. Clone the repository
+
+```bash
+git clone https://github.com/yourusername/pandatravelog.git
+cd pandatravelog
+```
+
+2. Install dependencies
+
+```bash
+npm install
+# or
+yarn install
+```
+
+3. Create a `.env.local` file in the root directory and add the necessary environment variables (see `.env.example` for reference)
+
+4. Initialize the Supabase database schema using the provided `supabase-schema.sql` file
+
+5. Run the development server
 
 ```bash
 npm run dev
 # or
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+6. Open [http://localhost:3000](http://localhost:3000) to see the application
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📝 Database Schema
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The application uses the following database tables:
 
-## Learn More
+- **profiles**: User profile information
+- **trips**: Trip details and metadata
+- **trip_places**: Places to visit during a trip
+- **trip_itinerary**: AI-generated itinerary content
+- **trip_companions**: People traveling with the user
+- **trip_emergency_contacts**: Emergency contacts for the trip
 
-To learn more about Next.js, take a look at the following resources:
+## 🌐 Deployment
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The application is configured for deployment on Netlify. A `netlify.toml` configuration file is included in the repository.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🤝 Contributing
 
-## Deploy on Vercel
+Contributions, issues, and feature requests are welcome! Feel free to check the issues page.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📄 License
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This project is licensed under the MIT License.
