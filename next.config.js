@@ -1,14 +1,22 @@
+// next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  // You need this setting for Netlify deployments
+  output: 'export',
+  
+  // Configure image domains if you have any external images
   images: {
-    domains: ['images.unsplash.com', 'xhdcccmzciblpbrcrnii.supabase.co']
+    unoptimized: true, // Required when using 'export'
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
   },
-  experimental: {
-    serverActions: {
-      allowedOrigins: ['pandatravelog.netlify.app']
-    }
-  }
+  
+  // Disable React strict mode during development if needed
+  reactStrictMode: true,
 };
 
 module.exports = nextConfig;

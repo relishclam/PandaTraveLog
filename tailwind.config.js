@@ -1,6 +1,6 @@
-import type { Config } from 'tailwindcss'
-
-const config: Config = {
+// tailwind.config.js
+/** @type {import('tailwindcss').Config} */
+module.exports = {
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -15,6 +15,10 @@ const config: Config = {
         'leaf-green': '#4CAF50',
         'bamboo-light': '#F5F5DC',
         'highlight-blue': '#87CEEB',
+        primary: '#FF9D2F',
+        secondary: '#4CAF50',
+        destructive: '#FF0000',
+        accent: '#87CEEB',
       },
       fontFamily: {
         'panda': ['Nunito', 'sans-serif'],
@@ -26,4 +30,3 @@ const config: Config = {
   },
   plugins: [],
 }
-export default config

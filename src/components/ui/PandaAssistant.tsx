@@ -1,3 +1,4 @@
+// src/components/ui/PandaAssistant.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -29,6 +30,7 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [bouncing, setBouncing] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   // Size mapping
   const sizeMap = {
@@ -58,7 +60,7 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
     }
   }, [animate]);
 
-  // Map emotions to PO's expressions (images will be created later)
+  // Map emotions to PO's expressions
   const getEmotionImage = () => {
     switch(emotion) {
       case 'thinking':
@@ -71,6 +73,12 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
       default:
         return '/images/po/happy.png';
     }
+  };
+
+  // Handle image error
+  const handleImageError = () => {
+    console.warn(`Failed to load image: ${getEmotionImage()}`);
+    setImageError(true);
   };
 
   return (
@@ -110,14 +118,30 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
         onMouseLeave={() => setIsHovered(false)}
         className="cursor-pointer panda-shadow"
       >
-        <Image 
-          src={getEmotionImage()}
-          alt="PO the Travel Panda"
-          width={sizeMap[size].width}
-          height={sizeMap[size].height}
-          className="rounded-full"
-          priority
-        />
+        {imageError ? (
+          // Fallback for when image fails to load
+          <div 
+            className="bg-bamboo-light rounded-full flex items-center justify-center text-2xl"
+            style={{ 
+              width: sizeMap[size].width, 
+              height: sizeMap[size].height 
+            }}
+          >
+            🐼
+          </div>
+        ) : (
+          // Regular image display
+          <Image 
+            src={getEmotionImage()}
+            alt="PO the Travel Panda"
+            width={sizeMap[size].width}
+            height={sizeMap[size].height}
+            className="rounded-full"
+            priority
+            unoptimized={true} // Required for Netlify static export
+            onError={handleImageError}
+          />
+        )}
       </motion.div>
     </div>
   );
