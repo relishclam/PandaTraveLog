@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import Link from "next/link";
 import Image from "next/image";
@@ -8,6 +8,7 @@ import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { PandaAssistant } from "@/components/ui/PandaAssistant";
 import { useAuth } from "@/contexts/AuthContext";
+import supabase from "@/lib/supabase";
 
 type LoginFormData = {
   email: string;
@@ -34,19 +35,58 @@ export default function LoginContent() {
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>();
   const { register: registerReset, handleSubmit: handleResetSubmit, formState: { errors: resetErrors } } = useForm<ResetFormData>();
 
+  // Debug: Add diagnostic logging
+  useEffect(() => {
+    console.log("=== LOGIN DIAGNOSTICS START ===");
+    console.log("LoginContent component loaded");
+    
+    // Check environment variables 
+    console.log("API Keys available:", {
+      supabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+      supabaseAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    });
+    
+    // Check authentication state
+    const checkAuthState = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        console.log("Current auth state:", data.session ? "Authenticated" : "Not authenticated");
+      } catch (error) {
+        console.error("Error checking auth state:", error);
+      }
+    };
+    
+    checkAuthState();
+    
+    return () => {
+      console.log("=== LOGIN DIAGNOSTICS END ===");
+    };
+  }, []);
+
   const onSubmit = async (data: LoginFormData) => {
     try {
+      console.log("🔍 Login started with email:", data.email);
       setIsLoading(true);
       setError(null);
       setPandaEmotion('thinking');
       setPandaMessage('Checking your credentials...');
 
+      console.log("📲 Calling signIn function...");
       await signIn(data.email, data.password);
-
+      
+      console.log("✅ signIn completed successfully");
       setPandaEmotion('excited');
       setPandaMessage("Welcome back! Let's continue planning your adventures!");
+      
+      // Add a manual redirect as backup
+      console.log("🚀 Manual redirect attempt...");
+      setTimeout(() => {
+        console.log("⏱️ Timeout triggered, forcing navigation");
+        window.location.href = '/trips';
+      }, 2000); // Wait 2 seconds then force navigation
+      
     } catch (err: any) {
-      console.error('Login error:', err);
+      console.error('❌ Login error:', err);
       setError(err.message || 'Invalid email or password');
       setPandaEmotion('confused');
       setPandaMessage("Hmm, something's not right. Let's try again!");
@@ -57,17 +97,19 @@ export default function LoginContent() {
 
   const onResetSubmit = async (data: ResetFormData) => {
     try {
+      console.log("🔄 Password reset started for email:", data.email);
       setIsResetLoading(true);
       setError(null);
       
       // Call your resetPassword function from AuthContext
       await resetPassword(data.email);
+      console.log("✅ Password reset email sent successfully");
       
       setResetSuccess(true);
       setPandaEmotion('excited');
       setPandaMessage("Check your email for a password reset link!");
     } catch (err: any) {
-      console.error('Reset error:', err);
+      console.error('❌ Reset error:', err);
       setError(err.message || 'Failed to send reset email');
       setPandaEmotion('confused');
       setPandaMessage("Hmm, something's not right with that email!");
