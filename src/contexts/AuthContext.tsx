@@ -98,7 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    console.log("🔐 AuthContext: signIn called");
+    console.log("🔐 AuthContext: signIn called with email:", email);
     setIsLoading(true);
     try {
       console.log("📡 AuthContext: Calling Supabase auth...");
@@ -107,11 +107,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         password,
       });
 
-      console.log("📥 AuthContext: Supabase response received", { 
+      console.log("📥 AuthContext: Supabase response:", { 
         success: !error,
         hasUser: !!data?.user,
         hasSession: !!data?.session,
-        errorMessage: error?.message
+        userId: data?.user?.id
       });
 
       if (error) {
@@ -121,10 +121,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log("✅ AuthContext: Authentication successful");
       
-      // Direct navigation approach - this should work most reliably
-      window.location.href = '/trips';
-      return;
+      // Add a delay to allow the session to be established
+      await new Promise(resolve => setTimeout(resolve, 500));
       
+      // Update local user state immediately
+      if (data.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+          
+        setUser({
+          id: data.user.id,
+          email: data.user.email!,
+          name: profile?.name || '',
+          phone: profile?.phone || '',
+          isPhoneVerified: profile?.is_phone_verified || false
+        });
+      }
+      
+      // Force a complete page reload to prevent SPA navigation issues
+      console.log("🔄 AuthContext: Redirecting to trips page");
+      window.location.href = '/trips';
     } catch (error: any) {
       console.error('❌ AuthContext: Error signing in:', error);
       throw error;
@@ -204,7 +223,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // New resetPassword function
+  // resetPassword function
   const resetPassword = async (email: string) => {
     console.log("🔑 AuthContext: resetPassword called");
     try {

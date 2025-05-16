@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,60 +11,45 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { user, isLoading, signOut } = useAuth();
-  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
-  console.log("🔒 Dashboard Layout: Rendering", { hasUser: !!user, isLoading });
-  
-  // Set a timeout to prevent infinite loading
+  const [authChecked, setAuthChecked] = useState(false);
+
+  console.log("🔒 Dashboard Layout:", { user: user?.email, isLoading, authChecked });
+
   useEffect(() => {
-    if (isLoading) {
-      const timer = setTimeout(() => {
-        console.log("⏱️ Dashboard Layout: Loading timeout reached");
-        if (typeof window !== 'undefined') {
-          // Check if we're stuck loading
-          const authState = localStorage.getItem('debug_auth_success');
-          if (authState) {
-            console.log("🔑 Dashboard Layout: Found auth success in localStorage, but still loading");
-            // Force a reload to try to fix the state
-            window.location.reload();
-          }
-        }
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [isLoading]);
-  
-  // Check authentication
-  useEffect(() => {
-    if (!isLoading && !user) {
-      console.log("🔒 Dashboard Layout: No user, redirecting to login");
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+    // Only check once when loading completes
+    if (!isLoading && !authChecked) {
+      setAuthChecked(true);
+      
+      if (!user) {
+        console.log("⚠️ Dashboard: No user detected, redirecting to login");
+        // Add a small delay before redirecting
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 100);
+      } else {
+        console.log("✅ Dashboard: User authenticated:", user.email);
       }
     }
-  }, [user, isLoading]);
-  
-  // Show loading only during initial auth check
-  if (isLoading) {
-    console.log("⏳ Dashboard Layout: Showing loading state");
+  }, [user, isLoading, authChecked]);
+
+  // Show loading spinner during initial load
+  if (isLoading || (!user && !authChecked)) {
     return (
       <div className="flex items-center justify-center h-screen bg-bamboo-light">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-gray-200 border-t-backpack-orange rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-700">Loading your adventures...</p>
+          <p className="text-gray-700">Loading...</p>
         </div>
       </div>
     );
   }
-  
-  // If no user after loading finished, we're redirecting
+
+  // Redirect is happening in useEffect
   if (!user) {
-    console.log("🔄 Dashboard Layout: No user after loading, returning empty for redirect");
     return null;
   }
-  
-  console.log("✅ Dashboard Layout: User authenticated, rendering content");
-  
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Simple Navbar */}
