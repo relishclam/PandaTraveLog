@@ -1,9 +1,10 @@
 // src/components/ui/PandaAssistant.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, HTMLMotionProps } from 'framer-motion';
+import { IoClose, IoExpand, IoContract } from 'react-icons/io5';
 
 type Emotion = 'happy' | 'thinking' | 'excited' | 'confused';
 
@@ -16,6 +17,8 @@ type PandaAssistantProps = {
   position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'center';
   size?: 'sm' | 'md' | 'lg';
   animate?: boolean;
+  initiallyVisible?: boolean; // Control initial visibility state
+  persistState?: boolean; // Whether to persist visibility state in localStorage
 };
 
 export const PandaAssistant: React.FC<PandaAssistantProps> = ({
@@ -26,11 +29,23 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
   showMessage = true,
   position = 'bottom-right',
   size = 'md',
-  animate = true
+  animate = true,
+  initiallyVisible = true,
+  persistState = true
 }) => {
+  // Get initial visibility state from localStorage if persistState is enabled
+  const getInitialVisibility = useCallback(() => {
+    if (typeof window === 'undefined' || !persistState) return initiallyVisible;
+    const savedState = localStorage.getItem('pandaAssistantState');
+    return savedState ? JSON.parse(savedState).visible : initiallyVisible;
+  }, [initiallyVisible, persistState]);
+  
+  const [visible, setVisible] = useState(getInitialVisibility());
+  const [minimized, setMinimized] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [bouncing, setBouncing] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [fallbackAttempted, setFallbackAttempted] = useState(false);
 
   // Size mapping
   const sizeMap = {
@@ -50,7 +65,7 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
 
   // Add occasional bounce animation
   useEffect(() => {
-    if (animate) {
+    if (animate && visible && !minimized) {
       const interval = setInterval(() => {
         setBouncing(true);
         setTimeout(() => setBouncing(false), 1000);
@@ -58,7 +73,31 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
       
       return () => clearInterval(interval);
     }
-  }, [animate]);
+  }, [animate, visible, minimized]);
+  
+  // Save visibility state to localStorage when it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && persistState) {
+      localStorage.setItem('pandaAssistantState', JSON.stringify({ visible, minimized }));
+    }
+  }, [visible, minimized, persistState]);
+  
+  // Toggle visibility
+  const toggleVisibility = () => {
+    setVisible(!visible);
+  };
+  
+  // Toggle minimized state
+  const toggleMinimized = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMinimized(!minimized);
+  };
+  
+  // Close the assistant
+  const closeAssistant = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setVisible(false);
+  };
 
   // Map emotions to PO's expressions
   const getEmotionImage = () => {
@@ -78,75 +117,190 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
   // Handle image error
   const handleImageError = () => {
     console.warn(`Failed to load image: ${getEmotionImage()}`);
-    setImageError(true);
+    
+    // Only set imageError if we haven't already tried the fallback
+    if (!fallbackAttempted) {
+      setImageError(true);
+      setFallbackAttempted(true);
+    }
+  };
+  
+  // Handle fallback image error
+  const handleFallbackError = () => {
+    console.warn("Failed to load fallback image");
+    // You could implement additional fallback strategies here
   };
 
+  // If not visible, render only a small button to bring back the assistant
+  if (!visible) {
+    return (
+      <div className={`fixed ${positionClasses[position]} z-50`}>
+        <button
+          onClick={toggleVisibility}
+          className="bg-backpack-orange text-white p-2 rounded-full shadow-lg"
+          aria-label="Show assistant"
+          type="button"
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+          >
+            <Image 
+              src="/images/po/fallback-logo.png" 
+              alt="PO" 
+              width={30} 
+              height={30} 
+              className="rounded-full"
+              onError={handleFallbackError}
+              unoptimized={true} // Required for Netlify static export
+              priority
+            />
+          </motion.div>
+        </button>
+      </div>
+    );
+  }
+  
   return (
     <div className={`fixed ${positionClasses[position]} z-50 flex flex-col items-end`}>
-      <AnimatePresence>
-        {showMessage && message && (
-          <motion.div 
-            initial={{ opacity: 0, y: 10, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.9 }}
-            {...{
-              onClick: onMessageClick,
-              className: "mb-3 max-w-xs bg-white rounded-xl p-4 shadow-lg speech-bubble cursor-pointer"
-            }}
-          >
-            <div className="flex justify-between items-start">
-              <div className="font-medium text-sm">{message}</div>
-              {onMessageClose && (
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onMessageClose();
-                  }}
-                  className="ml-2 text-gray-400 hover:text-gray-600"
-                >
-                  ×
-                </button>
-              )}
-            </div>
+      {/* Controls for the assistant */}
+      <div className="flex space-x-1 mb-2">
+        <button
+          onClick={toggleMinimized}
+          className="bg-white p-1 rounded-full shadow-md text-gray-600 hover:text-backpack-orange"
+          aria-label={minimized ? "Expand" : "Minimize"}
+          type="button"
+        >
+          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+            {minimized ? <IoExpand size={16} /> : <IoContract size={16} />}
           </motion.div>
+        </button>
+        
+        <button
+          onClick={closeAssistant}
+          className="bg-white p-1 rounded-full shadow-md text-gray-600 hover:text-red-500"
+          aria-label="Close assistant"
+          type="button"
+        >
+          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+            <IoClose size={16} />
+          </motion.div>
+        </button>
+      </div>
+      
+      <AnimatePresence>
+        {!minimized && showMessage && message && (
+          <div 
+            onClick={onMessageClick}
+            className="mb-3 max-w-xs bg-white rounded-xl p-4 shadow-lg speech-bubble cursor-pointer"
+          >
+            <motion.div 
+              initial={{ opacity: 0, y: 10, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.9 }}
+            >
+              <div className="flex justify-between items-start">
+                <div className="font-medium text-sm">{message}</div>
+                {onMessageClose && (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onMessageClose();
+                    }}
+                    className="ml-2 text-gray-400 hover:text-gray-600"
+                    type="button"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
       
-      <motion.div
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        animate={bouncing ? { y: [0, -10, 0] } : {}}
-        {...{
-          onMouseEnter: () => setIsHovered(true),
-          onMouseLeave: () => setIsHovered(false),
-          className: "cursor-pointer panda-shadow"
-        }}
-      >
-        {imageError ? (
-          // Fallback for when image fails to load
-          <div 
-            className="bg-bamboo-light rounded-full flex items-center justify-center text-2xl"
-            style={{ 
-              width: sizeMap[size].width, 
-              height: sizeMap[size].height 
-            }}
-          >
-            🐼
-          </div>
-        ) : (
-          // Regular image display
-          <Image 
-            src={getEmotionImage()}
-            alt="PO the Travel Panda"
-            width={sizeMap[size].width}
-            height={sizeMap[size].height}
-            className="rounded-full"
-            priority
-            unoptimized={true} // Required for Netlify static export
-            onError={handleImageError}
-          />
-        )}
-      </motion.div>
+      <div className="cursor-pointer panda-shadow">
+        <motion.div
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+          animate={bouncing ? { y: [0, -10, 0] } : {}}
+        >
+          {minimized ? (
+            <button
+              onClick={() => setMinimized(false)}
+              className="bg-transparent border-none p-0 m-0"
+              style={{ boxShadow: 'none', background: 'none' }}
+              aria-label="Expand assistant"
+              type="button"
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+            >
+              {imageError ? (
+                // Fallback using proper logo headshot
+                <Image 
+                  src="/images/po/fallback-logo.png"
+                  alt="PO the Travel Panda"
+                  width={sizeMap['sm'].width}
+                  height={sizeMap['sm'].height}
+                  className="rounded-full"
+                  priority
+                  unoptimized={true} // Required for Netlify static export
+                  onError={handleFallbackError}
+                />
+              ) : (
+                // Regular image display
+                <Image 
+                  src={getEmotionImage()}
+                  alt="PO the Travel Panda"
+                  width={sizeMap['sm'].width}
+                  height={sizeMap['sm'].height}
+                  className="rounded-full"
+                  priority
+                  unoptimized={true} // Required for Netlify static export
+                  onError={handleImageError}
+                />
+              )}
+            </button>
+          ) : (
+            <button
+              onClick={() => {}} // Empty onClick handler to make it clickable
+              className="bg-transparent border-none p-0 m-0"
+              style={{ boxShadow: 'none', background: 'none' }}
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+              type="button"
+            >
+              {imageError ? (
+                // Fallback using proper logo headshot
+                <Image 
+                  src="/images/po/fallback-logo.png"
+                  alt="PO the Travel Panda"
+                  width={sizeMap[size].width}
+                  height={sizeMap[size].height}
+                  className="rounded-full"
+                  priority
+                  unoptimized={true} // Required for Netlify static export
+                  onError={handleFallbackError}
+                />
+              ) : (
+                // Regular image display
+                <Image 
+                  src={getEmotionImage()}
+                  alt="PO the Travel Panda"
+                  width={sizeMap[size].width}
+                  height={sizeMap[size].height}
+                  className="rounded-full"
+                  priority
+                  unoptimized={true} // Required for Netlify static export
+                  onError={handleImageError}
+                />
+              )}
+            </button>
+          )}
+        </motion.div>
+      </div>
     </div>
   );
 };

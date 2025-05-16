@@ -99,17 +99,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw error;
       }
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('is_phone_verified')
-        .eq('id', data.user.id)
-        .single();
-        
-      // Only redirect to dashboard if phone is verified
-      if (profile?.is_phone_verified) {
-        router.refresh();
-        router.push('/trips');
-      }
+      // Bypass phone verification check and redirect directly to trips page
+      router.refresh();
+      router.push('/trips');
     } catch (error: any) {
       console.error('Error signing in:', error);
       throw error;

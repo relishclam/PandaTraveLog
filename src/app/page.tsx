@@ -6,9 +6,20 @@ import { PandaAssistant } from '@/components/ui/PandaAssistant';
 export default function Home() {
   return (
     <div className="min-h-screen bg-bamboo-light">
+      {/* PO Logo at Top */}
+      <div className="w-full flex justify-center pt-10 pb-4">
+        <Image
+          src="/images/po/happy.png"
+          alt="Meet PO the Travel Panda"
+          width={120}
+          height={120}
+          className="object-contain drop-shadow-lg"
+          priority
+        />
+      </div>
       {/* Hero Section */}
-      <section className="relative overflow-hidden pt-20">
-        <div className="container mx-auto px-4 py-16 md:py-24 flex flex-col md:flex-row items-center justify-between">
+      <section className="relative overflow-hidden">
+        <div className="container mx-auto px-4 py-8 md:py-16 flex flex-col md:flex-row items-center justify-between">
           {/* Hero Text */}
           <div className="md:w-1/2 mb-10 md:mb-0 text-center md:text-left">
             <h1 className="text-4xl md:text-6xl font-bold mb-6 text-panda-black">
@@ -28,18 +39,7 @@ export default function Home() {
           </div>
           
           {/* Hero Image */}
-          <div className="md:w-1/2 flex justify-center md:justify-end">
-            <div className="relative w-64 h-64 md:w-80 md:h-80">
-              <Image
-                src="/images/po/happy.png"
-                alt="PO the Travel Panda"
-                width={320}
-                height={320}
-                className="object-contain"
-                priority
-              />
-            </div>
-          </div>
+          {/* Removed duplicate PO logo from hero image section */}
         </div>
       </section>
       
