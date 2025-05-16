@@ -98,7 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    console.log("🔐 AuthContext: signIn called with email:", email);
+    console.log("🔐 AuthContext: signIn called");
     setIsLoading(true);
     try {
       console.log("📡 AuthContext: Calling Supabase auth...");
@@ -111,7 +111,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         success: !error,
         hasUser: !!data?.user,
         hasSession: !!data?.session,
-        userId: data?.user?.id,
         errorMessage: error?.message
       });
 
@@ -122,21 +121,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log("✅ AuthContext: Authentication successful");
       
-      // Store user info in localStorage for debugging purposes
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('debug_auth_success', JSON.stringify({
-          timestamp: new Date().toISOString(),
-          email: email,
-          userId: data?.user?.id
-        }));
-      }
-      
-      // Use window.location navigation directly
-      console.log("🚀 AuthContext: Navigating to /trips via window.location");
+      // Direct navigation approach - this should work most reliably
       window.location.href = '/trips';
-      
-      // Return early to prevent further code execution
       return;
+      
     } catch (error: any) {
       console.error('❌ AuthContext: Error signing in:', error);
       throw error;
@@ -216,7 +204,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // resetPassword function
+  // New resetPassword function
   const resetPassword = async (email: string) => {
     console.log("🔑 AuthContext: resetPassword called");
     try {
