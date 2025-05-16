@@ -32,6 +32,14 @@ export default function TripsPage() {
   const [pandaEmotion, setPandaEmotion] = useState<'happy' | 'thinking' | 'excited' | 'confused'>('happy');
   const [pandaMessage, setPandaMessage] = useState('Welcome to your trips dashboard!');
 
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/login');
+    }
+  }, [loading, user, router]);
+
+
   console.log("🏁 Trips: Initial render", { hasUser: !!user });
 
   // Set a safety timeout to prevent infinite loading
