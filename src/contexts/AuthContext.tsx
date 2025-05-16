@@ -98,7 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    console.log("🔐 AuthContext: signIn called");
+    console.log("🔐 AuthContext: signIn called with email:", email);
     setIsLoading(true);
     try {
       console.log("📡 AuthContext: Calling Supabase auth...");
@@ -111,6 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         success: !error,
         hasUser: !!data?.user,
         hasSession: !!data?.session,
+        userId: data?.user?.id,
         errorMessage: error?.message
       });
 
@@ -121,25 +122,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log("✅ AuthContext: Authentication successful");
       
-      // Try both navigation methods
-      try {
-        console.log("🔄 AuthContext: Refreshing router...");
-        router.refresh();
-        
-        console.log("➡️ AuthContext: Pushing to /trips...");
-        router.push('/trips');
-        
-        // As a fallback, try window.location after a short delay
-        setTimeout(() => {
-          console.log("⏱️ AuthContext: Navigation timeout, trying direct location change");
-          window.location.href = '/trips';
-        }, 1000);
-        
-      } catch (navError) {
-        console.error("❌ AuthContext: Navigation error", navError);
-        // Force navigation
-        window.location.href = '/trips';
+      // Store user info in localStorage for debugging purposes
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('debug_auth_success', JSON.stringify({
+          timestamp: new Date().toISOString(),
+          email: email,
+          userId: data?.user?.id
+        }));
       }
+      
+      // Use window.location navigation directly
+      console.log("🚀 AuthContext: Navigating to /trips via window.location");
+      window.location.href = '/trips';
+      
+      // Return early to prevent further code execution
+      return;
     } catch (error: any) {
       console.error('❌ AuthContext: Error signing in:', error);
       throw error;
@@ -219,7 +216,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // New resetPassword function
+  // resetPassword function
   const resetPassword = async (email: string) => {
     console.log("🔑 AuthContext: resetPassword called");
     try {
@@ -245,7 +242,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await supabase.auth.signOut();
       console.log("✅ AuthContext: Signed out successfully");
-      router.push('/');
+      window.location.href = '/';
     } catch (error) {
       console.error('❌ AuthContext: Error signing out:', error);
       throw error;

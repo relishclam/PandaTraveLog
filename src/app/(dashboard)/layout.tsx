@@ -16,12 +16,34 @@ export default function DashboardLayout({
   const [menuOpen, setMenuOpen] = useState(false);
   console.log("🔒 Dashboard Layout: Rendering", { hasUser: !!user, isLoading });
   
+  // Set a timeout to prevent infinite loading
+  useEffect(() => {
+    if (isLoading) {
+      const timer = setTimeout(() => {
+        console.log("⏱️ Dashboard Layout: Loading timeout reached");
+        if (typeof window !== 'undefined') {
+          // Check if we're stuck loading
+          const authState = localStorage.getItem('debug_auth_success');
+          if (authState) {
+            console.log("🔑 Dashboard Layout: Found auth success in localStorage, but still loading");
+            // Force a reload to try to fix the state
+            window.location.reload();
+          }
+        }
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
+  
+  // Check authentication
   useEffect(() => {
     if (!isLoading && !user) {
       console.log("🔒 Dashboard Layout: No user, redirecting to login");
-      router.push('/login');
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
     }
-  }, [user, isLoading, router]);
+  }, [user, isLoading]);
   
   // Show loading only during initial auth check
   if (isLoading) {
@@ -149,12 +171,6 @@ export default function DashboardLayout({
       <main className="py-6">
         {children}
       </main>
-      
-      <footer className="bg-white border-t py-4 mt-auto">
-        <div className="container mx-auto px-4 text-center text-gray-500 text-sm">
-          © {new Date().getFullYear()} PandaTraveLog. All rights reserved.
-        </div>
-      </footer>
     </div>
   );
 }
