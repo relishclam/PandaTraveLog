@@ -78,13 +78,7 @@ export default function LoginContent() {
       setPandaEmotion('excited');
       setPandaMessage("Welcome back! Let's continue planning your adventures!");
       
-      // Add a manual redirect as backup
-      console.log("🚀 Manual redirect attempt...");
-      setTimeout(() => {
-        console.log("⏱️ Timeout triggered, forcing navigation");
-        window.location.href = '/trips';
-      }, 2000); // Wait 2 seconds then force navigation
-      
+         
     } catch (err: any) {
       console.error('❌ Login error:', err);
       setError(err.message || 'Invalid email or password');
@@ -157,6 +151,7 @@ export default function LoginContent() {
             <input
               id="email"
               type="email"
+              autoComplete="email"
               {...register('email', {
                 required: 'Email is required',
                 pattern: {
@@ -187,6 +182,7 @@ export default function LoginContent() {
             <input
               id="password"
               type="password"
+              autoComplete="current-password"
               {...register('password', { required: 'Password is required' })}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-backpack-orange focus:border-backpack-orange"
             />
