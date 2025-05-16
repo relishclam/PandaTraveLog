@@ -9,24 +9,32 @@ import { Button } from "@/components/ui/Button";
 import { PandaAssistant } from "@/components/ui/PandaAssistant";
 import { useAuth } from "@/contexts/AuthContext";
 
-type FormData = {
+type LoginFormData = {
   email: string;
   password: string;
 };
 
+type ResetFormData = {
+  email: string;
+};
+
 export default function LoginContent() {
-  const { signIn } = useAuth();
+  const { signIn, resetPassword } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [isResetLoading, setIsResetLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resetSuccess, setResetSuccess] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
   const [pandaEmotion, setPandaEmotion] = useState<'happy' | 'thinking' | 'excited' | 'confused'>('happy');
   const [pandaMessage, setPandaMessage] = useState('Welcome back! Sign in to continue your adventures.');
 
   const searchParams = useSearchParams();
   const verified = searchParams?.get('verified') === 'false';
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>();
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>();
+  const { register: registerReset, handleSubmit: handleResetSubmit, formState: { errors: resetErrors } } = useForm<ResetFormData>();
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = async (data: LoginFormData) => {
     try {
       setIsLoading(true);
       setError(null);
@@ -44,6 +52,27 @@ export default function LoginContent() {
       setPandaMessage("Hmm, something's not right. Let's try again!");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const onResetSubmit = async (data: ResetFormData) => {
+    try {
+      setIsResetLoading(true);
+      setError(null);
+      
+      // Call your resetPassword function from AuthContext
+      await resetPassword(data.email);
+      
+      setResetSuccess(true);
+      setPandaEmotion('excited');
+      setPandaMessage("Check your email for a password reset link!");
+    } catch (err: any) {
+      console.error('Reset error:', err);
+      setError(err.message || 'Failed to send reset email');
+      setPandaEmotion('confused');
+      setPandaMessage("Hmm, something's not right with that email!");
+    } finally {
+      setIsResetLoading(false);
     }
   };
 
@@ -105,9 +134,13 @@ export default function LoginContent() {
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 Password
               </label>
-              <Link href="/forgot-password" className="text-sm text-backpack-orange hover:underline">
+              <button
+                type="button"
+                onClick={() => setShowResetModal(true)}
+                className="text-sm text-backpack-orange hover:underline bg-transparent border-0 p-0"
+              >
                 Forgot password?
-              </Link>
+              </button>
             </div>
             <input
               id="password"
@@ -140,6 +173,127 @@ export default function LoginContent() {
           </p>
         </div>
       </div>
+
+      {/* Brand-Consistent Password Reset Modal */}
+      {showResetModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-bamboo-light bg-opacity-90 rounded-xl p-6 max-w-md w-full m-4 border-2 border-backpack-orange shadow-xl">
+            {/* Modal Header with Brand Elements */}
+            <div className="flex flex-col items-center mb-4">
+              <Image 
+                src="/images/po/thinking.png" 
+                alt="PO the Travel Panda" 
+                width={70} 
+                height={70} 
+                className="mb-2"
+              />
+              <h3 className="text-2xl font-bold text-panda-black">Forgot Your Password?</h3>
+              <p className="text-center text-gray-600 mt-1">PO will help you get back to your travels!</p>
+            </div>
+            
+            <button 
+              onClick={() => {
+                setShowResetModal(false);
+                setResetSuccess(false);
+                setError(null);
+              }}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+              aria-label="Close"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+            
+            {resetSuccess ? (
+              <div className="text-center py-4">
+                <div className="bg-green-50 border-2 border-green-200 text-green-700 px-4 py-4 rounded-md mb-6">
+                  <p className="font-medium">Password reset email sent!</p>
+                  <p className="text-sm mt-1">Please check your inbox for instructions from PO.</p>
+                </div>
+                <Image 
+                  src="/images/po/excited.png" 
+                  alt="PO is excited" 
+                  width={60} 
+                  height={60} 
+                  className="mx-auto mb-4"
+                />
+                <Button
+                  onClick={() => {
+                    setShowResetModal(false);
+                    setResetSuccess(false);
+                  }}
+                  className="bg-backpack-orange hover:bg-backpack-orange/90 text-white px-6 py-2"
+                >
+                  Back to Login
+                </Button>
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg p-6 shadow-inner">
+                <form onSubmit={handleResetSubmit(onResetSubmit)}>
+                  <p className="mb-4 text-gray-600">
+                    Enter your email address and PO will send you a link to reset your password.
+                  </p>
+                  <div className="mb-6">
+                    <label htmlFor="reset-email" className="block text-sm font-medium text-gray-700 mb-1">
+                      Email Address
+                    </label>
+                    <input
+                      id="reset-email"
+                      type="email"
+                      {...registerReset('email', {
+                        required: 'Email is required',
+                        pattern: {
+                          value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                          message: 'Invalid email address',
+                        },
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-backpack-orange focus:border-backpack-orange"
+                      placeholder="your.email@example.com"
+                    />
+                    {resetErrors.email && (
+                      <p className="mt-1 text-sm text-red-600">{resetErrors.email.message}</p>
+                    )}
+                  </div>
+                  
+                  {/* Small panda icon for brand reinforcement */}
+                  <div className="flex justify-center mb-4">
+                    <Image 
+                      src="/images/po/happy.png" 
+                      alt="PO is happy to help" 
+                      width={40} 
+                      height={40} 
+                    />
+                  </div>
+                  
+                  <div className="flex justify-center space-x-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowResetModal(false)}
+                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <Button
+                      type="submit"
+                      className="bg-backpack-orange hover:bg-backpack-orange/90 text-white px-5"
+                      disabled={isResetLoading}
+                    >
+                      {isResetLoading ? 'Sending...' : 'Send Reset Link'}
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            )}
+            
+            {/* Footer with brand message */}
+            <div className="mt-4 pt-3 border-t border-gray-200 text-center text-sm text-gray-600">
+              PandaTraveLog — Making your travels simple and memorable!
+            </div>
+          </div>
+        </div>
+      )}
 
       <PandaAssistant
         emotion={pandaEmotion}
