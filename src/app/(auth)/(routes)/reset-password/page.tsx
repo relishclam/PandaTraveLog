@@ -1,16 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
 import { PandaAssistant } from '@/components/ui/PandaAssistant';
 import supabase from '@/lib/supabase';
 
-export default function ResetPasswordPage() {
+// Create a separate component that uses useSearchParams
+function ResetPasswordForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -156,5 +156,28 @@ export default function ResetPasswordPage() {
         size="md"
       />
     </div>
+  );
+}
+
+// Main page component with Suspense
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-bamboo-light flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
+          <Image
+            src="/images/po/thinking.png"
+            alt="PO is thinking"
+            width={80}
+            height={80}
+            className="mx-auto mb-4"
+          />
+          <h2 className="text-2xl font-semibold mb-2">Loading...</h2>
+          <p className="text-gray-600">PO is preparing your password reset form.</p>
+        </div>
+      </div>
+    }>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }
