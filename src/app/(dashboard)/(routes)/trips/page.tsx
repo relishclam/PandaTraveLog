@@ -32,12 +32,30 @@ export default function TripsPage() {
   const [pandaEmotion, setPandaEmotion] = useState<'happy' | 'thinking' | 'excited' | 'confused'>('happy');
   const [pandaMessage, setPandaMessage] = useState('Welcome to your trips dashboard!');
 
+  console.log("🏁 Trips: Initial render", { hasUser: !!user });
+
+  // Set a safety timeout to prevent infinite loading
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        console.log("⏱️ Trips: Loading timeout reached, forcing state update");
+        setLoading(false);
+      }
+    }, 5000);
+    
+    return () => clearTimeout(timeoutId);
+  }, [loading]);
+
   // Fetch user trips
   useEffect(() => {
     const fetchTrips = async () => {
-      if (!user) return;
+      if (!user) {
+        console.log("⚠️ Trips: No user found, skipping fetch");
+        return;
+      }
 
       try {
+        console.log("🔄 Trips: Fetching trips for user", user.email);
         setLoading(true);
         const { data, error } = await supabase
           .from('trips')
@@ -45,8 +63,12 @@ export default function TripsPage() {
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+          console.error("❌ Trips: Error fetching trips", error);
+          throw error;
+        }
 
+        console.log("✅ Trips: Fetched", data?.length, "trips");
         setTrips(data || []);
         
         if (data && data.length === 0) {
@@ -57,17 +79,21 @@ export default function TripsPage() {
           setPandaMessage(`You have ${data?.length} trips planned. Let's explore them!`);
         }
       } catch (err: any) {
-        console.error('Error fetching trips:', err);
+        console.error('❌ Trips: Error fetching trips:', err);
         setError('Failed to load your trips');
         setPandaEmotion('confused');
         setPandaMessage('Oh no! I had trouble loading your trips. Please try again.');
       } finally {
+        console.log("🏁 Trips: Setting loading to false");
         setLoading(false);
       }
     };
 
+    console.log("🔍 Trips: useEffect triggered", { hasUser: !!user });
     fetchTrips();
   }, [user]);
+
+  console.log("🖼️ Trips: Rendering state", { loading, tripsCount: trips.length, hasError: !!error });
 
   const handleDeleteTrip = async (tripId: string) => {
     if (!confirm('Are you sure you want to delete this trip?')) return;
@@ -76,19 +102,24 @@ export default function TripsPage() {
       setPandaEmotion('thinking');
       setPandaMessage('Deleting your trip...');
       
+      console.log("🗑️ Trips: Deleting trip", tripId);
       const { error } = await supabase
         .from('trips')
         .delete()
         .eq('id', tripId);
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ Trips: Error deleting trip", error);
+        throw error;
+      }
 
+      console.log("✅ Trips: Trip deleted successfully");
       // Update local state to remove the deleted trip
       setTrips(trips.filter(trip => trip.id !== tripId));
       setPandaEmotion('happy');
       setPandaMessage('Trip deleted successfully!');
     } catch (err) {
-      console.error('Error deleting trip:', err);
+      console.error('❌ Trips: Error deleting trip:', err);
       setPandaEmotion('confused');
       setPandaMessage('Sorry, I couldn\'t delete that trip. Please try again.');
     }
