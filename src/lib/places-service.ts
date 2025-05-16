@@ -1,5 +1,12 @@
 import { initGoogleMapsLoader } from './google-maps-loader';
 
+// Importing Google Maps types
+declare global {
+  interface Window {
+    google: any;
+  }
+}
+
 export type PlaceSuggestion = {
   placeId: string;
   description: string;
@@ -26,20 +33,21 @@ export type PlaceDetails = {
   types: string[];
 };
 
-let placesService: google.maps.places.PlacesService | null = null;
-let autocompleteService: google.maps.places.AutocompleteService | null = null;
+// Using the new Google Maps Places API
+let placesClient: any = null; // google.maps.places.Place
+let autocompleteClient: any = null; // google.maps.places.AutocompleteSuggestion
 
 const initServices = async () => {
   await initGoogleMapsLoader();
   
-  if (!autocompleteService) {
-    autocompleteService = new google.maps.places.AutocompleteService();
+  if (!autocompleteClient) {
+    // Using the new AutocompleteSuggestion API
+    autocompleteClient = new google.maps.places.AutocompleteSuggestion();
   }
   
-  if (!placesService) {
-    // Create a dummy element for PlacesService
-    const dummyElement = document.createElement('div');
-    placesService = new google.maps.places.PlacesService(dummyElement);
+  if (!placesClient) {
+    // Using the new Place API
+    placesClient = new google.maps.places.Place();
   }
 };
 
@@ -53,28 +61,32 @@ export const getPlaceSuggestions = async (
   try {
     await initServices();
     
-    const request: google.maps.places.AutocompletionRequest = {
+    // New API uses a different request format
+    const request = {
       input: input.trim()
     };
     
-    return new Promise((resolve, reject) => {
-      autocompleteService!.getPlacePredictions(request, (predictions, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
-          const suggestions: PlaceSuggestion[] = predictions.map(prediction => ({
-            placeId: prediction.place_id,
-            description: prediction.description,
-            mainText: prediction.structured_formatting?.main_text || prediction.description,
-            secondaryText: prediction.structured_formatting?.secondary_text || '',
-            types: prediction.types || []
-          }));
-          resolve(suggestions);
-        } else {
-          resolve([]);
-        }
-      });
-    });
+    // Using the new API with Promise-based approach
+    try {
+      const response = await autocompleteClient.getAutocompleteSuggestions(request);
+      
+      if (response && response.suggestions) {
+        const suggestions: PlaceSuggestion[] = response.suggestions.map(suggestion => ({
+          placeId: suggestion.placeId,
+          description: suggestion.formattedText || suggestion.text || '',
+          mainText: suggestion.primaryText || suggestion.formattedText || '',
+          secondaryText: suggestion.secondaryText || '',
+          types: suggestion.types || []
+        }));
+        return suggestions;
+      }
+      return [];
+    } catch (error) {
+      console.error('Error getting place suggestions:', error);
+      return [];
+    }
   } catch (error) {
-    console.error('Error getting place suggestions:', error);
+    console.error('Error initializing services:', error);
     return [];
   }
 };
@@ -85,51 +97,59 @@ export const getPlaceDetails = async (
   try {
     await initServices();
     
-    const request: google.maps.places.PlaceDetailsRequest = {
+    // New API uses a different request format
+    const request = {
       placeId,
       fields: [
-        'name', 
-        'formatted_address', 
-        'geometry', 
+        'displayName', 
+        'formattedAddress', 
+        'location', 
         'photos', 
-        'website', 
-        'formatted_phone_number', 
+        'websiteURI', 
+        'internationalPhoneNumber', 
         'rating', 
         'types'
       ]
     };
     
-    return new Promise((resolve, reject) => {
-      placesService!.getDetails(request, (place, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && place) {
-          const photos = place.photos?.map(photo => ({
-            url: photo.getUrl({ maxWidth: 400, maxHeight: 400 }),
-            attribution: photo.html_attributions.join(' ')
-          }));
-          
-          const details: PlaceDetails = {
-            placeId,
-            name: place.name || '',
-            formattedAddress: place.formatted_address || '',
-            location: {
-              lat: place.geometry?.location?.lat() || 0,
-              lng: place.geometry?.location?.lng() || 0,
-            },
-            photos,
-            website: place.website,
-            phoneNumber: place.formatted_phone_number,
-            rating: place.rating,
-            types: place.types || []
-          };
-          
-          resolve(details);
-        } else {
-          resolve(null);
-        }
-      });
-    });
+    try {
+      // Using the new API with Promise-based approach
+      const response = await placesClient.fetchPlace(request);
+      
+      if (response && response.place) {
+        const place = response.place;
+        
+        // Process photos if available
+        const photos = place.photos?.map(photo => ({
+          url: photo.name || '', // The new API handles photo URLs differently
+          attribution: photo.attributions?.join(' ') || ''
+        })) || undefined;
+        
+        const details: PlaceDetails = {
+          placeId,
+          name: place.displayName?.text || '',
+          formattedAddress: place.formattedAddress || '',
+          location: {
+            lat: place.location?.latitude || 0,
+            lng: place.location?.longitude || 0,
+          },
+          photos,
+          website: place.websiteURI,
+          phoneNumber: place.internationalPhoneNumber,
+          rating: place.rating,
+          types: place.types || []
+        };
+        
+        return details;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error fetching place details:', error);
+      return null;
+    }
   } catch (error) {
-    console.error('Error getting place details:', error);
+    console.error('Error initializing services:', error);
     return null;
   }
 };
