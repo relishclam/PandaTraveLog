@@ -1,7 +1,8 @@
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
-import { initGoogleMapsLoader } from '@/lib/google-maps-loader';
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
 
 // Check if we're in a browser environment
 const isBrowser = typeof window !== 'undefined';
@@ -14,8 +15,14 @@ type MapComponentProps = {
     title?: string;
     icon?: string;
   }>;
-  onClick?: (e: google.maps.MapMouseEvent) => void;
+  onClick?: (e: { lat: number; lng: number }) => void;
 };
+
+// Map marker interface specific to Geoapify
+interface MapMarker {
+  element: HTMLElement;
+  remove: () => void;
+}
 
 const MapComponent: React.FC<MapComponentProps> = ({
   center,
@@ -24,56 +31,44 @@ const MapComponent: React.FC<MapComponentProps> = ({
   onClick
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
-  const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
-  const [mapMarkers, setMapMarkers] = useState<google.maps.Marker[]>([]);
-  
-  // Initialize map
+  const [mapInstance, setMapInstance] = useState<any>(null);
+  const [mapMarkers, setMapMarkers] = useState<MapMarker[]>([]);
+  // Initialize the map
   useEffect(() => {
     // Skip this effect entirely on server-side
     if (!isBrowser) return;
     
     let isMounted = true;
-    let map: google.maps.Map | null = null;
+    const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
     
     const initMap = async () => {
-      try {
-        await initGoogleMapsLoader();
-        
-        if (mapRef.current && isMounted) {
-          map = new google.maps.Map(mapRef.current, {
-            center,
-            zoom,
-            mapTypeControl: false,
-            streetViewControl: false,
-            fullscreenControl: false,
-            styles: [
-              // Custom map style with panda-friendly colors
-              {
-                featureType: "water",
-                elementType: "geometry",
-                stylers: [{ color: "#87CEEB" }]
-              },
-              {
-                featureType: "landscape",
-                elementType: "geometry",
-                stylers: [{ color: "#F5F5DC" }]
-              },
-              {
-                featureType: "poi.park",
-                elementType: "geometry",
-                stylers: [{ color: "#4CAF50" }]
-              }
-            ]
+      try {  
+        if (mapRef.current && isMounted && apiKey) {
+          // Initialize the map with maplibre
+          const map = new maplibregl.Map({
+            container: mapRef.current,
+            style: `https://maps.geoapify.com/v1/styles/osm-bright/style.json?apiKey=${apiKey}`,
+            center: [center.lng, center.lat], // Note Geoapify uses [lng, lat] format
+            zoom: zoom
           });
           
+          // Add controls
+          map.addControl(new maplibregl.NavigationControl());
+          
+          // Add click handler if provided
           if (onClick) {
-            map.addListener('click', onClick);
+            map.on('click', (e: any) => {
+              onClick({
+                lat: e.lngLat.lat,
+                lng: e.lngLat.lng
+              });
+            });
           }
           
           setMapInstance(map);
         }
       } catch (error) {
-        console.error('Error initializing map:', error);
+        console.error('Error initializing Geoapify map:', error);
       }
     };
     
@@ -81,58 +76,60 @@ const MapComponent: React.FC<MapComponentProps> = ({
     
     return () => {
       isMounted = false;
-      if (map && onClick) {
-        google.maps.event.clearListeners(map, 'click');
+      if (mapInstance) {
+        mapInstance.remove();
       }
     };
-  }, []);
+  }, [center.lat, center.lng, zoom, onClick]);
   
   // Update center and zoom when props change
   useEffect(() => {
-    // Skip this effect entirely on server-side
-    if (!isBrowser) return;
+    if (!isBrowser || !mapInstance) return;
     
-    if (mapInstance) {
-      mapInstance.setCenter(center);
-      mapInstance.setZoom(zoom);
-    }
-  }, [center, zoom, mapInstance]);
+    mapInstance.setCenter([center.lng, center.lat]);
+    mapInstance.setZoom(zoom);
+  }, [center.lat, center.lng, zoom, mapInstance]);
   
   // Update markers when they change
   useEffect(() => {
-    // Skip this effect entirely on server-side
-    if (!isBrowser) return;
+    if (!isBrowser || !mapInstance) return;
     
     // Clear existing markers
-    mapMarkers.forEach(marker => marker.setMap(null));
-    
-    if (!mapInstance) return;
+    mapMarkers.forEach(marker => marker.remove());
     
     // Create new markers
     const newMarkers = markers.map(markerData => {
-      const marker = new google.maps.Marker({
-        position: markerData.position,
-        map: mapInstance,
-        title: markerData.title,
-        icon: markerData.icon || {
-          path: google.maps.SymbolPath.CIRCLE,
-          fillColor: '#FF9D2F',
-          fillOpacity: 0.9,
-          strokeWeight: 2,
-          strokeColor: '#FFFFFF',
-          scale: 8
-        },
-        animation: google.maps.Animation.DROP
-      });
+      // Create a marker element
+      const markerEl = document.createElement('div');
+      markerEl.className = 'panda-marker';
+      markerEl.style.width = '30px';
+      markerEl.style.height = '30px';
+      markerEl.style.backgroundImage = markerData.icon 
+        ? `url(${markerData.icon})` 
+        : 'url(/images/po/map-pin.png)';
+      markerEl.style.backgroundSize = 'contain';
+      markerEl.style.backgroundRepeat = 'no-repeat';
+      markerEl.style.cursor = 'pointer';
       
-      return marker;
+      if (markerData.title) {
+        markerEl.title = markerData.title;
+      }
+      
+      // Add the marker to the map
+      const marker = new maplibregl.Marker(markerEl)
+        .setLngLat([markerData.position.lng, markerData.position.lat])
+        .addTo(mapInstance);
+      
+      return {
+        element: markerEl,
+        remove: () => marker.remove()
+      };
     });
     
     setMapMarkers(newMarkers);
     
-    // Clean up markers on unmount
     return () => {
-      newMarkers.forEach(marker => marker.setMap(null));
+      newMarkers.forEach(marker => marker.remove());
     };
   }, [markers, mapInstance]);
   

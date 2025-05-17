@@ -1,5 +1,3 @@
-import { initGoogleMapsLoader } from './google-maps-loader';
-
 export type PlaceSuggestion = {
   placeId: string;
   description: string;
@@ -27,24 +25,6 @@ export type PlaceDetails = {
   rating?: number;
   types: string[];
 };
-
-let placesService: google.maps.places.PlacesService | null = null;
-let autocompleteService: google.maps.places.AutocompleteService | null = null;
-
-const initServices = async () => {
-  await initGoogleMapsLoader();
-  
-  if (!autocompleteService) {
-    autocompleteService = new google.maps.places.AutocompleteService();
-  }
-  
-  if (!placesService) {
-    // Create a dummy element for PlacesService
-    const dummyElement = document.createElement('div');
-    placesService = new google.maps.places.PlacesService(dummyElement);
-  }
-};
-
 import { getCountryCodeByName } from './country-codes';
 
 // Helper: Fetch nearby cities and POIs (points of interest) within a radius from a city
@@ -130,53 +110,47 @@ export const getPlaceDetails = async (
   placeId: string
 ): Promise<PlaceDetails | null> => {
   try {
-    await initServices();
+    const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
+    const url = `https://api.geoapify.com/v2/place-details?id=${placeId}&apiKey=${apiKey}`;
     
-    const request: google.maps.places.PlaceDetailsRequest = {
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    if (!data.features || data.features.length === 0) {
+      return null;
+    }
+    
+    const place = data.features[0];
+    const props = place.properties;
+    
+    // Create a standardized photo object if available
+    const photos = props.images && props.images.length > 0 
+      ? [{
+          url: props.images[0],
+          attribution: `© Geoapify and data providers`
+        }]
+      : undefined;
+    
+    const details: PlaceDetails = {
       placeId,
-      fields: [
-        'name', 
-        'formatted_address', 
-        'geometry', 
-        'photos', 
-        'website', 
-        'formatted_phone_number', 
-        'rating', 
-        'types'
-      ]
+      name: props.name || props.formatted,
+      formattedAddress: props.formatted,
+      location: {
+        lat: place.geometry.coordinates[1],
+        lng: place.geometry.coordinates[0],
+      },
+      lat: place.geometry.coordinates[1],
+      lng: place.geometry.coordinates[0],
+      photos,
+      website: props.website,
+      phoneNumber: props.contact && props.contact.phone,
+      rating: props.rating,
+      types: props.categories || []
     };
     
-    return new Promise((resolve, reject) => {
-      placesService!.getDetails(request, (place, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && place) {
-          const photos = place.photos?.map(photo => ({
-            url: photo.getUrl({ maxWidth: 400, maxHeight: 400 }),
-            attribution: photo.html_attributions.join(' ')
-          }));
-          
-          const details: PlaceDetails = {
-            placeId,
-            name: place.name || '',
-            formattedAddress: place.formatted_address || '',
-            location: {
-              lat: place.geometry?.location?.lat() || 0,
-              lng: place.geometry?.location?.lng() || 0,
-            },
-            photos,
-            website: place.website,
-            phoneNumber: place.formatted_phone_number,
-            rating: place.rating,
-            types: place.types || []
-          };
-          
-          resolve(details);
-        } else {
-          resolve(null);
-        }
-      });
-    });
+    return details;
   } catch (error) {
-    console.error('Error getting place details:', error);
+    console.error('Error getting place details from Geoapify:', error);
     return null;
   }
 };

@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.2.0",
-    "@googlemaps/js-api-loader": "^1.16.2",
     "@supabase/supabase-js": "^2.39.0",
+    "maplibre-gl": "^3.6.0",
     "@twilio-labs/serverless-runtime-types": "^4.0.1",
     "@types/node": "^22.15.18",
     "@types/react": "^19.1.4",
@@ -32,6 +32,6 @@
     "zustand": "^4.4.7"
   },
   "devDependencies": {
-    "@types/google.maps": "^3.58.1"
+    "@types/maplibre-gl": "^1.14.0"
   }
 }
