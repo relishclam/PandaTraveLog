@@ -110,6 +110,8 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
     <div className="relative w-full">
       <div className="relative">
         <input
+          id="location-search"
+          name="location-search"
           type="text"
           value={query}
           onChange={handleInputChange}

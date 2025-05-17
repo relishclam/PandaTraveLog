@@ -42,7 +42,19 @@ export async function getNearbyCitiesAndPOIs(
     return [];
   }
   
+  // Use environment variable for API key
   const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
+  
+  // Check if the API key is available
+  if (!apiKey) {
+    console.error('❌ Geoapify API key not found in environment variables!');
+    console.error('Please make sure your .env.local file contains NEXT_PUBLIC_GEOAPIFY_API_KEY');
+    return [];
+  }
+  
+  // For debugging: Log that we're using an API key (masked for security)
+  console.log(`ℹ️ Using Geoapify API key (last 4 chars): ...${apiKey.slice(-4)}`);
+  
   const radiusMeters = radiusKm * 1000;
   // You can adjust categories as needed (e.g., tourism.sights, tourism.attraction, city, town, village)
   const categories = 'tourism.sights,tourism.attraction,city,town,village';
@@ -77,80 +89,130 @@ export const getPlaceSuggestions = async (
   }
 
   try {
+    // Use environment variable for API key
     const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
-    let url = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(input.trim())}&apiKey=${apiKey}`;
+
+    // Check if the API key is available
+    if (!apiKey) {
+      console.error('❌ Geoapify API key not found in environment variables!');
+      console.error('Please make sure your .env.local file contains NEXT_PUBLIC_GEOAPIFY_API_KEY');
+      return [];
+    }
+
+    // Log API key details for debugging
+    console.log(`ℹ️ Using Geoapify API key (last 4 chars): ...${apiKey.slice(-4)}`);
+
+    // Use Geoapify Geocoding API for general location search (countries, cities, addresses)
+    let url = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(input.trim())}&apiKey=${apiKey}`;
+
     // Optionally restrict to country
     if (options?.country) {
       url += `&filter=countrycode:${options.country.toLowerCase()}`;
     }
 
-    // Add city-only filter if requested
-    if (options?.restrictToCities) {
-      url += "&type=city";
-    }
-    
-    console.log("API URL being called:", url);
-    
+    console.log("Geocoding API URL being called:", url.replace(apiKey, '****'));
+
     const res = await fetch(url);
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      console.error(`❌ Geoapify Geocoding API error: ${res.status} ${res.statusText}`, errorData);
+      return [];
+    }
+
     const data = await res.json();
-    return (data.features || []).map((feature: any) => ({
-      placeId: feature.properties.place_id,
-      description: feature.properties.formatted,
-      mainText: feature.properties.city || feature.properties.name || feature.properties.state,
-      secondaryText: feature.properties.country || feature.properties.state,
-      types: [feature.properties.result_type],
-      lat: feature.geometry.coordinates[1],
-      lng: feature.geometry.coordinates[0],
-    }));
+
+    // Log the first result for debugging
+    if (data.features && data.features.length > 0) {
+      console.log('Sample geocode data:', JSON.stringify(data.features[0].properties, null, 2));
+    }
+
+    return (data.features || []).map((feature: any) => {
+      const props = feature.properties;
+      const coordinates = feature.geometry.coordinates;
+      return {
+        placeId: props.place_id || props.place_id || props.osm_id || props.datasource?.raw?.place_id || '',
+        description: props.formatted || props.name,
+        mainText: props.name || props.city || props.state || props.country,
+        secondaryText: props.country || (props.state ? `${props.state}, ${props.country || ''}` : ''),
+        types: [props.result_type || 'location'],
+        lat: coordinates[1],
+        lng: coordinates[0],
+      };
+    });
   } catch (error) {
     console.error('Error getting place suggestions from Geoapify:', error);
     return [];
   }
 };
 
-export const getPlaceDetails = async (
-  placeId: string
-): Promise<PlaceDetails | null> => {
+export async function getPlaceDetails(placeId: string) {
   try {
+    // Use environment variable for API key
     const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
-    const url = `https://api.geoapify.com/v2/place-details?id=${placeId}&apiKey=${apiKey}`;
     
+    // Check if the API key is available
+    if (!apiKey) {
+      console.error('❌ Geoapify API key not found in environment variables!');
+      console.error('Please make sure your .env.local file contains NEXT_PUBLIC_GEOAPIFY_API_KEY');
+      return null;
+    }
+
+    // For debugging: Log that we're using an API key (masked for security)
+    console.log(`ℹ️ Using Geoapify API key (last 4 chars): ...${apiKey.slice(-4)}`);
+
+    const url = `https://api.geoapify.com/v2/place-details?id=${encodeURIComponent(placeId)}&apiKey=${apiKey}`;
+    console.log('Place details URL:', url.replace(apiKey, '****'));
     const response = await fetch(url);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error(`❌ Geoapify API error: ${response.status} ${response.statusText}`, errorData);
+      return null;
+    }
+
     const data = await response.json();
     
+    // Verify we have data
     if (!data.features || data.features.length === 0) {
+      console.error('❌ No place details found for ID:', placeId);
       return null;
     }
     
-    const place = data.features[0];
-    const props = place.properties;
+    // Log the full place data for debugging
+    console.log('Place details data:', JSON.stringify(data.features[0].properties, null, 2));
     
-    // Create a standardized photo object if available
-    const photos = props.images && props.images.length > 0 
-      ? [{
-          url: props.images[0],
-          attribution: `© Geoapify and data providers`
-        }]
-      : undefined;
-    
-    const details: PlaceDetails = {
-      placeId,
-      name: props.name || props.formatted,
-      formattedAddress: props.formatted,
-      location: {
-        lat: place.geometry.coordinates[1],
-        lng: place.geometry.coordinates[0],
+    const place = data.features[0].properties;
+    const coordinates = data.features[0].geometry.coordinates;
+
+    // Map the data to our internal structure
+    const result = {
+      formattedAddress: place.formatted || '',
+      geometry: {
+        location: {
+          lat: coordinates[1], // GeoJSON format is [longitude, latitude]
+          lng: coordinates[0],
+        },
       },
-      lat: place.geometry.coordinates[1],
-      lng: place.geometry.coordinates[0],
-      photos,
-      website: props.website,
-      phoneNumber: props.contact && props.contact.phone,
-      rating: props.rating,
-      types: props.categories || []
+      name: place.name || place.street || place.city || 'Unknown Place',
+      placeId: place.place_id,
+      // Additional useful properties
+      countryCode: place.country_code,
+      country: place.country,
+      city: place.city,
+      postcode: place.postcode,
+      lat: coordinates[1],
+      lng: coordinates[0],
+      photos: place.images && place.images.length > 0 ? [
+        { url: place.images[0], attribution: '© Geoapify' }
+      ] : undefined,
+      website: place.website,
+      phoneNumber: place.contact?.phone,
+      rating: place.rating,
+      types: place.categories || []
     };
     
-    return details;
+    return result;
   } catch (error) {
     console.error('Error getting place details from Geoapify:', error);
     return null;

@@ -136,7 +136,7 @@ export default function NewTripPage() {
         {step === 1 && (
           <div className="space-y-6">
             <h2 className="text-xl font-bold">Where would you like to go?</h2>
-            <LocationSearch onSelect={handleDestinationSelect} placeholder="Search for a destination..." />
+            <LocationSearch onSelect={handleDestinationSelect} placeholder="Search for a destination(Country, City, etc)..." />
             
             {destination && (
               <div className="bg-green-50 p-4 rounded-md">

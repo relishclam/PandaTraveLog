@@ -2,7 +2,6 @@
 
 import React, { useEffect } from 'react';
 import { AuthProvider } from '@/contexts/AuthContext';
-import { blockGoogleMapsScripts } from '@/lib/google-maps-blocker';
 
 // Simple error boundary component
 class ErrorBoundary extends React.Component<{children: React.ReactNode}> {
@@ -30,7 +29,7 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}> {
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  // Add global error handler and Google Maps blocker
+  // Add global error handler
   useEffect(() => {
     // Set up error handler
     const handleError = (event: ErrorEvent) => {
@@ -39,9 +38,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
     window.addEventListener('error', handleError);
     console.log("🔧 Global error handlers installed");
-    
-    // Block Google Maps Platform APIs
-    blockGoogleMapsScripts();
     
     return () => {
       window.removeEventListener('error', handleError);

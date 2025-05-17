@@ -36,10 +36,12 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           
-          # Google APIs
-          GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
-          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
-          NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
+          
+          # Geoapify API
+          GEOAPIFY_API_KEY: ${{ secrets.GEOAPIFY_API_KEY }}
+          NEXT_PUBLIC_GEOAPIFY_API_KEY: ${{ secrets.NEXT_PUBLIC_GEOAPIFY_API_KEY }}
+
+          # Google API
           GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
           
           # Gemini AI
@@ -70,7 +72,7 @@ jobs:
       # Deploy Production for Main Branch
       - name: Deploy Production to Netlify
         if: github.ref == 'refs/heads/main'
-        uses: netlify/actions/cli@master
+        uses: netlify/actions/cli@main
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
