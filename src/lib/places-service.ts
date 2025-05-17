@@ -16,6 +16,8 @@ export type PlaceDetails = {
     lat: number;
     lng: number;
   };
+  lat: number;
+  lng: number;
   photos?: {
     url: string;
     attribution: string;
