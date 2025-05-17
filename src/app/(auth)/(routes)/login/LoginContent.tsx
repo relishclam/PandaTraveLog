@@ -79,9 +79,8 @@ export default function LoginContent() {
       setPandaEmotion('excited');
       setPandaMessage("Welcome back! Let's continue planning your adventures!");
       
-      // Redirect to dashboard after successful login
-      console.log("🧭 Redirecting to dashboard...");
-      router.push('/dashboard');
+      // AuthContext will handle the redirection
+      console.log("🧭 AuthContext will handle redirection...");
          
     } catch (err: any) {
       console.error('❌ Login error:', err);
