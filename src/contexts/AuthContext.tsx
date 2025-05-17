@@ -161,7 +161,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Force a complete page reload to prevent SPA navigation issues
       console.log("🔄 AuthContext: Redirecting to trips page");
-      window.location.href = '/trips';
+      router.push('/trips');
+      router.refresh();
     } catch (error: any) {
       console.error('❌ AuthContext: Error signing in:', error);
       throw error;
@@ -267,7 +268,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await supabase.auth.signOut();
       console.log("✅ AuthContext: Signed out successfully");
-      window.location.href = '/';
+      router.push('/');
+      router.refresh();
     } catch (error) {
       console.error('❌ AuthContext: Error signing out:', error);
       throw error;

@@ -46,6 +46,37 @@ export default function LoginContent() {
     setIsMounted(true);
   }, []);
   
+  // Debug: Add diagnostic logging - IMPORTANT: This must be called before any conditional returns
+  useEffect(() => {
+    // Only run diagnostics on the client side
+    if (isMounted) {
+      console.log("=== LOGIN DIAGNOSTICS START ===");
+      console.log("LoginContent component loaded");
+      
+      // Check environment variables 
+      console.log("API Keys available:", {
+        supabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+        supabaseAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      });
+      
+      // Check authentication state
+      const checkAuthState = async () => {
+        try {
+          const { data } = await supabase.auth.getSession();
+          console.log("Current auth state:", data.session ? "Authenticated" : "Not authenticated");
+        } catch (error) {
+          console.error("Error checking auth state:", error);
+        }
+      };
+      
+      checkAuthState();
+      
+      return () => {
+        console.log("=== LOGIN DIAGNOSTICS END ===");
+      };
+    }
+  }, [isMounted]);
+  
   // Always render a loading state on the server, and the same on first client render
   // This prevents hydration mismatch
   if (!isMounted || authLoading) {
@@ -58,34 +89,6 @@ export default function LoginContent() {
       </div>
     );
   }
-
-  // Debug: Add diagnostic logging
-  useEffect(() => {
-    console.log("=== LOGIN DIAGNOSTICS START ===");
-    console.log("LoginContent component loaded");
-    
-    // Check environment variables 
-    console.log("API Keys available:", {
-      supabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-      supabaseAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    });
-    
-    // Check authentication state
-    const checkAuthState = async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        console.log("Current auth state:", data.session ? "Authenticated" : "Not authenticated");
-      } catch (error) {
-        console.error("Error checking auth state:", error);
-      }
-    };
-    
-    checkAuthState();
-    
-    return () => {
-      console.log("=== LOGIN DIAGNOSTICS END ===");
-    };
-  }, []);
 
   const onSubmit = async (data: LoginFormData) => {
     try {
