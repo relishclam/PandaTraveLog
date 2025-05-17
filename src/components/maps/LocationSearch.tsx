@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { type PlaceSuggestion } from '@/lib/places-service';
-import { getPlaceSuggestionsProxy as getPlaceSuggestions, getNearbyCitiesAndPOIsProxy as getNearbyCitiesAndPOIs } from '@/lib/places-service-proxy';
+import { getPlaceSuggestions, getNearbyCitiesAndPOIs, type PlaceSuggestion } from '@/lib/places-service';
 import { getCountryCodeByName } from '@/lib/country-codes';
 import { PandaAssistant } from '@/components/ui/PandaAssistant';
 
