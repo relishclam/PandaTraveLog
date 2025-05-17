@@ -1,0 +1,16 @@
+[build]
+  # Standard Next.js build output
+  command = "npm ci && npm run build"
+  publish = ".next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[build.environment]
+  NEXT_USE_NETLIFY_EDGE = "true"
+  NODE_VERSION = "18"
+  # Make sure these match your .env variables
+  NEXT_PUBLIC_SUPABASE_URL = "https://xhdcccmzciblpbrcrnii.supabase.co"
+  NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhoZGNjY216Y2libHBicmNybmlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkyMzg3MTAsImV4cCI6MjA1NDgxNDcxMH0.HH1tJatUQiHZC62Kl0_h7wTxrh2ZKHJAjcncKE30UYU"
+  # Add your Geoapify API key here for Netlify deployments
+  NEXT_PUBLIC_GEOAPIFY_API_KEY = "5a047258d51943729c19139c17b7ff1a"

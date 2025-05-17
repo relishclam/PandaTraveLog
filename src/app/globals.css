@@ -1,0 +1,47 @@
+/* src/app/globals.css */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --panda-black: #2D2D2D;
+  --panda-white: #FFFFFF;
+  --backpack-orange: #FF9D2F;
+  --leaf-green: #4CAF50;
+  --bamboo-light: #F5F5DC;
+  --highlight-blue: #87CEEB;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--bamboo-light);
+  color: var(--panda-black);
+  font-family: 'Nunito', sans-serif;
+}
+
+.panda-shadow {
+  filter: drop-shadow(0 4px 3px rgb(0 0 0 / 0.07)) drop-shadow(0 2px 2px rgb(0 0 0 / 0.06));
+}
+
+.speech-bubble {
+  position: relative;
+}
+
+.speech-bubble:after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  right: 15px;
+  border-width: 10px 10px 0;
+  border-style: solid;
+  border-color: white transparent;
+}

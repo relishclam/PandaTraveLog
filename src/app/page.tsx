@@ -1,0 +1,130 @@
+import Image from 'next/image';
+import Link from 'next/link';
+import { Button } from '@/components/ui/Button';
+import { PandaAssistant } from '@/components/ui/PandaAssistant';
+
+export default function Home() {
+  return (
+    <div className="min-h-screen bg-bamboo-light">
+      {/* PO Logo at Top */}
+      <div className="w-full flex justify-center pt-10 pb-4">
+        <Image
+          src="/images/po/happy.png"
+          alt="Meet PO the Travel Panda"
+          width={360}
+          height={360}
+          className="object-contain drop-shadow-lg"
+          priority
+        />
+      </div>
+      {/* Hero Section */}
+      <section className="relative overflow-hidden">
+        <div className="container mx-auto px-4 py-8 md:py-16 flex flex-col md:flex-row items-center justify-between">
+          {/* Hero Text */}
+          <div className="md:w-1/2 mb-10 md:mb-0 text-center md:text-left">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 text-panda-black">
+              Plan Your Adventure with <span className="text-backpack-orange">PO</span>
+            </h1>
+            <p className="text-lg md:text-xl mb-8 text-gray-700">
+              Your friendly travel panda helps you create perfect itineraries, discover hidden gems, and make your travel dreams come true!
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
+              <Button href="/register" size="lg" className="bg-backpack-orange hover:bg-backpack-orange/90 text-white font-bold">
+                Start Planning
+              </Button>
+              <Button href="/login" size="lg" variant="outline" className="border-backpack-orange text-backpack-orange">
+                Sign In
+              </Button>
+            </div>
+          </div>
+          
+          {/* Hero Image */}
+          {/* Removed duplicate PO logo from hero image section */}
+        </div>
+      </section>
+      
+      {/* Features Section */}
+      <section className="bg-white py-16">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center">How PO Helps You Travel Better</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Feature 1 */}
+            <div className="bg-bamboo-light p-6 rounded-xl">
+              <div className="bg-backpack-orange w-12 h-12 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold mb-2">Smart Itineraries</h3>
+              <p className="text-gray-700">PO creates personalized day-by-day itineraries based on your preferences and travel style.</p>
+            </div>
+            
+            {/* Feature 2 */}
+            <div className="bg-bamboo-light p-6 rounded-xl">
+              <div className="bg-backpack-orange w-12 h-12 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold mb-2">Discover Hidden Gems</h3>
+              <p className="text-gray-700">Find amazing places that most tourists miss with PO's local knowledge and recommendations.</p>
+            </div>
+            
+            {/* Feature 3 */}
+            <div className="bg-bamboo-light p-6 rounded-xl">
+              <div className="bg-backpack-orange w-12 h-12 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold mb-2">Travel Together</h3>
+              <p className="text-gray-700">Plan trips with friends and family, keeping everyone on the same page with shared itineraries.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      {/* CTA Section */}
+      <section className="bg-panda-black text-white py-16">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Plan Your Next Adventure?</h2>
+          <p className="text-xl mb-8 max-w-2xl mx-auto">Let PO the Travel Panda help you create unforgettable travel experiences with personalized itineraries.</p>
+          <Button href="/register" size="lg" className="bg-backpack-orange hover:bg-backpack-orange/90 text-white font-bold px-8 py-3">
+            Start Planning for Free
+          </Button>
+        </div>
+      </section>
+      
+      {/* Footer */}
+      <footer className="bg-white py-8">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <div className="flex items-center mb-4 md:mb-0">
+              <Image
+                src="/images/po/happy.png"
+                alt="PO the Travel Panda"
+                width={40}
+                height={40}
+                className="mr-2"
+              />
+              <span className="font-bold text-panda-black">PandaTraveLog</span>
+            </div>
+            <div className="text-sm text-gray-500">
+              &copy; {new Date().getFullYear()} PandaTraveLog. All rights reserved.
+            </div>
+          </div>
+        </div>
+      </footer>
+
+      {/* PO Assistant */}
+      <PandaAssistant 
+        message="Hi there! I'm PO, your friendly travel assistant. Need help planning your next adventure?"
+        emotion="excited"
+        position="bottom-right"
+        size="lg"
+      />
+    </div>
+  );
+}
