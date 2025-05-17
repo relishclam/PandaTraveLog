@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import Link from "next/link";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { PandaAssistant } from "@/components/ui/PandaAssistant";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,6 +21,7 @@ type ResetFormData = {
 
 export default function LoginContent() {
   const { signIn, resetPassword } = useAuth();
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isResetLoading, setIsResetLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +79,9 @@ export default function LoginContent() {
       setPandaEmotion('excited');
       setPandaMessage("Welcome back! Let's continue planning your adventures!");
       
+      // Redirect to dashboard after successful login
+      console.log("🧭 Redirecting to dashboard...");
+      router.push('/dashboard');
          
     } catch (err: any) {
       console.error('❌ Login error:', err);
