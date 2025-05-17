@@ -36,10 +36,10 @@ export default function DashboardLayout({
   // Show loading spinner during initial load
   if (isLoading || (!user && !authChecked)) {
     return (
-      <div className="flex items-center justify-center h-screen bg-bamboo-light">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-bamboo-light p-4">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-gray-200 border-t-backpack-orange rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-700">Loading...</p>
+          <p className="text-gray-600">Loading your dashboard...</p>
         </div>
       </div>
     );

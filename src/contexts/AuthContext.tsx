@@ -28,8 +28,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // This flag helps us avoid hydration mismatches
+  const [mounted, setMounted] = useState(false);
 
+  // This ensures we're only running this code on the client side
   useEffect(() => {
+    const initAuth = async () => {
+      setMounted(true);
+      
+      // Fetch the initial session
+      await fetchSession();
+      
+      // Set up auth listener
+      const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log("🔄 AuthContext: Auth state changed", event);
+        if (session?.user) {
+          await updateUserState(session.user);
+        } else {
+          setUser(null);
+        }
+      });
+      
+      // Store the listener for cleanup
+      return authListener;
+    };
+    
+    // Function to fetch the current session
     const fetchSession = async () => {
       console.log("🔄 AuthContext: Fetching session");
       const { data: { session }, error } = await supabase.auth.getSession();
@@ -43,57 +67,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (session?.user) {
         console.log("✅ AuthContext: Session found");
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-
-        setUser({
-          id: session.user.id,
-          email: session.user.email!,
-          name: profile?.name || '',
-          phone: profile?.phone || '',
-          isPhoneVerified: profile?.is_phone_verified || false
-        });
-        console.log("👤 AuthContext: User set", {
-          hasEmail: !!session.user.email,
-          hasName: !!profile?.name,
-          hasPhone: !!profile?.phone
-        });
+        await updateUserState(session.user);
       } else {
         console.log("❗ AuthContext: No session found");
         setUser(null);
+        setIsLoading(false);
       }
+    };
+    
+    // Helper function to update user state from Supabase user
+    const updateUserState = async (supabaseUser: any) => {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', supabaseUser.id)
+        .single();
 
+      setUser({
+        id: supabaseUser.id,
+        email: supabaseUser.email!,
+        name: profile?.name || '',
+        phone: profile?.phone || '',
+        isPhoneVerified: profile?.is_phone_verified || false
+      });
+      
+      console.log("👤 AuthContext: User set", {
+        email: supabaseUser.email,
+        hasName: !!profile?.name,
+        hasPhone: !!profile?.phone
+      });
+      
       setIsLoading(false);
     };
-
-    fetchSession();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
-      console.log("🔄 AuthContext: Auth state changed", event);
-      if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-
-        setUser({
-          id: session.user.id,
-          email: session.user.email!,
-          name: profile?.name || '',
-          phone: profile?.phone || '',
-          isPhoneVerified: profile?.is_phone_verified || false
-        });
-      } else {
-        setUser(null);
-      }
+    
+    // Start the auth initialization process
+    let authListenerCleanup: any;
+    
+    initAuth().then(listener => {
+      authListenerCleanup = listener;
     });
-
+    
     return () => {
-      authListener.subscription.unsubscribe();
+      // Clean up the auth listener when the component unmounts
+      if (authListenerCleanup) {
+        authListenerCleanup.subscription.unsubscribe();
+      }
     };
   }, []);
 
@@ -258,8 +276,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Pass the real authentication state but prevent hydration mismatches
+  // We use the mounted flag just for client-side effects, not for altering the API
+  const value = {
+    user,
+    isLoading, 
+    signIn, 
+    signUp, 
+    signOut, 
+    updateUserPhone, 
+    resetPassword
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, signIn, signUp, signOut, updateUserPhone, resetPassword }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

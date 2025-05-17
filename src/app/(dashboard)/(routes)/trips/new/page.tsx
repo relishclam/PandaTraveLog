@@ -27,7 +27,15 @@ type FormData = {
 
 export default function NewTripPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div>Loading...</div>
+      </div>
+    );
+  }
   const [step, setStep] = useState(1);
   const [destination, setDestination] = useState<any>(null);
   const [placeDetails, setPlaceDetails] = useState<any>(null);

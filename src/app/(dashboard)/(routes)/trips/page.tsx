@@ -24,7 +24,15 @@ type Trip = {
 };
 
 export default function TripsPage() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div>Loading trips...</div>
+      </div>
+    );
+  }
   const router = useRouter();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);

@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { getPlaceSuggestions, type PlaceSuggestion } from '@/lib/places-service';
+import { type PlaceSuggestion } from '@/lib/places-service';
+import { getPlaceSuggestionsProxy as getPlaceSuggestions, getNearbyCitiesAndPOIsProxy as getNearbyCitiesAndPOIs } from '@/lib/places-service-proxy';
+import { getCountryCodeByName } from '@/lib/country-codes';
 import { PandaAssistant } from '@/components/ui/PandaAssistant';
 
 type LocationSearchProps = {
@@ -56,8 +58,34 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
           setShowAssistant(true);
         }
         
-        const results = await getPlaceSuggestions(value);
-        setSuggestions(results);
+        // Detect if input is a country
+        const countryCode = getCountryCodeByName(value.trim());
+        let results: PlaceSuggestion[] = [];
+        if (countryCode) {
+          // Restrict to cities within the country
+          results = await getPlaceSuggestions(value, {
+            country: countryCode,
+            restrictToCities: true,
+          });
+        } else {
+          // Always restrict to cities (worldwide)
+          results = await getPlaceSuggestions(value, {
+            restrictToCities: true,
+          });
+        }
+        // If the top suggestion is a city, fetch nearby cities/POIs
+        if (
+          results.length > 0 &&
+          results[0].types &&
+          (results[0].types.includes('locality') || results[0].types.includes('administrative_area_level_3'))
+        ) {
+          const nearby = await getNearbyCitiesAndPOIs(results[0], 100);
+          // Merge city and nearby POIs/cities, removing duplicates by placeId
+          const allResults = [results[0], ...nearby.filter(poi => poi.placeId !== results[0].placeId)];
+          setSuggestions(allResults);
+        } else {
+          setSuggestions(results);
+        }
       } catch (error) {
         console.error('Error searching for places:', error);
         setError('Failed to search for locations');

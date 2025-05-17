@@ -33,15 +33,22 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
   initiallyVisible = true,
   persistState = true
 }) => {
-  // Get initial visibility state from localStorage if persistState is enabled
-  const getInitialVisibility = useCallback(() => {
-    if (typeof window === 'undefined' || !persistState) return initiallyVisible;
-    const savedState = localStorage.getItem('pandaAssistantState');
-    return savedState ? JSON.parse(savedState).visible : initiallyVisible;
-  }, [initiallyVisible, persistState]);
-  
-  const [visible, setVisible] = useState(getInitialVisibility());
+  // SSR-safe initial state
+  const [visible, setVisible] = useState(initiallyVisible);
   const [minimized, setMinimized] = useState(false);
+
+  // After mount, initialize visibility from localStorage if needed
+  useEffect(() => {
+    if (persistState && typeof window !== 'undefined') {
+      const savedState = localStorage.getItem('pandaAssistantState');
+      if (savedState) {
+        const { visible: savedVisible, minimized: savedMinimized } = JSON.parse(savedState);
+        setVisible(savedVisible);
+        setMinimized(savedMinimized);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [isHovered, setIsHovered] = useState(false);
   const [bouncing, setBouncing] = useState(false);
   const [imageError, setImageError] = useState(false);

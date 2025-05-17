@@ -13,9 +13,17 @@ export default function AccountPage() {
   const [pandaEmotion, setPandaEmotion] = useState<'happy' | 'thinking' | 'excited' | 'confused'>('happy');
   const [pandaMessage, setPandaMessage] = useState('Here\'s your account information!');
   
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div>Loading account information...</div>
+      </div>
+    );
+  }
+
   // Redirect to login if not authenticated
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (!user) {
       console.log("👤 Account: No user found, redirecting to login");
       router.push('/login');
     } else if (user) {
@@ -27,11 +35,7 @@ export default function AccountPage() {
     }
   }, [user, isLoading, router]);
   
-  if (isLoading) {
-    return <div className="min-h-screen flex justify-center items-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-backpack-orange"></div>
-    </div>;
-  }
+  // Loading check is handled above
   
   if (!user) {
     return null; // Will redirect in the useEffect

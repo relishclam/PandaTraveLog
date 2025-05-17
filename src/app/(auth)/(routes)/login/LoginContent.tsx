@@ -20,7 +20,12 @@ type ResetFormData = {
 };
 
 export default function LoginContent() {
-  const { signIn, resetPassword } = useAuth();
+  // Track if we're mounted on the client to avoid hydration issues
+  const [isMounted, setIsMounted] = useState(false);
+  
+  // Get auth context (will be handled safely with the isMounted check)
+  const { signIn, resetPassword, isLoading: authLoading } = useAuth();
+  
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isResetLoading, setIsResetLoading] = useState(false);
@@ -35,6 +40,24 @@ export default function LoginContent() {
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>();
   const { register: registerReset, handleSubmit: handleResetSubmit, formState: { errors: resetErrors } } = useForm<ResetFormData>();
+
+  // Set isMounted to true after initial render on client-side
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  
+  // Always render a loading state on the server, and the same on first client render
+  // This prevents hydration mismatch
+  if (!isMounted || authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bamboo-light">
+        <div className="flex flex-col items-center">
+          <Image src="/images/po/happy.png" alt="PO the Travel Panda" width={60} height={60} />
+          <div className="mt-4 text-lg font-medium text-panda-black">Loading...</div>
+        </div>
+      </div>
+    );
+  }
 
   // Debug: Add diagnostic logging
   useEffect(() => {

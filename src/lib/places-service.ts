@@ -6,6 +6,8 @@ export type PlaceSuggestion = {
   mainText: string;
   secondaryText: string;
   types: string[];
+  lat?: number;
+  lng?: number;
 };
 
 export type PlaceDetails = {
@@ -43,38 +45,83 @@ const initServices = async () => {
   }
 };
 
+import { getCountryCodeByName } from './country-codes';
+
+// Helper: Fetch nearby cities and POIs (points of interest) within a radius from a city
+export async function getNearbyCitiesAndPOIs(
+  city: PlaceSuggestion,
+  radiusKm: number = 100
+): Promise<PlaceSuggestion[]> {
+  // Check if we have lat/lng coordinates in the city object
+  const { lat, lng } = city;
+  
+  if (!lat || !lng) {
+    console.error('Missing coordinates for city:', city.description);
+    return [];
+  }
+  
+  const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
+  const radiusMeters = radiusKm * 1000;
+  // You can adjust categories as needed (e.g., tourism.sights, tourism.attraction, city, town, village)
+  const categories = 'tourism.sights,tourism.attraction,city,town,village';
+  const url = `https://api.geoapify.com/v2/places?categories=${categories}&filter=circle:${lng},${lat},${radiusMeters}&limit=20&apiKey=${apiKey}`;
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    return (data.features || []).map((feature: any) => ({
+      placeId: feature.properties.place_id,
+      description: feature.properties.formatted,
+      mainText: feature.properties.city || feature.properties.name || feature.properties.state,
+      secondaryText: feature.properties.country || feature.properties.state,
+      types: feature.properties.categories || [],
+      lat: feature.geometry.coordinates[1],
+      lng: feature.geometry.coordinates[0],
+    }));
+  } catch (error) {
+    console.error('Error getting nearby cities and POIs from Geoapify:', error);
+    return [];
+  }
+}
+
+
+
 export const getPlaceSuggestions = async (
-  input: string
+  input: string,
+  options?: { country?: string; restrictToCities?: boolean }
 ): Promise<PlaceSuggestion[]> => {
   if (!input || input.trim().length < 2) {
     return [];
   }
-  
+
   try {
-    await initServices();
+    const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
+    let url = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(input.trim())}&apiKey=${apiKey}`;
+    // Optionally restrict to country
+    if (options?.country) {
+      url += `&filter=countrycode:${options.country.toLowerCase()}`;
+    }
+
+    // Add city-only filter if requested
+    if (options?.restrictToCities) {
+      url += "&type=city";
+    }
     
-    const request: google.maps.places.AutocompletionRequest = {
-      input: input.trim()
-    };
+    console.log("API URL being called:", url);
     
-    return new Promise((resolve, reject) => {
-      autocompleteService!.getPlacePredictions(request, (predictions, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
-          const suggestions: PlaceSuggestion[] = predictions.map(prediction => ({
-            placeId: prediction.place_id,
-            description: prediction.description,
-            mainText: prediction.structured_formatting?.main_text || prediction.description,
-            secondaryText: prediction.structured_formatting?.secondary_text || '',
-            types: prediction.types || []
-          }));
-          resolve(suggestions);
-        } else {
-          resolve([]);
-        }
-      });
-    });
+    const res = await fetch(url);
+    const data = await res.json();
+    return (data.features || []).map((feature: any) => ({
+      placeId: feature.properties.place_id,
+      description: feature.properties.formatted,
+      mainText: feature.properties.city || feature.properties.name || feature.properties.state,
+      secondaryText: feature.properties.country || feature.properties.state,
+      types: [feature.properties.result_type],
+      lat: feature.geometry.coordinates[1],
+      lng: feature.geometry.coordinates[0],
+    }));
   } catch (error) {
-    console.error('Error getting place suggestions:', error);
+    console.error('Error getting place suggestions from Geoapify:', error);
     return [];
   }
 };

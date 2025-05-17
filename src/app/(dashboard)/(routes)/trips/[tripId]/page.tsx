@@ -47,7 +47,15 @@ type Location = {
 export default function TripDetailsPage({ params }: { params: { tripId: string } }) {
   const { tripId } = params;
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div>Loading trip details...</div>
+      </div>
+    );
+  }
   const [trip, setTrip] = useState<Trip | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
