@@ -3,6 +3,9 @@
 import { useRef, useEffect, useState } from 'react';
 import { initGoogleMapsLoader } from '@/lib/google-maps-loader';
 
+// Check if we're in a browser environment
+const isBrowser = typeof window !== 'undefined';
+
 type MapComponentProps = {
   center: { lat: number; lng: number };
   zoom?: number;
@@ -26,6 +29,9 @@ const MapComponent: React.FC<MapComponentProps> = ({
   
   // Initialize map
   useEffect(() => {
+    // Skip this effect entirely on server-side
+    if (!isBrowser) return;
+    
     let isMounted = true;
     let map: google.maps.Map | null = null;
     
@@ -83,6 +89,9 @@ const MapComponent: React.FC<MapComponentProps> = ({
   
   // Update center and zoom when props change
   useEffect(() => {
+    // Skip this effect entirely on server-side
+    if (!isBrowser) return;
+    
     if (mapInstance) {
       mapInstance.setCenter(center);
       mapInstance.setZoom(zoom);
@@ -91,6 +100,9 @@ const MapComponent: React.FC<MapComponentProps> = ({
   
   // Update markers when they change
   useEffect(() => {
+    // Skip this effect entirely on server-side
+    if (!isBrowser) return;
+    
     // Clear existing markers
     mapMarkers.forEach(marker => marker.setMap(null));
     
@@ -123,6 +135,13 @@ const MapComponent: React.FC<MapComponentProps> = ({
       newMarkers.forEach(marker => marker.setMap(null));
     };
   }, [markers, mapInstance]);
+  
+  // If we're on the server, return an empty placeholder to avoid hydration issues
+  if (!isBrowser) {
+    return (
+      <div style={{ width: '100%', height: '100%', borderRadius: '0.375rem', background: '#F5F5DC' }}></div>
+    );
+  }
   
   return (
     <div ref={mapRef} style={{ width: '100%', height: '100%', borderRadius: '0.375rem' }}></div>
