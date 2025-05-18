@@ -90,8 +90,8 @@ export default function NewTripPage() {
           notes: data.notes,
           destination: destination.description,
           destination_coords: {
-            lat: placeDetails.location.lat,
-            lng: placeDetails.location.lng
+            lat: placeDetails.lat || placeDetails.location?.lat,
+            lng: placeDetails.lon || placeDetails.location?.lng
           },
           place_id: destination.placeId
         })
@@ -231,15 +231,15 @@ export default function NewTripPage() {
                 <div className="h-64 rounded-md overflow-hidden">
                   <MapComponent 
                     center={{ 
-                      lat: placeDetails.location.lat, 
-                      lng: placeDetails.location.lng 
+                      lat: placeDetails.lat || placeDetails.location?.lat || 0, 
+                      lng: placeDetails.lon || placeDetails.location?.lng || 0 
                     }}
                     markers={[{
                       position: {
-                        lat: placeDetails.location.lat,
-                        lng: placeDetails.location.lng
+                        lat: placeDetails.lat || placeDetails.location?.lat || 0,
+                        lng: placeDetails.lon || placeDetails.location?.lng || 0
                       },
-                      title: placeDetails.name
+                      title: placeDetails.name || destination.mainText || 'Selected Location'
                     }]}
                     zoom={12}
                   />
