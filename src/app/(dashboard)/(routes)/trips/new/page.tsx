@@ -237,11 +237,11 @@ export default function NewTripPage() {
     setIsLoading(true);
     setError(null);
     setPandaEmotion('thinking');
-    setPandaMessage('Creating your trip...');
+    setPandaMessage('Creating your trip and preparing your adventure...');
     
     try {
-      // Mock API call - replace with your actual API call
-      console.log('Creating trip:', {
+      // Prepare trip data
+      const tripData = {
         user_id: user.id,
         title: data.title,
         start_date: data.startDate,
@@ -258,24 +258,46 @@ export default function NewTripPage() {
             coords: d.location
           })) : 
           []
+      };
+      
+      console.log('Creating trip:', tripData);
+      
+      // Create the trip in the database (replace with your actual API call)
+      // This should save the basic trip details and return a trip ID
+      const response = await fetch('/api/trips/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(tripData),
       });
       
-      // Simulate successful creation
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!response.ok) {
+        throw new Error('Failed to create trip');
+      }
+      
+      const result = await response.json();
+      const tripId = result.id || `trip-${Date.now()}`; // Fallback ID if none returned
       
       setPandaEmotion('excited');
-      setPandaMessage("Trip created! Now let's plan your itinerary!");
+      setPandaMessage("Trip saved! Now let's plan your itinerary!");
       
-      // Navigate to the trip detail page
-      setTimeout(() => {
-        router.push(`/trips`);
-      }, 1000);
+      // Navigate to the itinerary generation page with the new trip ID
+      try {
+        console.log("Navigating to the itinerary generation page with ID:", tripId);
+        router.push(`/trips/${tripId}/itinerary?new=true`);
+      } catch (err: any) {
+        console.error("Error navigating:", err);
+        setError("Failed to navigate to trip. Please try again.");
+        setPandaEmotion("confused");
+        setPandaMessage("Oh no! I had trouble saving your trip. Let's try again.");
+        setIsLoading(false);
+      }
     } catch (err: any) {
       console.error('Error creating trip:', err);
       setError('Failed to create trip. Please try again.');
       setPandaEmotion('confused');
       setPandaMessage('Oh no! I had trouble saving your trip. Let\'s try again.');
-    } finally {
       setIsLoading(false);
     }
   };

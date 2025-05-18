@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { motion, AnimatePresence, HTMLMotionProps } from 'framer-motion';
 import { IoClose, IoExpand, IoContract } from 'react-icons/io5';
 
-type Emotion = 'happy' | 'thinking' | 'excited' | 'confused';
+type Emotion = 'happy' | 'thinking' | 'excited' | 'confused' | 'sad';
 
 type ResponseButton = {
   text: string;
@@ -123,6 +123,8 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
         return '/images/po/excited.png';
       case 'confused':
         return '/images/po/confused.png';
+      case 'sad':
+        return '/images/po/sad.png';
       case 'happy':
       default:
         return '/images/po/happy.png';
