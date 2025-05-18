@@ -43,6 +43,9 @@ export default function NewTripPage() {
   const [error, setError] = useState<string | null>(null);
   const [pandaEmotion, setPandaEmotion] = useState<'happy' | 'thinking' | 'excited' | 'confused'>('excited');
   const [pandaMessage, setPandaMessage] = useState("Hi there! Let's plan your adventure. Where would you like to go?");
+  const [showMultiDestinationPrompt, setShowMultiDestinationPrompt] = useState(false);
+  const [wantsMultipleDestinations, setWantsMultipleDestinations] = useState(false);
+  const [responseButtons, setResponseButtons] = useState<any[]>([]);
   
   const { register, handleSubmit, formState: { errors }, watch } = useForm<FormData>();
   
@@ -56,16 +59,48 @@ export default function NewTripPage() {
       setDestination(place);
       setPlaceDetails(details);
       
+      // After selecting destination, ask about multiple destinations
       setPandaEmotion('excited');
-      setPandaMessage(`${place.mainText} is a great choice! Now let's set up your trip details.`);
+      setPandaMessage(`${place.mainText} is a great choice! Do you have multiple destinations in mind for this trip?`);
       
-      setStep(2);
+      // Set response buttons for multiple destinations question
+      setResponseButtons([
+        {
+          text: 'Yes, multiple destinations',
+          onClick: () => handleMultiDestinationResponse(true),
+          variant: 'primary'
+        },
+        {
+          text: 'No, just one destination',
+          onClick: () => handleMultiDestinationResponse(false),
+          variant: 'outline'
+        }
+      ]);
+      
+      setShowMultiDestinationPrompt(true);
     } catch (error) {
       console.error('Error fetching place details:', error);
       setPandaEmotion('confused');
       setPandaMessage("I'm having trouble finding information about this place. Could you try a different destination?");
       setError('Failed to load place details');
     }
+  };
+  
+  // Handle the user's response to multiple destinations question
+  const handleMultiDestinationResponse = (wantsMultiple: boolean) => {
+    setWantsMultipleDestinations(wantsMultiple);
+    setShowMultiDestinationPrompt(false);
+    setResponseButtons([]);
+    
+    if (wantsMultiple) {
+      setPandaMessage(`Great! ${destination.mainText} will be your primary destination. We're working on supporting multiple destinations in a future update!`);
+      // In the future, here you would enable UI for adding more destinations
+    } else {
+      setPandaMessage(`Perfect! Let's set up your trip to ${destination.mainText}.`);
+    }
+    
+    // Move to step 2 after answering about multiple destinations
+    setStep(2);
   };
   
   // Handle form submission
@@ -272,6 +307,7 @@ export default function NewTripPage() {
         message={pandaMessage}
         position="bottom-right"
         size="lg"
+        responseButtons={responseButtons}
       />
     </div>
   );

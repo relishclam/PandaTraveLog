@@ -8,6 +8,12 @@ import { IoClose, IoExpand, IoContract } from 'react-icons/io5';
 
 type Emotion = 'happy' | 'thinking' | 'excited' | 'confused';
 
+type ResponseButton = {
+  text: string;
+  onClick: () => void;
+  variant?: 'primary' | 'secondary' | 'outline';
+};
+
 type PandaAssistantProps = {
   message?: string;
   emotion?: Emotion;
@@ -19,6 +25,7 @@ type PandaAssistantProps = {
   animate?: boolean;
   initiallyVisible?: boolean; // Control initial visibility state
   persistState?: boolean; // Whether to persist visibility state in localStorage
+  responseButtons?: ResponseButton[]; // Array of response buttons
 };
 
 export const PandaAssistant: React.FC<PandaAssistantProps> = ({
@@ -31,7 +38,8 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
   size = 'md',
   animate = true,
   initiallyVisible = true,
-  persistState = true
+  persistState = true,
+  responseButtons = []
 }) => {
   // SSR-safe initial state
   const [visible, setVisible] = useState(initiallyVisible);
@@ -208,19 +216,48 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.9 }}
             >
-              <div className="flex justify-between items-start">
-                <div className="font-medium text-sm">{message}</div>
-                {onMessageClose && (
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onMessageClose();
-                    }}
-                    className="ml-2 text-gray-400 hover:text-gray-600"
-                    type="button"
-                  >
-                    ×
-                  </button>
+              <div className="flex flex-col">
+                <div className="flex justify-between items-start">
+                  <div className="font-medium text-sm">{message}</div>
+                  {onMessageClose && (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMessageClose();
+                      }}
+                      className="ml-2 text-gray-400 hover:text-gray-600"
+                      type="button"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+                
+                {/* Response buttons */}
+                {responseButtons && responseButtons.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {responseButtons.map((button, index) => {
+                      const variantClasses = {
+                        primary: 'bg-backpack-orange text-white hover:bg-backpack-orange/90',
+                        secondary: 'bg-bamboo-dark text-white hover:bg-bamboo-dark/90',
+                        outline: 'border border-backpack-orange text-backpack-orange hover:bg-backpack-orange/10'
+                      };
+                      
+                      return (
+                        <button
+                          key={index}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            button.onClick();
+                          }}
+                          className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${variantClasses[button.variant || 'primary']}`}
+                          type="button"
+                        >
+                          {button.text}
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </motion.div>
