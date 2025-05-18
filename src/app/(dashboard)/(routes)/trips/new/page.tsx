@@ -40,18 +40,72 @@ const Button = ({
   );
 };
 
-// Simplified map component
+// MapComponent implementation
 const MapComponent = ({ center, markers, zoom }: { 
   center: { lat: number, lng: number }, 
   markers: Array<{ position: { lat: number, lng: number }, title: string }>,
   zoom: number
 }) => {
+  // Generate a static map URL using the OpenStreetMap static map API
+  const generateMapUrl = () => {
+    // Base URL
+    let url = `https://maps.geoapify.com/v1/staticmap?style=osm-bright`;
+    
+    // Add markers
+    markers.forEach((marker, index) => {
+      url += `&marker=lonlat:${marker.position.lng},${marker.position.lat};type:material;color:%23ff6a00;size:medium;whitecircle:no;icontype:awesome`;
+    });
+    
+    // Add API key
+    url += `&apiKey=5a047258d51943729c19139c17b7ff1a`;
+    
+    // Add dimensions
+    url += `&width=600&height=400`;
+    
+    // Set center and zoom if there are markers
+    if (markers.length > 0) {
+      // If multiple markers, set appropriate zoom level
+      if (markers.length > 1) {
+        url += `&zoom=${zoom || 5}`;
+      } else {
+        // For single marker, zoom in closer
+        url += `&zoom=${zoom || 10}`;
+      }
+      
+      // Center on the first marker
+      url += `&center=lonlat:${center.lng},${center.lat}`;
+    }
+    
+    return url;
+  };
+
   return (
-    <div className="bg-gray-100 h-full w-full flex items-center justify-center">
-      <p className="text-gray-500 text-center">
-        <span className="block text-3xl mb-2">🗺️</span>
-        Map view showing {markers.length} location{markers.length !== 1 ? 's' : ''}
-      </p>
+    <div className="w-full h-full relative bg-gray-100 rounded overflow-hidden">
+      {markers.length > 0 ? (
+        <img 
+          src={generateMapUrl()} 
+          alt="Map showing destinations" 
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            // Fallback if map image fails to load
+            const target = e.currentTarget as HTMLImageElement;
+            target.src = "https://via.placeholder.com/600x400?text=Map+View+Unavailable";
+            console.error("Failed to load map image");
+          }}
+        />
+      ) : (
+        <div className="flex items-center justify-center h-full">
+          <p className="text-gray-500 text-center">
+            <span className="block text-3xl mb-2">🗺️</span>
+            No destinations selected
+          </p>
+        </div>
+      )}
+      
+      {/* Optional overlay with destination counts */}
+      <div className="absolute bottom-2 right-2 bg-white bg-opacity-75 px-2 py-1 rounded-md text-sm">
+        {markers.length} destination{markers.length !== 1 ? 's' : ''}
+      </div>
     </div>
   );
 };
@@ -140,6 +194,12 @@ export default function NewTripPage() {
   const addDestination = (place: any) => {
     console.log("Adding destination:", place);
     setDestinations(prev => [...prev, place]);
+    
+    // After adding a destination, show a confirmation message
+    setPandaEmotion('excited');
+    setPandaMessage(`Great! ${place.mainText} added to your trip. You can add more destinations or continue to trip details.`);
+    
+    // No need to show the modal again for additional destinations
   };
   
   // Remove a destination
@@ -456,19 +516,29 @@ export default function NewTripPage() {
       <PandaModal
         isOpen={showMultiDestModal}
         onClose={() => {
+          console.log("Modal closed by user");
           setShowMultiDestModal(false);
-          setStep(2);
+          // Don't automatically go to step 2 when closing
         }}
         title="Plan Your Adventure"
         message={`Great choice! ${primaryDestination?.mainText} sounds amazing! Do you want to add more destinations to your trip?`}
         emotion="excited"
         primaryAction={{
           text: "Yes, add more destinations",
-          onClick: handleAddMoreDestinations
+          onClick: () => {
+            console.log("User chose to add more destinations");
+            setShowMultiDestModal(false);
+            setPandaMessage(`Great! You can add more destinations now. ${primaryDestination?.mainText} is your primary destination.`);
+          }
         }}
         secondaryAction={{
           text: "No, continue with this destination",
-          onClick: handleFinishDestinations
+          onClick: () => {
+            console.log("User chose to continue with one destination");
+            setShowMultiDestModal(false);
+            setStep(2);
+            setPandaMessage(`Perfect! Let's set up your trip to ${primaryDestination?.mainText}.`);
+          }
         }}
       >
         <div className="bg-white bg-opacity-70 rounded-lg p-3 shadow-inner">
