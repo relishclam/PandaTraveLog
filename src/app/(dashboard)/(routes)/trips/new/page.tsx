@@ -1,21 +1,57 @@
+// src/app/(dashboard)/(routes)/trips/new/page.tsx
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { PandaAssistant } from '@/components/ui/PandaAssistant';
-import { Button } from '@/components/ui/Button';
+import { PandaModal } from '@/components/ui/PandaModal';
+import { FaPlus, FaTrash } from 'react-icons/fa';
 import { LocationSearch } from '@/components/maps/LocationSearch';
-import { getPlaceDetails } from '@/lib/places-service';
-import { useAuth } from '@/contexts/AuthContext';
-import supabase from '@/lib/supabase';
-import dynamic from 'next/dynamic';
 
-// Dynamically import the map component to avoid SSR issues
-const MapComponent = dynamic(
-  () => import('@/components/maps/MapComponent'),
-  { ssr: false }
-);
+// Simple button component
+const Button = ({ 
+  children, 
+  onClick, 
+  type = "button", 
+  disabled = false,
+  variant = "primary" 
+}: { 
+  children: React.ReactNode, 
+  onClick?: () => void, 
+  type?: "button" | "submit" | "reset",
+  disabled?: boolean,
+  variant?: "primary" | "outline"
+}) => {
+  const baseStyles = "px-4 py-2 rounded-md font-medium transition-colors";
+  const variantStyles = variant === "primary" 
+    ? "bg-orange-500 text-white hover:bg-orange-600 disabled:bg-orange-300" 
+    : "border border-orange-500 text-orange-500 hover:bg-orange-50 disabled:border-orange-300 disabled:text-orange-300";
+  
+  return (
+    <button 
+      className={`${baseStyles} ${variantStyles}`}
+      onClick={onClick}
+      type={type}
+      disabled={disabled}
+    >
+      {children}
+    </button>
+  );
+};
+
+// Simplified map component for demonstration
+const MapComponent = ({ center, markers, zoom }: { 
+  center: { lat: number, lng: number }, 
+  markers: Array<{ position: { lat: number, lng: number }, title: string }>,
+  zoom: number
+}) => {
+  return (
+    <div className="bg-gray-200 h-full w-full flex items-center justify-center">
+      <p className="text-gray-500">Map view will render here</p>
+    </div>
+  );
+};
 
 type FormData = {
   title: string;
@@ -25,9 +61,24 @@ type FormData = {
   notes?: string;
 };
 
+type Destination = {
+  description: string;
+  placeId: string;
+  mainText: string;
+  secondaryText?: string;
+  location: {
+    lat: number;
+    lng: number;
+  };
+  details?: any;
+};
+
 export default function NewTripPage() {
   const router = useRouter();
-  const { user, isLoading: authLoading } = useAuth();
+  
+  // Mock auth context for now
+  const authLoading = false;
+  const user = { id: 'user123' };
   
   if (authLoading) {
     return (
@@ -36,76 +87,78 @@ export default function NewTripPage() {
       </div>
     );
   }
+
   const [step, setStep] = useState(1);
-  const [destination, setDestination] = useState<any>(null);
-  const [placeDetails, setPlaceDetails] = useState<any>(null);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [primaryDestination, setPrimaryDestination] = useState<Destination | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pandaEmotion, setPandaEmotion] = useState<'happy' | 'thinking' | 'excited' | 'confused'>('excited');
   const [pandaMessage, setPandaMessage] = useState("Hi there! Let's plan your adventure. Where would you like to go?");
-  const [showMultiDestinationPrompt, setShowMultiDestinationPrompt] = useState(false);
-  const [wantsMultipleDestinations, setWantsMultipleDestinations] = useState(false);
-  const [responseButtons, setResponseButtons] = useState<any[]>([]);
+  
+  // Modal state
+  const [showMultiDestModal, setShowMultiDestModal] = useState(false);
   
   const { register, handleSubmit, formState: { errors }, watch } = useForm<FormData>();
   
-  // Handle destination selection
-  const handleDestinationSelect = async (place: any) => {
+  // Handle primary destination selection
+  const handleDestinationSelect = async (place: Destination) => {
     setPandaEmotion('thinking');
     setPandaMessage(`Hmm, ${place.mainText}... Let me see what I can find!`);
     
     try {
-      const details = await getPlaceDetails(place.placeId);
-      setDestination(place);
-      setPlaceDetails(details);
+      // Set as primary destination
+      setPrimaryDestination(place);
       
-      // After selecting destination, ask about multiple destinations
+      // Add to destinations array
+      setDestinations([place]);
+      
+      // Show multi-destination modal
+      setShowMultiDestModal(true);
+      
       setPandaEmotion('excited');
-      setPandaMessage(`${place.mainText} is a great choice! Do you have multiple destinations in mind for this trip?`);
-      
-      // Set response buttons for multiple destinations question
-      setResponseButtons([
-        {
-          text: 'Yes, multiple destinations',
-          onClick: () => handleMultiDestinationResponse(true),
-          variant: 'primary'
-        },
-        {
-          text: 'No, just one destination',
-          onClick: () => handleMultiDestinationResponse(false),
-          variant: 'outline'
-        }
-      ]);
-      
-      setShowMultiDestinationPrompt(true);
     } catch (error) {
-      console.error('Error fetching place details:', error);
+      console.error('Error processing destination:', error);
       setPandaEmotion('confused');
       setPandaMessage("I'm having trouble finding information about this place. Could you try a different destination?");
       setError('Failed to load place details');
     }
   };
   
-  // Handle the user's response to multiple destinations question
-  const handleMultiDestinationResponse = (wantsMultiple: boolean) => {
-    setWantsMultipleDestinations(wantsMultiple);
-    setShowMultiDestinationPrompt(false);
-    setResponseButtons([]);
+  // Add another destination
+  const addDestination = (place: Destination) => {
+    setDestinations(prev => [...prev, place]);
+  };
+  
+  // Remove a destination
+  const removeDestination = (index: number) => {
+    setDestinations(prev => {
+      const newDestinations = [...prev];
+      newDestinations.splice(index, 1);
+      return newDestinations;
+    });
     
-    if (wantsMultiple) {
-      setPandaMessage(`Great! ${destination.mainText} will be your primary destination. We're working on supporting multiple destinations in a future update!`);
-      // In the future, here you would enable UI for adding more destinations
-    } else {
-      setPandaMessage(`Perfect! Let's set up your trip to ${destination.mainText}.`);
+    // If primary destination is removed, set the next one as primary
+    if (index === 0 && destinations.length > 1) {
+      setPrimaryDestination(destinations[1]);
     }
-    
-    // Move to step 2 after answering about multiple destinations
+  };
+  
+  // Multi-destination modal handlers
+  const handleAddMoreDestinations = () => {
+    setShowMultiDestModal(false);
+    setPandaMessage(`Great! You can add more destinations now. ${primaryDestination?.mainText} is your primary destination.`);
+  };
+  
+  const handleFinishDestinations = () => {
+    setShowMultiDestModal(false);
     setStep(2);
+    setPandaMessage(`Perfect! Let's set up your trip to ${primaryDestination?.mainText}${destinations.length > 1 ? ' and other destinations' : ''}.`);
   };
   
   // Handle form submission
   const onSubmit = async (data: FormData) => {
-    if (!user || !destination || !placeDetails) return;
+    if (!user || !primaryDestination || destinations.length === 0) return;
     
     setIsLoading(true);
     setError(null);
@@ -113,29 +166,31 @@ export default function NewTripPage() {
     setPandaMessage('Creating your trip...');
     
     try {
-      // Create new trip in database
-      const { data: tripData, error } = await supabase
-        .from('trips')
-        .insert({
-          user_id: user.id,
-          title: data.title,
-          start_date: data.startDate,
-          end_date: data.endDate,
-          budget: data.budget ? parseFloat(data.budget) : null,
-          notes: data.notes,
-          destination: destination.description,
-          destination_coords: {
-            lat: placeDetails.lat || placeDetails.location?.lat,
-            lng: placeDetails.lon || placeDetails.location?.lng
-          },
-          place_id: destination.placeId
-        })
-        .select();
+      // Simulate API call
+      console.log('Creating trip:', {
+        user_id: user.id,
+        title: data.title,
+        start_date: data.startDate,
+        end_date: data.endDate,
+        budget: data.budget ? parseFloat(data.budget) : null,
+        notes: data.notes,
+        destination: primaryDestination.description,
+        destination_coords: primaryDestination.location,
+        place_id: primaryDestination.placeId,
+        additional_destinations: destinations.length > 1 ? 
+          destinations.slice(1).map(d => ({
+            description: d.description,
+            place_id: d.placeId,
+            coords: d.location
+          })) : 
+          []
+      });
       
-      if (error) throw error;
+      // Mock successful creation
+      const tripData = [{ id: 'trip123' }];
       
       setPandaEmotion('excited');
-      setPandaMessage('Trip created! Now let\'s plan your itinerary!');
+      setPandaMessage("Trip created! Now let's plan your itinerary!");
       
       // Navigate to the trip detail page
       router.push(`/trips/${tripData[0].id}`);
@@ -156,9 +211,9 @@ export default function NewTripPage() {
       <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-lg p-6">
         {/* Step indicator */}
         <div className="flex items-center mb-8">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-backpack-orange text-white' : 'bg-gray-200'}`}>1</div>
-          <div className={`flex-1 h-1 mx-2 ${step >= 2 ? 'bg-backpack-orange' : 'bg-gray-200'}`}></div>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-backpack-orange text-white' : 'bg-gray-200'}`}>2</div>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-orange-500 text-white' : 'bg-gray-200'}`}>1</div>
+          <div className={`flex-1 h-1 mx-2 ${step >= 2 ? 'bg-orange-500' : 'bg-gray-200'}`}></div>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-orange-500 text-white' : 'bg-gray-200'}`}>2</div>
         </div>
         
         {error && (
@@ -167,15 +222,64 @@ export default function NewTripPage() {
           </div>
         )}
         
-        {/* Step 1: Choose Destination */}
+        {/* Step 1: Choose Destination(s) */}
         {step === 1 && (
           <div className="space-y-6">
             <h2 className="text-xl font-bold">Where would you like to go?</h2>
-            <LocationSearch onSelect={handleDestinationSelect} placeholder="Search for a destination(Country, City, etc)..." />
             
-            {destination && (
-              <div className="bg-green-50 p-4 rounded-md">
-                <p className="font-medium">Selected: {destination.description}</p>
+            {/* Primary destination search */}
+            {destinations.length === 0 ? (
+              <LocationSearch 
+                onSelect={handleDestinationSelect}
+                placeholder="Search for a destination (country, city, etc)..."
+                focusOnLoad={true}
+                id="primary-destination"
+              />
+            ) : (
+              <div>
+                <h3 className="text-lg font-medium mb-2">Your destinations:</h3>
+                <div className="space-y-3">
+                  {destinations.map((dest, index) => (
+                    <div key={`${dest.placeId}-${index}`} className="flex items-center bg-green-50 p-3 rounded-lg">
+                      <div className="flex-1">
+                        <div className="font-medium">
+                          {index === 0 ? '🌟 ' : ''}{dest.mainText}
+                        </div>
+                        {dest.secondaryText && (
+                          <div className="text-sm text-gray-600">{dest.secondaryText}</div>
+                        )}
+                      </div>
+                      
+                      {/* Don't allow removing the last destination */}
+                      {(destinations.length > 1 || index > 0) && (
+                        <button
+                          onClick={() => removeDestination(index)}
+                          className="text-red-500 hover:text-red-700 p-1"
+                          type="button"
+                          aria-label="Remove destination"
+                        >
+                          <FaTrash size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  
+                  {/* Add another destination */}
+                  <div className="mt-4">
+                    <h3 className="text-lg font-medium mb-2">Add another destination:</h3>
+                    <LocationSearch 
+                      onSelect={addDestination}
+                      placeholder="Search for another destination..."
+                      id="additional-destination"
+                    />
+                  </div>
+                  
+                  <div className="flex justify-end mt-4">
+                    <Button onClick={() => setStep(2)}>
+                      Continue to Trip Details
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -191,9 +295,9 @@ export default function NewTripPage() {
               <input
                 id="title"
                 type="text"
-                placeholder="e.g., Summer in Tokyo"
+                placeholder={`Trip to ${primaryDestination?.mainText || 'destination'}`}
                 {...register('title', { required: 'Trip title is required' })}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-backpack-orange focus:border-backpack-orange"
+                className="w-full p-2 border border-gray-300 rounded-md"
               />
               {errors.title && (
                 <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>
@@ -209,7 +313,7 @@ export default function NewTripPage() {
                   id="startDate"
                   type="date"
                   {...register('startDate', { required: 'Start date is required' })}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-backpack-orange focus:border-backpack-orange"
+                  className="w-full p-2 border border-gray-300 rounded-md"
                 />
                 {errors.startDate && (
                   <p className="mt-1 text-sm text-red-600">{errors.startDate.message}</p>
@@ -224,7 +328,7 @@ export default function NewTripPage() {
                   id="endDate"
                   type="date"
                   {...register('endDate', { required: 'End date is required' })}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-backpack-orange focus:border-backpack-orange"
+                  className="w-full p-2 border border-gray-300 rounded-md"
                 />
                 {errors.endDate && (
                   <p className="mt-1 text-sm text-red-600">{errors.endDate.message}</p>
@@ -241,7 +345,7 @@ export default function NewTripPage() {
                 type="number"
                 placeholder="Your estimated budget"
                 {...register('budget')}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-backpack-orange focus:border-backpack-orange"
+                className="w-full p-2 border border-gray-300 rounded-md"
               />
             </div>
             
@@ -254,29 +358,31 @@ export default function NewTripPage() {
                 placeholder="Any special requests or notes for your trip"
                 rows={3}
                 {...register('notes')}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-backpack-orange focus:border-backpack-orange"
+                className="w-full p-2 border border-gray-300 rounded-md"
               ></textarea>
             </div>
             
-            {destination && placeDetails && (
-              <div className="bg-bamboo-light p-4 rounded-md">
-                <h3 className="font-medium mb-2">Your Selected Destination:</h3>
-                <p className="mb-2">{destination.description}</p>
+            {primaryDestination && (
+              <div className="bg-green-50 p-4 rounded-md">
+                <h3 className="font-medium mb-2">Your Destinations:</h3>
+                <div className="space-y-2 mb-4">
+                  {destinations.map((dest, i) => (
+                    <div key={`summary-${dest.placeId}-${i}`} className="flex items-center">
+                      <span className="mr-2">{i === 0 ? '🌟' : '📍'}</span>
+                      <span>{dest.description}</span>
+                    </div>
+                  ))}
+                </div>
                 
+                {/* Map with all destinations */}
                 <div className="h-64 rounded-md overflow-hidden">
                   <MapComponent 
-                    center={{ 
-                      lat: placeDetails.lat || placeDetails.location?.lat || 0, 
-                      lng: placeDetails.lon || placeDetails.location?.lng || 0 
-                    }}
-                    markers={[{
-                      position: {
-                        lat: placeDetails.lat || placeDetails.location?.lat || 0,
-                        lng: placeDetails.lon || placeDetails.location?.lng || 0
-                      },
-                      title: placeDetails.name || destination.mainText || 'Selected Location'
-                    }]}
-                    zoom={12}
+                    center={primaryDestination.location}
+                    markers={destinations.map(dest => ({
+                      position: dest.location,
+                      title: dest.mainText
+                    }))}
+                    zoom={destinations.length > 1 ? 5 : 10}
                   />
                 </div>
               </div>
@@ -302,13 +408,43 @@ export default function NewTripPage() {
         )}
       </div>
       
+      {/* Panda Assistant */}
       <PandaAssistant
         emotion={pandaEmotion}
         message={pandaMessage}
         position="bottom-right"
         size="lg"
-        responseButtons={responseButtons}
       />
+      
+      {/* Multi-destination Modal */}
+      <PandaModal
+        isOpen={showMultiDestModal}
+        onClose={() => {
+          setShowMultiDestModal(false);
+          setStep(2);
+        }}
+        title="Plan Your Adventure"
+        message={`Great choice! ${primaryDestination?.mainText} sounds amazing! Do you want to add more destinations to your trip?`}
+        emotion="excited"
+        primaryAction={{
+          text: "Yes, add more destinations",
+          onClick: handleAddMoreDestinations
+        }}
+        secondaryAction={{
+          text: "No, continue with this destination",
+          onClick: handleFinishDestinations
+        }}
+      >
+        <div className="bg-white bg-opacity-70 rounded-lg p-3 shadow-inner">
+          <p className="text-sm text-gray-700 mb-2">
+            Multi-destination trips let you plan a complete adventure with stops in different locations.
+          </p>
+          <div className="flex items-center gap-2 text-sm font-medium text-orange-500">
+            <FaPlus size={12} />
+            <span>Add as many destinations as you like</span>
+          </div>
+        </div>
+      </PandaModal>
     </div>
   );
 }
