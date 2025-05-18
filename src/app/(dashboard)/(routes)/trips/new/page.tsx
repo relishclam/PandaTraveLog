@@ -1,13 +1,13 @@
 // src/app/(dashboard)/(routes)/trips/new/page.tsx
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { PandaAssistant } from '@/components/ui/PandaAssistant';
 import { PandaModal } from '@/components/ui/PandaModal';
-import { FaPlus, FaTrash } from 'react-icons/fa';
 import { LocationSearch } from '@/components/maps/LocationSearch';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Simple button component
 const Button = ({ 
@@ -40,15 +40,18 @@ const Button = ({
   );
 };
 
-// Simplified map component for demonstration
+// Simplified map component
 const MapComponent = ({ center, markers, zoom }: { 
   center: { lat: number, lng: number }, 
   markers: Array<{ position: { lat: number, lng: number }, title: string }>,
   zoom: number
 }) => {
   return (
-    <div className="bg-gray-200 h-full w-full flex items-center justify-center">
-      <p className="text-gray-500">Map view will render here</p>
+    <div className="bg-gray-100 h-full w-full flex items-center justify-center">
+      <p className="text-gray-500 text-center">
+        <span className="block text-3xl mb-2">🗺️</span>
+        Map view showing {markers.length} location{markers.length !== 1 ? 's' : ''}
+      </p>
     </div>
   );
 };
@@ -76,9 +79,8 @@ type Destination = {
 export default function NewTripPage() {
   const router = useRouter();
   
-  // Mock auth context for now
-  const authLoading = false;
-  const user = { id: 'user123' };
+  // Use auth context (modify if needed for your specific auth implementation)
+  const { user, isLoading: authLoading } = useAuth();
   
   if (authLoading) {
     return (
@@ -96,13 +98,17 @@ export default function NewTripPage() {
   const [pandaEmotion, setPandaEmotion] = useState<'happy' | 'thinking' | 'excited' | 'confused'>('excited');
   const [pandaMessage, setPandaMessage] = useState("Hi there! Let's plan your adventure. Where would you like to go?");
   
+  // Debug button to force modal display
+  const [showDebugButtons, setShowDebugButtons] = useState(false);
+  
   // Modal state
   const [showMultiDestModal, setShowMultiDestModal] = useState(false);
   
-  const { register, handleSubmit, formState: { errors }, watch } = useForm<FormData>();
+  const { register, handleSubmit, formState: { errors } } = useForm<FormData>();
   
   // Handle primary destination selection
-  const handleDestinationSelect = async (place: Destination) => {
+  const handleDestinationSelect = (place: any) => {
+    console.log("handleDestinationSelect called with:", place);
     setPandaEmotion('thinking');
     setPandaMessage(`Hmm, ${place.mainText}... Let me see what I can find!`);
     
@@ -113,8 +119,13 @@ export default function NewTripPage() {
       // Add to destinations array
       setDestinations([place]);
       
-      // Show multi-destination modal
-      setShowMultiDestModal(true);
+      // Show multi-destination modal after a short delay
+      setTimeout(() => {
+        console.log("Showing multi-destination modal");
+        setShowMultiDestModal(true);
+        // Turn on debug mode if modal doesn't appear
+        setTimeout(() => setShowDebugButtons(true), 2000);
+      }, 500);
       
       setPandaEmotion('excited');
     } catch (error) {
@@ -126,7 +137,8 @@ export default function NewTripPage() {
   };
   
   // Add another destination
-  const addDestination = (place: Destination) => {
+  const addDestination = (place: any) => {
+    console.log("Adding destination:", place);
     setDestinations(prev => [...prev, place]);
   };
   
@@ -146,14 +158,16 @@ export default function NewTripPage() {
   
   // Multi-destination modal handlers
   const handleAddMoreDestinations = () => {
+    console.log("User chose to add more destinations");
     setShowMultiDestModal(false);
     setPandaMessage(`Great! You can add more destinations now. ${primaryDestination?.mainText} is your primary destination.`);
   };
   
   const handleFinishDestinations = () => {
+    console.log("User chose to finish with one destination");
     setShowMultiDestModal(false);
     setStep(2);
-    setPandaMessage(`Perfect! Let's set up your trip to ${primaryDestination?.mainText}${destinations.length > 1 ? ' and other destinations' : ''}.`);
+    setPandaMessage(`Perfect! Let's set up your trip to ${primaryDestination?.mainText}.`);
   };
   
   // Handle form submission
@@ -166,7 +180,7 @@ export default function NewTripPage() {
     setPandaMessage('Creating your trip...');
     
     try {
-      // Simulate API call
+      // Mock API call - replace with your actual API call
       console.log('Creating trip:', {
         user_id: user.id,
         title: data.title,
@@ -186,14 +200,16 @@ export default function NewTripPage() {
           []
       });
       
-      // Mock successful creation
-      const tripData = [{ id: 'trip123' }];
+      // Simulate successful creation
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       setPandaEmotion('excited');
       setPandaMessage("Trip created! Now let's plan your itinerary!");
       
       // Navigate to the trip detail page
-      router.push(`/trips/${tripData[0].id}`);
+      setTimeout(() => {
+        router.push(`/trips`);
+      }, 1000);
     } catch (err: any) {
       console.error('Error creating trip:', err);
       setError('Failed to create trip. Please try again.');
@@ -207,6 +223,26 @@ export default function NewTripPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8 text-center">Plan Your New Adventure</h1>
+      
+      {showDebugButtons && (
+        <div className="max-w-3xl mx-auto mb-4 p-2 bg-red-100 border border-red-300 rounded-md">
+          <h3 className="font-bold">Debug Controls:</h3>
+          <div className="flex space-x-2 mt-2">
+            <button 
+              onClick={() => setShowMultiDestModal(true)} 
+              className="bg-red-500 text-white px-3 py-1 rounded text-sm"
+            >
+              Force Show Modal
+            </button>
+            <button 
+              onClick={() => setStep(step === 1 ? 2 : 1)} 
+              className="bg-blue-500 text-white px-3 py-1 rounded text-sm"
+            >
+              Toggle Step: {step === 1 ? "1→2" : "2→1"}
+            </button>
+          </div>
+        </div>
+      )}
       
       <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-lg p-6">
         {/* Step indicator */}
@@ -243,7 +279,7 @@ export default function NewTripPage() {
                     <div key={`${dest.placeId}-${index}`} className="flex items-center bg-green-50 p-3 rounded-lg">
                       <div className="flex-1">
                         <div className="font-medium">
-                          {index === 0 ? '🌟 ' : ''}{dest.mainText}
+                          {index === 0 ? '🌟 ' : '📍'}{dest.mainText}
                         </div>
                         {dest.secondaryText && (
                           <div className="text-sm text-gray-600">{dest.secondaryText}</div>
@@ -258,7 +294,7 @@ export default function NewTripPage() {
                           type="button"
                           aria-label="Remove destination"
                         >
-                          <FaTrash size={16} />
+                          <span className="text-xl">🗑️</span>
                         </button>
                       )}
                     </div>
@@ -300,7 +336,7 @@ export default function NewTripPage() {
                 className="w-full p-2 border border-gray-300 rounded-md"
               />
               {errors.title && (
-                <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>
+                <p className="mt-1 text-sm text-red-600">{errors.title?.message}</p>
               )}
             </div>
             
@@ -316,7 +352,7 @@ export default function NewTripPage() {
                   className="w-full p-2 border border-gray-300 rounded-md"
                 />
                 {errors.startDate && (
-                  <p className="mt-1 text-sm text-red-600">{errors.startDate.message}</p>
+                  <p className="mt-1 text-sm text-red-600">{errors.startDate?.message}</p>
                 )}
               </div>
               
@@ -331,7 +367,7 @@ export default function NewTripPage() {
                   className="w-full p-2 border border-gray-300 rounded-md"
                 />
                 {errors.endDate && (
-                  <p className="mt-1 text-sm text-red-600">{errors.endDate.message}</p>
+                  <p className="mt-1 text-sm text-red-600">{errors.endDate?.message}</p>
                 )}
               </div>
             </div>
@@ -440,7 +476,7 @@ export default function NewTripPage() {
             Multi-destination trips let you plan a complete adventure with stops in different locations.
           </p>
           <div className="flex items-center gap-2 text-sm font-medium text-orange-500">
-            <FaPlus size={12} />
+            <span>✨</span>
             <span>Add as many destinations as you like</span>
           </div>
         </div>

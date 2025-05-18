@@ -2,8 +2,15 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-// Add the icon imports
-import { FaMapMarkerAlt, FaCity, FaGlobe, FaBuilding, FaRoad } from 'react-icons/fa';
+
+// Simple location type icons (no external dependencies)
+const LocationIcons = {
+  country: () => <span className="text-blue-500 text-lg">🌎</span>,
+  city: () => <span className="text-green-600 text-lg">🏙️</span>,
+  street: () => <span className="text-purple-600 text-lg">🛣️</span>,
+  building: () => <span className="text-amber-600 text-lg">🏢</span>,
+  location: () => <span className="text-orange-500 text-lg">📍</span>,
+};
 
 type Props = {
   onSelect: (place: any) => void;
@@ -57,7 +64,7 @@ export function LocationSearch({
       setError(null);
       
       try {
-        const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY || '';
+        const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY || '5a047258d51943729c19139c17b7ff1a';
         console.log(`ℹ️ Using Geoapify API key (last 4 chars): ...${apiKey.slice(-4)}`);
         
         const apiUrl = new URL('https://api.geoapify.com/v1/geocode/autocomplete');
@@ -86,82 +93,67 @@ export function LocationSearch({
         }
         
         const data = await response.json();
+        console.log("Geoapify response:", data);
         
-        // Transform the Geoapify response
-        const formattedSuggestions = data.features?.map((feature: any) => {
-          const props = feature.properties;
+        if (data && data.results) {
+          // Transform the Geoapify response
+          const formattedSuggestions = data.results.map((feature: any) => {
+            // Determine the type of result for better categorization
+            let locationType: 'country' | 'city' | 'street' | 'building' | 'location' = 'location';
+            
+            if (feature.result_type === 'country') {
+              locationType = 'country';
+            } else if (feature.result_type === 'city' || feature.result_type === 'suburb') {
+              locationType = 'city';
+            } else if (feature.result_type === 'street') {
+              locationType = 'street';
+            } else if (feature.result_type === 'building') {
+              locationType = 'building';
+            }
+            
+            // Create a detailed, hierarchical location description
+            let mainText = feature.name || feature.formatted?.split(',')[0];
+            
+            // Build secondary text
+            let details = [];
+            if (feature.city && mainText !== feature.city) details.push(feature.city);
+            if (feature.state) details.push(feature.state);
+            if (feature.country) details.push(feature.country);
+            
+            let secondaryText = details.length > 0 ? details.join(', ') : '';
+            
+            return {
+              description: feature.formatted,
+              mainText: mainText,
+              placeId: feature.place_id,
+              secondaryText: secondaryText,
+              location: {
+                lat: feature.lat,
+                lng: feature.lon
+              },
+              locationType,
+              icon: LocationIcons[locationType](),
+              details: feature
+            };
+          });
           
-          // Determine the type of result for better categorization
-          let locationType: 'country' | 'city' | 'street' | 'building' | 'location' = 'location';
-          let icon = <FaMapMarkerAlt className="text-orange-500" />;
+          // Sort results with countries and cities first
+          formattedSuggestions.sort((a: LocationSuggestion, b: LocationSuggestion) => {
+            // First by location type
+            const typeOrder = { country: 0, city: 1, street: 2, building: 3, location: 4 };
+            const typeA = typeOrder[a.locationType] || 5;
+            const typeB = typeOrder[b.locationType] || 5;
+            return typeA - typeB;
+          });
           
-          if (props.result_type === 'country') {
-            locationType = 'country';
-            icon = <FaGlobe className="text-blue-500" />;
-          } else if (props.result_type === 'city') {
-            locationType = 'city';
-            icon = <FaCity className="text-green-600" />;
-          } else if (props.result_type === 'street') {
-            locationType = 'street';
-            icon = <FaRoad className="text-purple-600" />;
-          } else if (props.result_type === 'building') {
-            locationType = 'building';
-            icon = <FaBuilding className="text-amber-600" />;
-          }
-          
-          // Create a detailed, hierarchical location description
-          let mainText = '';
-          let secondaryText = '';
-          
-          if (props.name) {
-            mainText = props.name;
-          } else if (props.city) {
-            mainText = props.city;
-          } else if (props.county) {
-            mainText = props.county;
-          } else if (props.state) {
-            mainText = props.state;
-          } else if (props.country) {
-            mainText = props.country;
-          } else {
-            mainText = props.formatted?.split(',')[0] || 'Unknown location';
-          }
-          
-          // Build detailed secondary text
-          const details = [];
-          if (props.city && props.city !== mainText) details.push(props.city);
-          if (props.state && props.state !== mainText) details.push(props.state);
-          if (props.country) details.push(props.country);
-          
-          secondaryText = details.join(', ');
-          
-          return {
-            description: props.formatted,
-            mainText: mainText,
-            placeId: props.place_id,
-            secondaryText: secondaryText,
-            location: {
-              lat: props.lat,
-              lng: props.lon
-            },
-            locationType,
-            icon,
-            details: props
-          };
-        }) || [];
-        
-        // Sort results with countries and cities first
-        formattedSuggestions.sort((a: LocationSuggestion, b: LocationSuggestion) => {
-          // First by location type
-          const typeOrder = { country: 0, city: 1, street: 2, building: 3, location: 4 };
-          return (typeOrder[a.locationType] || 5) - 
-                 (typeOrder[b.locationType] || 5);
-        });
-        
-        setSuggestions(formattedSuggestions);
+          setSuggestions(formattedSuggestions);
+        } else {
+          setSuggestions([]);
+        }
       } catch (err) {
         console.error("❌ Geoapify Geocoding API error:", err);
         setError("Failed to fetch location suggestions");
+        setSuggestions([]);
       } finally {
         setLoading(false);
       }
@@ -183,7 +175,7 @@ export function LocationSearch({
         placeId: "kl-fallback-1",
         location: { lat: 3.139003, lng: 101.686855 },
         locationType: 'city',
-        icon: <FaCity className="text-green-600" />
+        icon: LocationIcons.city()
       },
       {
         mainText: "Malaysia",
@@ -192,7 +184,7 @@ export function LocationSearch({
         placeId: "malaysia-fallback-1",
         location: { lat: 4.2105, lng: 101.9758 },
         locationType: 'country',
-        icon: <FaGlobe className="text-blue-500" />
+        icon: LocationIcons.country()
       },
       {
         mainText: "Penang",
@@ -201,7 +193,7 @@ export function LocationSearch({
         placeId: "penang-fallback-1",
         location: { lat: 5.4164, lng: 100.3327 },
         locationType: 'city',
-        icon: <FaCity className="text-green-600" />
+        icon: LocationIcons.city()
       },
       {
         mainText: "Singapore",
@@ -210,7 +202,7 @@ export function LocationSearch({
         placeId: "singapore-fallback-1",
         location: { lat: 1.3521, lng: 103.8198 },
         locationType: 'country',
-        icon: <FaGlobe className="text-blue-500" />
+        icon: LocationIcons.country()
       },
       {
         mainText: "Bangkok",
@@ -219,7 +211,7 @@ export function LocationSearch({
         placeId: "bangkok-fallback-1",
         location: { lat: 13.7563, lng: 100.5018 },
         locationType: 'city',
-        icon: <FaCity className="text-green-600" />
+        icon: LocationIcons.city()
       }
     ];
     
@@ -244,12 +236,12 @@ export function LocationSearch({
         value={query}
         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
         placeholder={placeholder}
-        className="w-full p-2 border rounded-md focus:ring-2 focus:border-blue-500 focus:outline-none"
+        className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
       />
       
       {loading && (
         <div className="absolute right-3 top-1/2 -translate-y-1/2">
-          <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
         </div>
       )}
       
@@ -266,6 +258,7 @@ export function LocationSearch({
               key={suggestion.placeId}
               className="p-3 hover:bg-gray-100 cursor-pointer border-b last:border-b-0"
               onClick={() => {
+                console.log("Selected suggestion:", suggestion);
                 setQuery(suggestion.description);
                 onSelect(suggestion);
                 setSuggestions([]);

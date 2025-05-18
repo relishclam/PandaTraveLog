@@ -1,10 +1,8 @@
 // components/ui/PandaModal.tsx
 'use client';
 
-import { useState } from 'react';
+import React from 'react';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
-import { IoClose } from 'react-icons/io5';
 
 // Simple button component
 const Button = ({ 
@@ -74,34 +72,24 @@ export function PandaModal({
     }
   };
   
+  console.log("PandaModal render - isOpen:", isOpen);
+  
   if (!isOpen) return null;
   
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center backdrop-blur-sm">
-      <div
-        style={{
-          backgroundColor: 'rgba(244, 255, 232, 0.95)',
-          borderRadius: '0.75rem',
-          padding: '1.5rem',
-          maxWidth: '28rem',
-          width: '100%',
-          margin: '1rem',
-          border: '2px solid #f97316',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-          position: 'relative'
-        }}
-      >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div className="bg-green-50 rounded-xl p-6 max-w-md w-full mx-4 border-2 border-orange-500 shadow-xl relative">
         {/* Close button */}
         <button
           onClick={onClose}
           className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
           aria-label="Close"
         >
-          <IoClose size={24} />
+          <span className="text-2xl">&times;</span>
         </button>
         
         {/* Panda avatar */}
-        <div className="flex justify-center -mt-12 mb-2">
+        <div className="flex justify-center -mt-12 mb-4">
           <div className="bg-white rounded-full p-2 border-2 border-orange-500 shadow-lg">
             <Image
               src={getEmotionImage()}
@@ -116,7 +104,7 @@ export function PandaModal({
         
         {/* Content */}
         <div className="text-center">
-          <h3 className="text-2xl font-bold text-gray-900 mb-2">
+          <h3 className="text-xl font-bold text-gray-900 mb-2">
             {title}
           </h3>
           <p className="text-gray-700 mb-4">
