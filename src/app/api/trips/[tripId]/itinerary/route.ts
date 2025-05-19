@@ -70,8 +70,20 @@ export async function POST(
     
     if (saveError) {
       console.error('Error saving itinerary:', saveError);
+      console.error('Supabase connection details:', {
+        url: supabaseUrl ? 'Set' : 'Not set',
+        key: supabaseKey ? 'Set' : 'Not set',
+        error: saveError.message,
+        details: saveError.details,
+        hint: saveError.hint
+      });
+      
       return NextResponse.json(
-        { error: 'Failed to save itinerary' },
+        { 
+          error: 'Failed to save itinerary', 
+          details: saveError.message,
+          code: saveError.code
+        },
         { status: 500 }
       );
     }

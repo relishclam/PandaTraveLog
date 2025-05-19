@@ -91,8 +91,20 @@ export async function GET(
     
     // If we still haven't found anything, return 404
     console.error(`No trips found for ID ${tripId} after all attempts`);
+    console.error('Supabase connection details:', {
+      url: supabaseUrl ? 'Set' : 'Not set',
+      key: supabaseKey ? 'Key set' : 'No key set',
+      tripId,
+      rawId: tripId.replace('trip-', ''),
+      userId
+    });
+    
     return NextResponse.json(
-      { error: 'Trip not found' },
+      { 
+        error: 'Trip not found', 
+        details: `No trip found with ID ${tripId}`,
+        requestedId: tripId
+      },
       { status: 404 }
     );
   } catch (error: any) {
