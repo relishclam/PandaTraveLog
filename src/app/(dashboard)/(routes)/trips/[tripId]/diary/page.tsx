@@ -3,7 +3,15 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { Card, CardContent } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import { MapPin, Calendar, Info, ArrowLeft } from 'lucide-react';
+import { PoGuide } from '@/components/po/svg/PoGuide';
+import ItineraryDayCard from '@/components/diary/ItineraryDayCard';
+import CompanionsList from '@/components/diary/CompanionsList';
+import EmergencyContacts from '@/components/diary/EmergencyContacts';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import SimplifiedItineraryDay from '@/components/diary/SimplifiedItineraryDay';
