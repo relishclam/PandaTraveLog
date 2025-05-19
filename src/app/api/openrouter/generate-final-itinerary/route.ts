@@ -31,7 +31,9 @@ export async function POST(request: Request) {
     
     // Check for OpenRouter API key
     const apiKey = process.env.OPEN_ROUTER_API_KEY || process.env.NEXT_PUBLIC_OPEN_ROUTER_API_KEY;
-    console.log('OpenRouter API key available:', !!apiKey, apiKey ? `(length: ${apiKey.length})` : '');
+    console.log('OPEN_ROUTER_API_KEY available:', !!process.env.OPEN_ROUTER_API_KEY);
+    console.log('NEXT_PUBLIC_OPEN_ROUTER_API_KEY available:', !!process.env.NEXT_PUBLIC_OPEN_ROUTER_API_KEY);
+    console.log('Combined API key available:', !!apiKey, apiKey ? `(length: ${apiKey.length})` : '');
     
     if (!apiKey) {
       console.error('OpenRouter API key missing in server environment');

@@ -147,8 +147,9 @@ export const openRouterService = {
       });
       
       // Try provided API key first, then server-side key, then fall back to client-side key
-      const effectiveApiKey = apiKey || process.env.OPEN_ROUTER_API_KEY || process.env.NEXT_PUBLIC_OPEN_ROUTER_API_KEY;
+      const effectiveApiKey = apiKey || process.env.OPENROUTER_API_KEY || process.env.OPEN_ROUTER_API_KEY || process.env.NEXT_PUBLIC_OPEN_ROUTER_API_KEY;
       
+      console.log('OPENROUTER_API_KEY available:', !!process.env.OPENROUTER_API_KEY);
       console.log('OPEN_ROUTER_API_KEY available:', !!process.env.OPEN_ROUTER_API_KEY);
       console.log('NEXT_PUBLIC_OPEN_ROUTER_API_KEY available:', !!process.env.NEXT_PUBLIC_OPEN_ROUTER_API_KEY);
       console.log('Combined API Key available:', !!effectiveApiKey, effectiveApiKey ? `(length: ${effectiveApiKey.length})` : '');
@@ -318,7 +319,7 @@ export const openRouterService = {
       console.log(`Selected activities: ${selectedActivities.length}`);
       
       // Try provided API key first, then server-side key, then fall back to client-side key
-      const effectiveApiKey = apiKey || process.env.OPEN_ROUTER_API_KEY || process.env.NEXT_PUBLIC_OPEN_ROUTER_API_KEY;
+      const effectiveApiKey = apiKey || process.env.OPENROUTER_API_KEY || process.env.OPEN_ROUTER_API_KEY || process.env.NEXT_PUBLIC_OPEN_ROUTER_API_KEY;
       
       console.log('API key available:', !!effectiveApiKey);
       
