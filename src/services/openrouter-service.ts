@@ -274,11 +274,19 @@ export const openRouterService = {
         }
       );
 
-      // Extract the response text from OpenRouter format
-      const responseText = response.data.choices[0].message.content;
-      
       // Log response details for debugging
       console.log('OpenRouter API response received');
+      
+      // Safely extract the response text from OpenRouter format with proper error handling
+      if (!response.data || !response.data.choices || !response.data.choices.length || !response.data.choices[0].message) {
+        console.error('Unexpected API response structure:', response.data);
+        return {
+          success: false,
+          error: 'Invalid API response structure'
+        };
+      }
+      
+      const responseText = response.data.choices[0].message.content;
       
       try {
         // Parse the JSON response

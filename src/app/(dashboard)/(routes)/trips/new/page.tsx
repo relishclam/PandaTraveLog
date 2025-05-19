@@ -152,10 +152,7 @@ export default function NewTripPage() {
   const [pandaEmotion, setPandaEmotion] = useState<'happy' | 'thinking' | 'excited' | 'confused'>('excited');
   const [pandaMessage, setPandaMessage] = useState("Hi there! Let's plan your adventure. Where would you like to go?");
   
-  // Debug button to force modal display
-  const [showDebugButtons, setShowDebugButtons] = useState(false);
-  
-  // Modal state
+  // Modal state for adding destinations
   const [showMultiDestModal, setShowMultiDestModal] = useState(false);
   
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>();
@@ -177,8 +174,6 @@ export default function NewTripPage() {
       setTimeout(() => {
         console.log("Showing multi-destination modal");
         setShowMultiDestModal(true);
-        // Turn on debug mode if modal doesn't appear
-        setTimeout(() => setShowDebugButtons(true), 2000);
       }, 500);
       
       setPandaEmotion('excited');
@@ -199,7 +194,11 @@ export default function NewTripPage() {
     setPandaEmotion('excited');
     setPandaMessage(`Great! ${place.mainText} added to your trip. You can add more destinations or continue to trip details.`);
     
-    // No need to show the modal again for additional destinations
+    // Show the modal again for each additional destination
+    setTimeout(() => {
+      console.log("Showing multi-destination modal again");
+      setShowMultiDestModal(true);
+    }, 500);
   };
   
   // Remove a destination
@@ -306,25 +305,7 @@ export default function NewTripPage() {
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8 text-center">Plan Your New Adventure</h1>
       
-      {showDebugButtons && (
-        <div className="max-w-3xl mx-auto mb-4 p-2 bg-red-100 border border-red-300 rounded-md">
-          <h3 className="font-bold">Debug Controls:</h3>
-          <div className="flex space-x-2 mt-2">
-            <button 
-              onClick={() => setShowMultiDestModal(true)} 
-              className="bg-red-500 text-white px-3 py-1 rounded text-sm"
-            >
-              Force Show Modal
-            </button>
-            <button 
-              onClick={() => setStep(step === 1 ? 2 : 1)} 
-              className="bg-blue-500 text-white px-3 py-1 rounded text-sm"
-            >
-              Toggle Step: {step === 1 ? "1→2" : "2→1"}
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Debug controls removed */}
       
       <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-lg p-6">
         {/* Step indicator */}
