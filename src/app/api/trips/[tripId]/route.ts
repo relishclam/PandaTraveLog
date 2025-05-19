@@ -22,13 +22,10 @@ export async function GET(
     
     console.log(`Normalized trip ID for database query: ${actualTripId}`);
 
-    // Query the trips table
+    // Query the trips table without the relationship that's causing issues
     const { data: trip, error } = await supabase
       .from('trips')
-      .select(`
-        *,
-        additional_destinations:trip_destinations(*)
-      `)
+      .select('*')
       .eq('id', actualTripId)
       .single();
 
@@ -48,10 +45,35 @@ export async function GET(
       );
     }
 
+    // Now fetch additional destinations separately
+    let additionalDestinations = [];
+    try {
+      const { data: destinations, error: destError } = await supabase
+        .from('trip_destinations')
+        .select('*')
+        .eq('trip_id', actualTripId);
+
+      if (!destError && destinations) {
+        additionalDestinations = destinations;
+      } else if (destError) {
+        console.warn('Error fetching additional destinations:', destError);
+        // Continue even if we can't get additional destinations
+      }
+    } catch (destErr) {
+      console.warn('Failed to fetch additional destinations:', destErr);
+      // Continue even if this fails
+    }
+
+    // Combine the data
+    const tripWithDestinations = {
+      ...trip,
+      additional_destinations: additionalDestinations
+    };
+
     console.log(`Successfully fetched trip: ${trip.title}`);
     
-    // Return the trip data
-    return NextResponse.json(trip);
+    // Return the combined trip data
+    return NextResponse.json(tripWithDestinations);
   } catch (error: any) {
     console.error('Unexpected error in trip fetch API:', error);
     return NextResponse.json(
