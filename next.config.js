@@ -17,6 +17,35 @@ const nextConfig = {
   
   // Disable React strict mode during development if needed
   reactStrictMode: true,
+
+  // Add Content Security Policy
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: `
+              default-src 'self';
+              script-src 'self' 'unsafe-inline' 'unsafe-eval';
+              style-src 'self' 'unsafe-inline';
+              img-src 'self' blob: data: https://*;
+              font-src 'self';
+              connect-src 'self' 
+                https://api.geoapify.com 
+                https://*.supabase.co 
+                https://*.googleapis.com
+                https://generativelanguage.googleapis.com  
+                https://*.google.ai;
+              frame-src 'self';
+              object-src 'none';
+            `.replace(/\s+/g, ' ').trim()
+          }
+        ]
+      }
+    ];
+  }
 };
 
 module.exports = nextConfig;
