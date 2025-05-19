@@ -1,4 +1,5 @@
 // src/services/gemini-service.ts
+// Now using OpenRouter API instead of Gemini
 import axios from 'axios';
 
 export interface TripDetails {
@@ -100,8 +101,9 @@ export interface Meal {
   placeId?: string;
 }
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
+// Renamed but keeping the same name in exports to minimize changes elsewhere in the codebase
 export const geminiService = {
   /**
    * Generate initial itinerary options based on trip details
@@ -146,19 +148,19 @@ export const geminiService = {
       endDate: endDate.toISOString()
     });
       // Try server-side key first, then fall back to client-side key if necessary
-      const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      const apiKey = process.env.OPEN_ROUTER_API_KEY || process.env.NEXT_PUBLIC_OPEN_ROUTER_API_KEY;
       
-      console.log('API Key available:', !!apiKey, apiKey ? `(length: ${apiKey.length})` : '');
+      console.log('OpenRouter API Key available:', !!apiKey, apiKey ? `(length: ${apiKey.length})` : '');
       
       if (!apiKey) {
-        console.error('Gemini API key is missing');
+        console.error('OpenRouter API key is missing');
         return {
           success: false,
           error: 'API key is missing. Please check your environment configuration.'
         };
       }
 
-      // Craft a detailed prompt for the Gemini API
+      // Craft a detailed prompt for the OpenRouter API
       const isOneDayTrip = tripDetails.duration === 1;
       console.log(`Creating ${isOneDayTrip ? 'one-day' : 'multi-day'} trip prompt`);
       
@@ -234,56 +236,71 @@ export const geminiService = {
       `;
 
       const response = await axios.post(
-        `${GEMINI_API_URL}?key=${apiKey}`,
+        OPENROUTER_API_URL,
         {
-          contents: [
+          model: 'openai/gpt-4o', // Using GPT-4o for high-quality itinerary generation
+          messages: [
             {
-              parts: [
-                {
-                  text: prompt
-                }
-              ]
+              role: 'system',
+              content: 'You are a travel planning AI assistant that creates detailed itineraries in valid JSON format. Always structure your response exactly as requested.'
+            },
+            {
+              role: 'user',
+              content: prompt
             }
           ],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 8192,
-            topP: 0.95,
-            topK: 40
-          }
+          response_format: { type: 'json_object' }, // Enforcing JSON response format
+          temperature: 0.7,
+          max_tokens: 8192,
+          top_p: 0.95,
         },
         {
           headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'HTTP-Referer': 'https://pandatravelog.netlify.app', // Your site URL for attribution
+            'X-Title': 'PandaTraveLog', // Your site name for attribution
             'Content-Type': 'application/json'
           }
         }
       );
 
-      // Extract the response text
-      const responseText = response.data.candidates[0].content.parts[0].text;
+      console.log('OpenRouter API response received');
       
-      // Find and parse the JSON object from the response
-      const jsonMatch = responseText.match(/{[\s\S]*}/);
-      if (!jsonMatch) {
-        console.error('Failed to extract JSON from Gemini response');
+      // Extract the response text from OpenRouter format
+      const responseText = response.data.choices[0].message.content;
+      
+      try {
+        // Parse the JSON response - OpenRouter with json_object format should return valid JSON
+        const parsedData = JSON.parse(responseText);
+        
+        // Validate that we have the expected structure
+        if (!parsedData.itineraryOptions || !Array.isArray(parsedData.itineraryOptions)) {
+          console.error('Invalid response format from OpenRouter:', responseText);
+          return {
+            success: false,
+            error: 'Invalid itinerary options format from AI service'
+          };
+        }
+        
+        return {
+          success: true,
+          itineraryOptions: parsedData.itineraryOptions
+        };
+      } catch (parseError) {
+        console.error('Failed to parse JSON from OpenRouter response:', parseError);
+        console.error('Raw response:', responseText);
         return {
           success: false,
-          error: 'Invalid response format from AI service'
+          error: 'Failed to parse response from AI service'
         };
       }
-
-      const parsedData = JSON.parse(jsonMatch[0]);
-      return {
-        success: true,
-        itineraryOptions: parsedData.itineraryOptions
-      };
     } catch (error: any) {
       // Log detailed error information for debugging
-      console.error('Error calling Gemini API:', error);
+      console.error('Error calling OpenRouter API:', error);
       
       if (error.response) {
         // The request was made and the server responded with a status code outside of 2xx range
-        console.error('Gemini API response error:', {
+        console.error('OpenRouter API response error:', {
           status: error.response.status,
           statusText: error.response.statusText,
           data: error.response.data,
@@ -291,10 +308,10 @@ export const geminiService = {
         });
       } else if (error.request) {
         // The request was made but no response was received
-        console.error('Gemini API request error (no response):', error.request);
+        console.error('OpenRouter API request error (no response):', error.request);
       } else {
         // Something happened in setting up the request
-        console.error('Gemini API setup error:', error.message);
+        console.error('OpenRouter API setup error:', error.message);
       }
       
       return {
@@ -312,11 +329,11 @@ export const geminiService = {
     selectedActivities: ActivityOption[]
   ): Promise<GeminiResponse> => {
     try {
-      console.log('Generating final itinerary with Gemini API using selected activities');
-      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      console.log('Generating final itinerary with OpenRouter API using selected activities');
+      const apiKey = process.env.OPEN_ROUTER_API_KEY || process.env.NEXT_PUBLIC_OPEN_ROUTER_API_KEY;
       
       if (!apiKey) {
-        console.error('Gemini API key is missing');
+        console.error('OpenRouter API key is missing');
         return {
           success: false,
           error: 'API key is missing. Please check your environment configuration.'
@@ -413,147 +430,67 @@ export const geminiService = {
       `;
 
       const response = await axios.post(
-        `${GEMINI_API_URL}?key=${apiKey}`,
+        OPENROUTER_API_URL,
         {
-          contents: [
+          model: 'openai/gpt-4o', // Using GPT-4o for high-quality itinerary generation
+          messages: [
             {
-              parts: [
-                {
-                  text: prompt
-                }
-              ]
+              role: 'system',
+              content: 'You are a travel planning AI assistant that creates detailed itineraries in valid JSON format. Always structure your response exactly as requested.'
+            },
+            {
+              role: 'user',
+              content: prompt
             }
           ],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 8192,
-            topP: 0.95,
-            topK: 40
-          }
+          response_format: { type: 'json_object' }, // Enforcing JSON response format
+          temperature: 0.7,
+          max_tokens: 8192,
+          top_p: 0.95,
         },
         {
           headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'HTTP-Referer': 'https://pandatravelog.netlify.app', // Your site URL for attribution
+            'X-Title': 'PandaTraveLog', // Your site name for attribution
             'Content-Type': 'application/json'
           }
         }
       );
 
-      // Extract the response text
-      const responseText = response.data.candidates[0].content.parts[0].text;
+      // Extract the response text from OpenRouter format
+      const responseText = response.data.choices[0].message.content;
       
       // Log the full response for debugging
-      console.log('Gemini API raw response:', responseText);
+      console.log('OpenRouter API raw response:', responseText);
       
-      // Find and parse the JSON object from the response
-      let jsonMatch = responseText.match(/{[\s\S]*}/);
-      if (!jsonMatch) {
-        console.error('Failed to extract JSON from Gemini response');
-        return {
-          success: false,
-          error: 'Invalid response format from AI service'
-        };
-      }
-
       try {
-        const jsonString = jsonMatch[0];
-        const parsedData = JSON.parse(jsonString);
-        console.log('Successfully parsed Gemini API response:', parsedData);
+        // Parse the JSON response - OpenRouter with json_object format should return valid JSON
+        const parsedData = JSON.parse(responseText);
         
-        // Check if itineraryOptions exists in the parsed data
-        if (!parsedData.itineraryOptions || !Array.isArray(parsedData.itineraryOptions) || parsedData.itineraryOptions.length === 0) {
-          console.error('No itinerary options found in response:', parsedData);
-          
-          // Create mock data for testing
-          console.warn('Generating mock itinerary options for testing');
+        // Validate that we have the expected structure
+        if (!parsedData.finalItinerary) {
+          console.error('Invalid response format from OpenRouter:', responseText);
           return {
-            success: true,
-            itineraryOptions: [
-              {
-                id: 'option1',
-                title: 'Adventurous Exploration',
-                description: 'A thrilling journey through the most exciting parts of your destination.',
-                highlights: ['Adventurous activities', 'Natural wonders', 'Unique experiences'],
-                days: [
-                  {
-                    dayNumber: 1,
-                    title: 'Day 1: Arrival and Exploration',
-                    description: 'Begin your adventure with exciting activities.',
-                    activities: [
-                      {
-                        id: 'act1',
-                        title: 'City Tour',
-                        description: 'Explore the city highlights.',
-                        type: 'sightseeing',
-                        location: 'Downtown',
-                        duration: '3 hours'
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                id: 'option2',
-                title: 'Cultural Immersion',
-                description: 'Experience the rich cultural heritage and traditions.',
-                highlights: ['Historical sites', 'Local cuisine', 'Cultural performances'],
-                days: [
-                  {
-                    dayNumber: 1,
-                    title: 'Day 1: Cultural Heritage',
-                    description: 'Immerse yourself in local culture.',
-                    activities: [
-                      {
-                        id: 'act2',
-                        title: 'Museum Visit',
-                        description: 'Explore the local history museum.',
-                        type: 'cultural',
-                        location: 'Central Museum',
-                        duration: '2 hours'
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                id: 'option3',
-                title: 'Relaxing Retreat',
-                description: 'Unwind and enjoy a peaceful vacation with plenty of relaxation.',
-                highlights: ['Spa treatments', 'Beach time', 'Scenic views'],
-                days: [
-                  {
-                    dayNumber: 1,
-                    title: 'Day 1: Relaxation',
-                    description: 'Begin your retreat with calming activities.',
-                    activities: [
-                      {
-                        id: 'act3',
-                        title: 'Beach Day',
-                        description: 'Relax at the beautiful beaches.',
-                        type: 'relaxation',
-                        location: 'Main Beach',
-                        duration: '4 hours'
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
+            success: false,
+            error: 'Invalid itinerary format from AI service'
           };
         }
-        
+
         return {
           success: true,
-          itineraryOptions: parsedData.itineraryOptions
+          finalItinerary: parsedData.finalItinerary
         };
-      } catch (error) {
-        console.error('Error parsing Gemini API response:', error);
+      } catch (parseError) {
+        console.error('Error parsing JSON from OpenRouter response:', parseError);
+        console.error('Raw response:', responseText);
         return {
           success: false,
-          error: 'Failed to parse AI service response'
+          error: 'Invalid JSON format in response'
         };
       }
     } catch (error) {
-      console.error('Error calling Gemini API for final itinerary:', error);
+      console.error('Error calling OpenRouter API for final itinerary:', error);
       return {
         success: false,
         error: 'Failed to generate final itinerary. Please try again.'

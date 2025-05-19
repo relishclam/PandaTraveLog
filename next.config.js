@@ -37,7 +37,8 @@ const nextConfig = {
                 https://*.supabase.co 
                 https://*.googleapis.com
                 https://generativelanguage.googleapis.com  
-                https://*.google.ai;
+                https://*.google.ai
+                https://openrouter.ai;
               frame-src 'self';
               object-src 'none';
             `.replace(/\s+/g, ' ').trim()
