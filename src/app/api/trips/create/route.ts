@@ -43,18 +43,10 @@ export async function POST(request: Request) {
     if (error) {
       console.error('Error creating trip in database:', error);
       
-      // For development purposes, return a mock successful response
-      // Remove this in production and uncomment the error return below
-      return NextResponse.json({
-        id: `trip-${Date.now()}`,
-        message: 'Trip created successfully (mock response)'
-      });
-      
-      // Uncomment in production:
-      // return NextResponse.json(
-      //   { error: 'Failed to create trip in database' },
-      //   { status: 500 }
-      // );
+      return NextResponse.json(
+        { error: 'Failed to create trip in database' },
+        { status: 500 }
+      );
     }
     
     // If additional destinations exist, save them too
@@ -73,16 +65,9 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error('Error in create trip API route:', error);
     
-    // For development, return a fallback ID since tripData is not available in the catch block
-    return NextResponse.json({
-      id: `trip-${Date.now()}`,
-      message: 'Trip created successfully (mock response despite error)'
-    });
-    
-    // Uncomment in production:
-    // return NextResponse.json(
-    //   { error: error.message || 'Failed to create trip' },
-    //   { status: 500 }
-    // );
+    return NextResponse.json(
+      { error: error.message || 'Failed to create trip' },
+      { status: 500 }
+    );
   }
 }
