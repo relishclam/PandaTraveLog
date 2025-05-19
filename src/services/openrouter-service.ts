@@ -17,6 +17,7 @@ export interface OpenRouterResponse {
   itineraryOptions?: ItineraryOption[];
   finalItinerary?: Itinerary;
   error?: string;
+  canSaveItinerary?: boolean;
 }
 
 export interface ItineraryOption {
@@ -168,34 +169,42 @@ export const openRouterService = {
       
       // Create appropriate title and description templates based on trip type
       const planType = isOneDayTrip ? '3 different day plans' : '3 different itinerary options';
-      const dateFormat = isOneDayTrip 
-        ? `On ${tripDetails.startDate}` 
-        : `From ${tripDetails.startDate} to ${tripDetails.endDate}`;
-      const durationUnit = isOneDayTrip ? 'day' : 'days';
-      const oneDayNote = isOneDayTrip 
-        ? '- This is a ONE-DAY trip, so focus on creating diverse day plans that make the most of a single day.' 
-        : '';
-        
       const prompt = `
-        As a travel planning AI, create ${planType} for a trip to ${tripDetails.mainDestination}.
+        Create 3 distinct travel itinerary options for a ${tripDetails.duration}-day trip to ${tripDetails.mainDestination}.
         
         Trip details:
         - Title: ${tripDetails.title}
-        - Duration: ${tripDetails.duration} ${durationUnit}
-        - Dates: ${dateFormat}
+        - Dates: From ${tripDetails.startDate} to ${tripDetails.endDate}
+        - Duration: ${tripDetails.duration} days
         - Budget: ${tripDetails.budget || 'Not specified'}
         ${tripDetails.notes ? `- Special notes: ${tripDetails.notes}` : ''}
-        ${oneDayNote}
+        ${tripDetails.allDestinations.length > 1 ? `- Other destinations to include: ${tripDetails.allDestinations.filter(d => d !== tripDetails.mainDestination).join(', ')}` : ''}
         
-        ${tripDetails.allDestinations.length > 1 
-          ? `This is a multi-destination trip including: ${tripDetails.allDestinations.join(', ')}` 
-          : `This trip focuses on ${tripDetails.mainDestination}`
-        }
+        Consider the season and weather for ${tripDetails.mainDestination} during ${new Date(tripDetails.startDate).toLocaleString('en-US', { month: 'long' })}.
         
-        For each itinerary option, provide:
-        1. A catchy title and brief description
-        2. A list of highlights
-        3. A day-by-day breakdown with activities
+        For each itinerary option, please provide:
+        - A unique title that captures the theme of the itinerary
+        - A brief description (1-2 sentences)
+        - 3-5 highlights/unique selling points
+        - A day-by-day breakdown with:
+          * Recommended activities and attractions (including specific places with their actual names)
+          * Suggested places to eat (with actual restaurant names when possible)
+          * Transportation recommendations between locations
+          * Approximate timing and duration for activities
+          * Estimated cost level for activities ($ to $$$)
+          
+        Each itinerary option should have a different focus/theme, such as:
+        - Option 1: Major highlights and must-see attractions for first-time visitors
+        - Option 2: Off-the-beaten-path and authentic local experiences
+        - Option 3: Family-friendly activities and attractions OR Specialized interests (nature, history, food, etc.)
+        
+        Important considerations:
+        - Ensure each day has a logical geographic flow to minimize travel time
+        - Include a mix of morning, afternoon, and evening activities
+        - Allow sufficient time between activities for transportation
+        - Include at least one notable/famous attraction in each itinerary
+        - Suggest realistic meal options near the day's activities
+        - Account for opening hours of attractions (don't suggest evening visits to places that close early)
         
         Format your response as a valid JSON object with this structure:
         {
@@ -203,34 +212,38 @@ export const openRouterService = {
             {
               "id": "option1",
               "title": "Option 1 Title",
-              "description": "Brief description of this option",
-              "highlights": ["Highlight 1", "Highlight 2", "Highlight 3"],
+              "description": "Brief description of the itinerary theme/focus",
+              "highlights": [
+                "Highlight 1",
+                "Highlight 2",
+                "Highlight 3"
+              ],
               "days": [
                 {
                   "dayNumber": 1,
                   "title": "Day 1 Title",
-                  "description": "Brief description of day 1",
+                  "description": "Brief description of the day",
                   "activities": [
                     {
-                      "id": "act1",
-                      "title": "Activity Title",
-                      "description": "Activity description",
-                      "type": "sightseeing", // Options: sightseeing, adventure, relaxation, cultural, culinary, other
-                      "location": "Location name",
+                      "id": "activity1",
+                      "title": "Activity Name",
+                      "description": "Brief description including why this is worth visiting",
+                      "type": "sightseeing",
+                      "location": "Exact location name",
                       "duration": "2 hours",
-                      "cost": "$$"
-                    },
-                    // More activities...
+                      "cost": "$"
+                    }
                   ],
-                  "meals": ["Breakfast at...", "Lunch at...", "Dinner at..."]
+                  "meals": [
+                    "Breakfast: Restaurant name - Brief description",
+                    "Lunch: Restaurant name - Brief description",
+                    "Dinner: Restaurant name - Brief description"
+                  ]
                 }
-                // More days...
               ]
             }
-            // More options...
           ]
-        }
-      `;
+        }`;
 
       const response = await axios.post(
         OPENROUTER_API_URL,
@@ -270,19 +283,93 @@ export const openRouterService = {
       try {
         // Parse the JSON response
         const parsedData = JSON.parse(responseText);
+        console.log('Successfully parsed JSON response from OpenRouter');
         
-        // Validate the response structure
-        if (!parsedData.itineraryOptions || !Array.isArray(parsedData.itineraryOptions)) {
-          console.error('Invalid response structure from OpenRouter:', responseText);
+        // Detailed validation of response structure
+        if (!parsedData) {
+          console.error('Empty response from OpenRouter');
           return {
             success: false,
-            error: 'Invalid itinerary format from AI service'
+            error: 'Empty response from AI service'
           };
         }
         
+        if (!parsedData.itineraryOptions) {
+          console.error('Missing itineraryOptions in response:', parsedData);
+          
+          // Check if we received finalItinerary instead (wrong format but salvageable)
+          if (parsedData.finalItinerary) {
+            console.warn('Received finalItinerary instead of itineraryOptions, attempting to adapt');
+            // Convert finalItinerary to itinerary option format
+            const adaptedOption = {
+              id: 'adapted-option',
+              title: parsedData.finalItinerary.title || 'Recommended Itinerary',
+              description: parsedData.finalItinerary.description || 'Custom itinerary for your trip',
+              highlights: ['Automatically generated based on your preferences'],
+              days: parsedData.finalItinerary.days || []
+            };
+            
+            return {
+              success: true,
+              itineraryOptions: [adaptedOption]
+            };
+          }
+          
+          // Check for other possible response formats
+          if (parsedData.options || parsedData.itineraries || parsedData.plans) {
+            const possibleOptions = parsedData.options || parsedData.itineraries || parsedData.plans;
+            if (Array.isArray(possibleOptions)) {
+              console.warn('Found alternative options array, attempting to adapt');
+              return {
+                success: true,
+                itineraryOptions: possibleOptions
+              };
+            }
+          }
+          
+          return {
+            success: false,
+            error: 'Invalid response format: itineraryOptions not found'
+          };
+        }
+        
+        if (!Array.isArray(parsedData.itineraryOptions)) {
+          console.error('itineraryOptions is not an array:', parsedData.itineraryOptions);
+          return {
+            success: false,
+            error: 'Invalid response format: itineraryOptions is not an array'
+          };
+        }
+        
+        if (parsedData.itineraryOptions.length === 0) {
+          console.error('Empty itineraryOptions array');
+          return {
+            success: false,
+            error: 'No itinerary options generated'
+          };
+        }
+        
+        // Validate each itinerary option has required fields
+        const validOptions = parsedData.itineraryOptions.filter((option: any) => {
+          return option && option.id && option.title && option.days && Array.isArray(option.days);
+        });
+        
+        if (validOptions.length === 0) {
+          console.error('No valid itinerary options in response');
+          return {
+            success: false,
+            error: 'No valid itinerary options received'
+          };
+        }
+        
+        if (validOptions.length < parsedData.itineraryOptions.length) {
+          console.warn(`Only ${validOptions.length} of ${parsedData.itineraryOptions.length} options were valid`);
+        }
+        
+        console.log(`Successfully extracted ${validOptions.length} valid itinerary options`);
         return {
           success: true,
-          itineraryOptions: parsedData.itineraryOptions
+          itineraryOptions: validOptions
         };
       } catch (parseError) {
         console.error('Error parsing JSON from OpenRouter response:', parseError);
@@ -342,15 +429,23 @@ export const openRouterService = {
         Trip details:
         - Title: ${tripDetails.title}
         - Duration: ${tripDetails.duration} days
-        - Dates: From ${tripDetails.startDate} to ${tripDetails.endDate}
+        - Dates: From ${tripDetails.startDate} to ${tripDetails.endDate} (${new Date(tripDetails.startDate).toLocaleString('en-US', { month: 'long' })})
         - Budget: ${tripDetails.budget || 'Not specified'}
         ${tripDetails.notes ? `- Special notes: ${tripDetails.notes}` : ''}
+        ${tripDetails.allDestinations.length > 1 ? `- Other destinations to include: ${tripDetails.allDestinations.filter(d => d !== tripDetails.mainDestination).join(', ')}` : ''}
         
         The traveler has selected the following activities:
         ${activityDetails}
         
-        Please organize these activities into a coherent day-by-day itinerary.
-        Add transportation options between activities and suggested meal options.
+        Important instructions:
+        1. Organize the selected activities into a coherent day-by-day itinerary
+        2. Add specific transportation options between activities (public transit, walking, taxi, etc.) with estimated travel times
+        3. Suggest actual restaurants or eateries near each day's activities for breakfast, lunch, and dinner
+        4. Schedule activities with logical timing throughout the day (morning, afternoon, evening)
+        5. Ensure the flow of each day makes geographic sense to minimize travel time
+        6. Add brief descriptions for each activity explaining what makes it special
+        7. Include practical details like opening hours, estimated costs, and recommended duration
+        8. Consider local weather and seasonal conditions for ${new Date(tripDetails.startDate).toLocaleString('en-US', { month: 'long' })}
         
         Format your response as a valid JSON object with this structure:
         {
@@ -436,25 +531,89 @@ export const openRouterService = {
         }
       );
 
+      // Log the full response for debugging
+      console.log('OpenRouter API raw response structure:', JSON.stringify(response.data, null, 2));
+
+      // Check if the response has the expected structure
+      if (!response.data || !response.data.choices || !response.data.choices.length || !response.data.choices[0].message) {
+        console.error('Unexpected OpenRouter API response format:', response.data);
+        return {
+          success: false,
+          error: 'Unexpected response format from OpenRouter API'
+        };
+      }
+      
       // Extract the response text from OpenRouter format
       const responseText = response.data.choices[0].message.content;
-      
-      // Log the full response for debugging
-      console.log('OpenRouter API raw response:', responseText);
-      
+      console.log('OpenRouter API content response for final itinerary:', responseText.substring(0, 200) + '...');   
       try {
         // Parse the JSON response - OpenRouter with json_object format should return valid JSON
         const parsedData = JSON.parse(responseText);
+        console.log('Successfully parsed JSON response from OpenRouter for final itinerary');
         
-        // Validate that we have the expected structure
-        if (!parsedData.finalItinerary) {
-          console.error('Invalid response format from OpenRouter:', responseText);
+        // Detailed validation of response structure
+        if (!parsedData) {
+          console.error('Empty response from OpenRouter');
           return {
             success: false,
-            error: 'Invalid itinerary format from AI service'
+            error: 'Empty response from AI service'
           };
         }
-
+        
+        if (!parsedData.finalItinerary) {
+          console.error('Missing finalItinerary in response:', parsedData);
+          
+          // Check if we received itineraryOptions instead (wrong format but salvageable)
+          if (parsedData.itineraryOptions && Array.isArray(parsedData.itineraryOptions) && parsedData.itineraryOptions.length > 0) {
+            console.warn('Received itineraryOptions instead of finalItinerary, attempting to adapt the first option');
+            // Convert first itinerary option to final itinerary format
+            const firstOption = parsedData.itineraryOptions[0];
+            if (firstOption && firstOption.days && Array.isArray(firstOption.days)) {
+              return {
+                success: true,
+                finalItinerary: {
+                  id: 'final-' + (firstOption.id || 'itinerary'),
+                  title: firstOption.title || 'Your Final Itinerary',
+                  description: firstOption.description || 'Customized itinerary for your trip',
+                  days: firstOption.days
+                }
+              };
+            }
+          }
+          
+          return {
+            success: false,
+            error: 'Invalid response format: finalItinerary not found'
+          };
+        }
+        
+        // Validate the finalItinerary structure
+        if (!parsedData.finalItinerary.days || !Array.isArray(parsedData.finalItinerary.days)) {
+          console.error('Invalid finalItinerary structure: days array missing or not an array');
+          return {
+            success: false,
+            error: 'Invalid itinerary format: days missing or invalid'
+          };
+        }
+        
+        if (parsedData.finalItinerary.days.length === 0) {
+          console.error('Empty days array in finalItinerary');
+          return {
+            success: false,
+            error: 'Generated itinerary contains no days'
+          };
+        }
+        
+        // Make sure we have title and description
+        if (!parsedData.finalItinerary.title) {
+          parsedData.finalItinerary.title = tripDetails.title || 'Your Trip to ' + tripDetails.mainDestination;
+        }
+        
+        if (!parsedData.finalItinerary.description) {
+          parsedData.finalItinerary.description = `A ${tripDetails.duration}-day itinerary for ${tripDetails.mainDestination}`;
+        }
+        
+        console.log(`Successfully validated final itinerary with ${parsedData.finalItinerary.days.length} days`);
         return {
           success: true,
           finalItinerary: parsedData.finalItinerary

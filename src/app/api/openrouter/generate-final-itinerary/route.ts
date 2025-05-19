@@ -49,6 +49,11 @@ export async function POST(request: Request) {
                 response.error || '', 
                 response.finalItinerary ? 'Got final itinerary' : 'No final itinerary');
     
+    // If successful and a finalItinerary was generated, offer to save it
+    if (response.success && response.finalItinerary) {
+      response.canSaveItinerary = true;
+    }
+    
     return NextResponse.json(response);
   } catch (error: any) {
     console.error('Error in generate-final-itinerary API route:', error);
