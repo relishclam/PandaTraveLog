@@ -24,28 +24,52 @@ const activityTypeIcons: Record<string, string> = {
   other: '📌',
 };
 
-// Fetch trip data from the API
-const getTrip = async (tripId: string): Promise<any> => {
-  try {
-    // Call the API to get the real trip data
-    const response = await fetch(`/api/trips/${tripId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
+// Fetch trip data from the API with retry mechanism for new trips
+const getTrip = async (tripId: string, isNewTrip: boolean = false): Promise<any> => {
+  // For new trips, implement a retry mechanism to handle race condition
+  // between trip creation in Supabase and fetching the trip
+  const maxRetries = isNewTrip ? 5 : 0; // Only retry for new trips
+  let retryCount = 0;
+  let lastError;
+
+  while (retryCount <= maxRetries) {
+    try {
+      // Call the API to get the trip data
+      const response = await fetch(`/api/trips/${tripId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        // Disable cache for new trips to always get fresh data
+        cache: isNewTrip ? 'no-store' : 'default'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch trip data: ${response.status}`);
       }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch trip data: ${response.status}`);
+      
+      const tripData = await response.json();
+      console.log('Fetched trip data:', tripData);
+      return tripData;
+    } catch (error) {
+      lastError = error;
+      console.warn(`Attempt ${retryCount + 1}/${maxRetries + 1} failed to fetch trip:`, error);
+      
+      if (retryCount < maxRetries) {
+        // Exponential backoff: wait longer between each retry
+        const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
+        console.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        retryCount++;
+      } else {
+        break;
+      }
     }
-    
-    const tripData = await response.json();
-    console.log('Fetched trip data:', tripData);
-    return tripData;
-  } catch (error) {
-    console.error('Error fetching trip details:', error);
-    throw error;
   }
+  
+  // If we've exhausted all retries, throw the last error
+  console.error('All attempts to fetch trip failed:', lastError);
+  throw lastError;
 };
 
 export default function ItineraryPage() {
@@ -73,14 +97,21 @@ export default function ItineraryPage() {
   useEffect(() => {
     const loadTrip = async () => {
       try {
-        const tripData = await getTrip(tripId);
+        // If this is a new trip, show a friendly waiting message
+        if (isNewTrip) {
+          setPandaEmotion('thinking');
+          setPandaMessage('Your trip is being created. I\'m preparing your itinerary options...');
+        }
+        
+        // Use the retry mechanism for new trips
+        const tripData = await getTrip(tripId, isNewTrip);
         setTrip(tripData);
         
         // If this is a new trip, request itinerary options
         if (isNewTrip) {
-          setTimeout(() => {
-            fetchItineraryOptions(tripData);
-          }, 1000);
+          setPandaEmotion('excited');
+          setPandaMessage('Your trip has been created! Now generating exciting itinerary options...');
+          fetchItineraryOptions(tripData);
         } else {
           // For existing trips, load saved itinerary if available
           setLoading(false);
@@ -89,7 +120,7 @@ export default function ItineraryPage() {
         console.error('Error loading trip:', err);
         setError('Failed to load trip details');
         setPandaEmotion('confused');
-        setPandaMessage('I had trouble loading your trip details. Please try again.');
+        setPandaMessage('I had trouble loading your trip details. Please try again or go back to your trips.');
         setLoading(false);
       }
     };

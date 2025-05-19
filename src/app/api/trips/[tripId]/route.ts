@@ -20,6 +20,14 @@ export async function GET(
     const userId = session?.user?.id;
     console.log(`Current user ID: ${userId || 'Not authenticated'}`);
 
+    // Log all trips in the database for debugging
+    const { data: allTrips, error: allTripsError } = await supabase
+      .from('trips')
+      .select('id, title')
+      .limit(10);
+    
+    console.log('Available trips in database:', allTrips || 'None found', allTripsError);
+
     // First try to find the trip directly by the full ID (trip-timestamp format)
     const { data: tripByFullId, error: fullIdError } = await supabase
       .from('trips')
@@ -31,6 +39,7 @@ export async function GET(
       console.log('Found trip by full ID lookup');
       return handleTripResponse(tripByFullId, tripId);
     }
+    console.log('Full ID lookup failed:', fullIdError);
 
     // If that fails, try to extract the numeric part if it's in the format 'trip-1234567890'
     if (tripId.startsWith('trip-')) {
@@ -48,6 +57,20 @@ export async function GET(
         console.log('Found trip by numeric ID lookup');
         return handleTripResponse(tripByNumericId, tripId);
       }
+      console.log('Numeric ID lookup failed:', numericIdError);
+
+      // Try with a LIKE query as a fallback
+      const { data: tripByLikeId, error: likeIdError } = await supabase
+        .from('trips')
+        .select('*')
+        .like('id', `%${numericId}%`)
+        .limit(1);
+
+      if (!likeIdError && tripByLikeId && tripByLikeId.length > 0) {
+        console.log('Found trip by LIKE ID lookup');
+        return handleTripResponse(tripByLikeId[0], tripId);
+      }
+      console.log('LIKE ID lookup failed:', likeIdError);
     }
 
     // As a last resort, get the most recent trip for the user
@@ -63,6 +86,7 @@ export async function GET(
         console.log(`Using most recent trip as fallback: ${latestTrip[0].id}`);
         return handleTripResponse(latestTrip[0], tripId);
       }
+      console.log('Latest trip lookup failed:', latestError);
     }
     
     // If we still haven't found anything, return 404
