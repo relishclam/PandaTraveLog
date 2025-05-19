@@ -277,11 +277,29 @@ export const geminiService = {
         success: true,
         itineraryOptions: parsedData.itineraryOptions
       };
-    } catch (error) {
+    } catch (error: any) {
+      // Log detailed error information for debugging
       console.error('Error calling Gemini API:', error);
+      
+      if (error.response) {
+        // The request was made and the server responded with a status code outside of 2xx range
+        console.error('Gemini API response error:', {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: error.response.data,
+          headers: error.response.headers
+        });
+      } else if (error.request) {
+        // The request was made but no response was received
+        console.error('Gemini API request error (no response):', error.request);
+      } else {
+        // Something happened in setting up the request
+        console.error('Gemini API setup error:', error.message);
+      }
+      
       return {
         success: false,
-        error: 'Failed to generate itinerary options. Please try again.'
+        error: `Failed to generate itinerary options: ${error.message || 'Unknown error'}`
       };
     }
   },
