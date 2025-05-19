@@ -285,16 +285,33 @@ export default function NewTripPage() {
       setPandaMessage("Trip saved! Now let's plan your itinerary!");
       
       // Navigate to the itinerary generation page with the new trip ID
-      try {
-        console.log("Navigating to the itinerary generation page with ID:", tripId);
+    // Pass the trip data directly to avoid needing to fetch from Supabase
+    try {
+      console.log("Navigating to the itinerary generation page with ID:", tripId);
+      
+      // Store trip data in history state for client-side access
+      if (typeof window !== 'undefined') {
+        // Use the complete trip data we already have
+        const clientTripData = {
+          ...tripData,
+          // Ensure these fields match what the itinerary page expects
+          client_id: tripId,
+          trip_id: tripId
+        };
+        
+        console.log("Passing client-side trip data:", clientTripData);
+        window.history.pushState({ clientTripData }, '', `/trips/${tripId}/itinerary?new=true`);
         router.push(`/trips/${tripId}/itinerary?new=true`);
-      } catch (err: any) {
-        console.error("Error navigating:", err);
-        setError("Failed to navigate to trip. Please try again.");
-        setPandaEmotion("confused");
-        setPandaMessage("Oh no! I had trouble saving your trip. Let's try again.");
-        setIsLoading(false);
+      } else {
+        router.push(`/trips/${tripId}/itinerary?new=true`);
       }
+    } catch (err: any) {
+      console.error("Error navigating:", err);
+      setError("Failed to navigate to trip. Please try again.");
+      setPandaEmotion("confused");
+      setPandaMessage("Oh no! I had trouble saving your trip. Let's try again.");
+      setIsLoading(false);
+    }
     } catch (err: any) {
       console.error('Error creating trip:', err);
       setError('Failed to create trip. Please try again.');

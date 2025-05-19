@@ -24,11 +24,11 @@ const activityTypeIcons: Record<string, string> = {
   other: '📌',
 };
 
-// Fetch trip data from the API with retry mechanism for new trips
+// Fetch trip data from the API (only needed for existing trips)
 const getTrip = async (tripId: string, isNewTrip: boolean = false): Promise<any> => {
-  // For new trips, implement a retry mechanism to handle race condition
-  // between trip creation in Supabase and fetching the trip
-  const maxRetries = isNewTrip ? 5 : 0; // Only retry for new trips
+  // If we're creating a new trip, we shouldn't need to fetch from Supabase
+  // but we'll keep the retry logic as a fallback
+  const maxRetries = isNewTrip ? 3 : 0; // Fewer retries for new trips since we should have client data
   let retryCount = 0;
   let lastError;
 
@@ -49,7 +49,7 @@ const getTrip = async (tripId: string, isNewTrip: boolean = false): Promise<any>
       }
       
       const tripData = await response.json();
-      console.log('Fetched trip data:', tripData);
+      console.log('Fetched trip data from API:', tripData);
       return tripData;
     } catch (error) {
       lastError = error;
@@ -80,8 +80,12 @@ export default function ItineraryPage() {
   const isNewTrip = searchParams.get('new') === 'true';
   const { user } = useAuth(); // Get user info including country
 
+  // Get client-side trip data from URL state if available (for new trips)
+  const clientTripData = typeof window !== 'undefined' ? 
+    window.history.state?.clientTripData || null : null;
+
   // States
-  const [trip, setTrip] = useState<any>(null);
+  const [trip, setTrip] = useState<any>(clientTripData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pandaMessage, setPandaMessage] = useState('I\'m generating exciting itinerary options for you!');
@@ -97,13 +101,24 @@ export default function ItineraryPage() {
   useEffect(() => {
     const loadTrip = async () => {
       try {
-        // If this is a new trip, show a friendly waiting message
+        // For new trips with client-side data available, use that directly
+        if (isNewTrip && clientTripData) {
+          console.log('Using client-side trip data:', clientTripData);
+          setPandaEmotion('excited');
+          setPandaMessage('I\'m generating exciting itinerary options for your trip!');
+          // We already have the trip data, so proceed directly to fetching options
+          fetchItineraryOptions(clientTripData);
+          setLoading(false);
+          return;
+        }
+        
+        // For existing trips or if client data isn't available, fetch from the API
         if (isNewTrip) {
           setPandaEmotion('thinking');
           setPandaMessage('Your trip is being created. I\'m preparing your itinerary options...');
         }
         
-        // Use the retry mechanism for new trips
+        // Fetch trip data from Supabase (only needed for existing trips)
         const tripData = await getTrip(tripId, isNewTrip);
         setTrip(tripData);
         
@@ -126,11 +141,16 @@ export default function ItineraryPage() {
     };
     
     loadTrip();
-  }, [tripId, isNewTrip]);
+  }, [tripId, isNewTrip, clientTripData]);
 
   // Fetch itinerary options from the OpenRouter API
   const fetchItineraryOptions = async (tripData: any) => {
     try {
+      // Make sure we have trip data set
+      if (!trip && tripData) {
+        setTrip(tripData);
+      }
+      
       setPandaEmotion('thinking');
       setPandaMessage('Generating exciting itinerary options based on your trip details...');
       
@@ -283,11 +303,26 @@ export default function ItineraryPage() {
 
   // Handle back button
   const handleBack = () => {
-    if (currentView === 'customize') {
+    if (currentView === 'customize' && selectedOption) {
+      // Go back to options view
       setCurrentView('options');
       setSelectedOption(null);
       setPandaEmotion('happy');
       setPandaMessage('Let\'s pick a different itinerary option!');
+    } else {
+      // Go back to trips list
+      router.push('/trips');
+    }
+  };
+  
+  // Helper function to pass client-side trip data when navigating
+  const navigateWithTripData = (url: string, tripData: any) => {
+    // Store trip data in history state for client-side access
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ clientTripData: tripData }, '', url);
+      router.push(url);
+    } else {
+      router.push(url);
     }
   };
 
