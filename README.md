@@ -8,7 +8,7 @@ PandaTraveLog is a comprehensive travel planning application featuring PO, a fri
 
 - **User Authentication**: Secure sign-up and login with Supabase, including phone verification via Twilio OTP
 - **Trip Planning**: Create and manage trips with detailed information
-- **AI-Generated Content**: Generate personalized travel recommendations and itineraries using Gemini AI
+- **AI-Generated Content**: Generate personalized travel recommendations and itineraries using OpenRouter AI (powered by GPT-4o)
 - **Geoapify Maps Integration**: Search for locations and view them on interactive maps
 - **Companion Management**: Keep track of who's traveling with you
 - **Emergency Contacts**: Store important contact information for each trip
@@ -20,7 +20,7 @@ PandaTraveLog is a comprehensive travel planning application featuring PO, a fri
 - **Authentication**: Supabase Auth with Twilio OTP verification
 - **Database**: Supabase PostgreSQL
 - **Maps**: Geoapify Maps and Places APIs (via maplibre-gl)
-- **AI**: Gemini API for content generation
+- **AI**: OpenRouter API (with GPT-4o) for content generation
 - **Deployment**: Netlify
 
 ## 🛠️ Getting Started
@@ -31,7 +31,7 @@ PandaTraveLog is a comprehensive travel planning application featuring PO, a fri
 - Supabase account
 - Twilio account with Verify service
 - Geoapify API key (https://myprojects.geoapify.com/)
-- Gemini API key
+- OpenRouter API key
 
 ### Installation
 

@@ -6,11 +6,11 @@ import { PandaAssistant } from '@/components/ui/PandaAssistant';
 import { PandaModal } from '@/components/ui/PandaModal';
 import axios from 'axios';
 import { 
-  GeminiResponse, 
+  OpenRouterResponse, 
   ItineraryOption, 
   ActivityOption,
   TripDetails
-} from '@/services/gemini-service';
+} from '@/services/openrouter-service';
 import Image from 'next/image';
 
 // Activity type icons
@@ -92,13 +92,13 @@ export default function ItineraryPage() {
     loadTrip();
   }, [tripId, isNewTrip]);
 
-  // Fetch itinerary options from the Gemini API
+  // Fetch itinerary options from the OpenRouter API
   const fetchItineraryOptions = async (tripData: any) => {
     try {
       setPandaEmotion('thinking');
       setPandaMessage('Generating exciting itinerary options based on your trip details...');
       
-      // Prepare trip details for the Gemini API
+      // Prepare trip details for the OpenRouter API
       const tripDetails: TripDetails = {
         title: tripData.title,
         startDate: tripData.start_date,
@@ -110,9 +110,9 @@ export default function ItineraryPage() {
         allDestinations: [tripData.destination, ...(tripData.additional_destinations || []).map((d: any) => d.description)]
       };
       
-      // Call the API endpoint that will use the Gemini service
-      const response = await axios.post('/api/gemini/generate-options', { tripDetails });
-      const data: GeminiResponse = response.data;
+      // Call the API endpoint that will use the OpenRouter service
+      const response = await axios.post('/api/openrouter/generate-options', { tripDetails });
+      const data: OpenRouterResponse = response.data;
       
       if (data.success && data.itineraryOptions) {
         setItineraryOptions(data.itineraryOptions);
@@ -191,12 +191,12 @@ export default function ItineraryPage() {
       };
       
       // Call the API endpoint to generate the final itinerary
-      const response = await axios.post('/api/gemini/generate-final-itinerary', {
+      const response = await axios.post('/api/openrouter/generate-final-itinerary', {
         tripDetails,
         selectedActivities: selectedActivitiesList
       });
       
-      const data: GeminiResponse = response.data;
+      const data: OpenRouterResponse = response.data;
       
       if (data.success && data.finalItinerary) {
         // Save final itinerary ID and navigate to it

@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { geminiService, TripDetails } from '@/services/gemini-service';
+import { openRouterService, TripDetails } from '@/services/openrouter-service';
 
 export async function POST(request: Request) {
   try {
-    console.log('API route /api/gemini/generate-options called');
+    console.log('API route /api/openrouter/generate-options called');
     const body = await request.json();
     const { tripDetails } = body as { tripDetails: TripDetails };
     
@@ -66,13 +66,23 @@ export async function POST(request: Request) {
       // Continue with original values if there's an error in date processing
     }
 
-    console.log('Trip details validated, calling Gemini service');
-    console.log('API key check:', process.env.GEMINI_API_KEY ? 'Server-side key available' : 'No server-side key', 
-               process.env.NEXT_PUBLIC_GEMINI_API_KEY ? 'Client-side key available' : 'No client-side key');
+    console.log('Trip details validated, calling OpenRouter service');
     
-    // Call Gemini service to generate itinerary options
-    const response = await geminiService.generateItineraryOptions(tripDetails);
-    console.log('Gemini service response:', response.success ? 'Success' : 'Failed', 
+    // Check for OpenRouter API key
+    const apiKey = process.env.OPEN_ROUTER_API_KEY || process.env.NEXT_PUBLIC_OPEN_ROUTER_API_KEY;
+    console.log('OpenRouter API key available:', !!apiKey, apiKey ? `(length: ${apiKey.length})` : '');
+    
+    if (!apiKey) {
+      console.error('OpenRouter API key missing in server environment');
+      return NextResponse.json(
+        { success: false, error: 'API key is missing on server' },
+        { status: 500 }
+      );
+    }
+    
+    // Call service to generate itinerary options with explicit API key
+    const response = await openRouterService.generateItineraryOptions(tripDetails, apiKey);
+    console.log('OpenRouter service response:', response.success ? 'Success' : 'Failed', 
                response.error || '', 
                response.itineraryOptions ? `Got ${response.itineraryOptions.length} options` : 'No options');
     
