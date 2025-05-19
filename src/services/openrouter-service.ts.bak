@@ -10,7 +10,6 @@ export interface TripDetails {
   notes?: string;
   mainDestination: string;
   allDestinations: string[];
-  userCountry?: string;
 }
 
 export interface OpenRouterResponse {
@@ -102,43 +101,7 @@ export interface Meal {
   placeId?: string;
 }
 
-// Define additional interfaces for type safety
-interface ParsedItineraryOption {
-  id?: string;
-  title?: string;
-  description?: string;
-  highlights?: string[];
-  days?: ParsedItineraryDayOption[];
-}
-
-interface ParsedItineraryDayOption {
-  dayNumber?: number;
-  title?: string;
-  description?: string;
-  activities?: ParsedActivityOption[];
-  meals?: string[];
-}
-
-interface ParsedActivityOption {
-  id?: string;
-  title?: string;
-  description?: string;
-  type?: string;
-  location?: string;
-  duration?: string;
-  cost?: string;
-  dayNumber?: number;
-}
-
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-
-// Helper function to ensure activity type is one of the allowed values
-function validateActivityType(type: string): 'sightseeing' | 'adventure' | 'relaxation' | 'cultural' | 'culinary' | 'other' {
-  const validTypes = ['sightseeing', 'adventure', 'relaxation', 'cultural', 'culinary', 'other'];
-  return validTypes.includes(type.toLowerCase()) 
-    ? type.toLowerCase() as 'sightseeing' | 'adventure' | 'relaxation' | 'cultural' | 'culinary' | 'other'
-    : 'other';
-}
 
 export const openRouterService = {
   /**
@@ -335,7 +298,7 @@ export const openRouterService = {
       
       // Get the first choice content based on whether it's streaming or not
       const firstChoice = response.data.choices[0];
-      let responseText: string;
+      let responseText;
       
       if (firstChoice.message && firstChoice.message.content) {
         // Standard format
@@ -363,143 +326,216 @@ export const openRouterService = {
         };
       }
       
-      let parsedData: any;
-      
       try {
-        // First, log the start of the response to help with debugging
-        console.log('Response text preview:', responseText.substring(0, 200) + '...');
+        // The response from OpenRouter is already in the responseText variable
+        // Check if it's already a valid JSON object or string
+        let parsedData;
         
-        // Try to parse as JSON
-        parsedData = JSON.parse(responseText);
-        console.log('Successfully parsed JSON from OpenRouter response');
-      } catch (parseError) {
-        console.error('Failed to parse response as JSON:', parseError);
-        // The text might contain a JSON string embedded in explanatory text
-        // Try to extract JSON using regex
         try {
-          const jsonMatch = responseText.match(/\{[\s\S]*\}/); // Matches JSON object
-          if (jsonMatch) {
-            console.log('Found potential JSON object in response text, attempting to parse');
-            parsedData = JSON.parse(jsonMatch[0]);
-            console.log('Successfully extracted and parsed JSON from response text');
-          } else {
-            throw new Error('Could not find valid JSON in response');
+          // First, log the start of the response to help with debugging
+          console.log('Response text preview:', responseText.substring(0, 200) + '...');
+          
+          // Try to parse as JSON
+          parsedData = JSON.parse(responseText);
+          console.log('Successfully parsed JSON from OpenRouter response');
+        } catch (parseError) {
+          console.error('Failed to parse response as JSON:', parseError);
+          // The text might contain a JSON string embedded in explanatory text
+          // Try to extract JSON using regex
+          try {
+            const jsonMatch = responseText.match(/\{[\s\S]*\}/); // Matches JSON object
+            if (jsonMatch) {
+              console.log('Found potential JSON object in response text, attempting to parse');
+              parsedData = JSON.parse(jsonMatch[0]);
+              console.log('Successfully extracted and parsed JSON from response text');
+            } else {
+              throw new Error('Could not find valid JSON in response');
+            }
+          } catch (extractError) {
+            console.error('Failed to extract and parse JSON from response:', extractError);
+            return {
+              success: false,
+              error: 'Could not parse response from AI service'
+            };
           }
-        } catch (extractError) {
-          console.error('Failed to extract and parse JSON from response:', extractError);
+        }
+        
+        // Detailed validation of response structure
+        if (!parsedData) {
+          console.error('Empty parsed data from OpenRouter');
           return {
             success: false,
-            error: 'Could not parse response from AI service'
+            error: 'Empty response from AI service'
           };
         }
-      }
-      
-      // Detailed validation of response structure
-      if (!parsedData) {
-        console.error('Empty parsed data from OpenRouter');
-        return {
-          success: false,
-          error: 'Empty response from AI service'
-        };
-      }
-      
-      // Try to extract itinerary options using various potential structures
-      let itineraryOptions: ParsedItineraryOption[] | null = null;
-      
-      // Check for directly provided itineraryOptions
-      if (parsedData.itineraryOptions && Array.isArray(parsedData.itineraryOptions)) {
-        console.log('Found itineraryOptions in response');
-        itineraryOptions = parsedData.itineraryOptions;
-      } 
-      // Check if we received a finalItinerary instead
-      else if (parsedData.finalItinerary) {
-        console.warn('Found finalItinerary instead of itineraryOptions, adapting format');
-        // Convert finalItinerary to itinerary option format
-        const adaptedOption: ParsedItineraryOption = {
-          id: 'adapted-option',
-          title: parsedData.finalItinerary.title || 'Recommended Itinerary',
-          description: parsedData.finalItinerary.description || 'Custom itinerary for your trip',
-          highlights: ['Automatically generated based on your preferences'],
-          days: parsedData.finalItinerary.days || []
-        };
         
-        itineraryOptions = [adaptedOption];
-      }
-      // Check for other possible option array formats
-      else if (parsedData.options || parsedData.itineraries || parsedData.plans) {
-        const possibleOptions = parsedData.options || parsedData.itineraries || parsedData.plans;
-        if (Array.isArray(possibleOptions)) {
-          console.warn('Found alternative options array (options/itineraries/plans), adapting format');
-          itineraryOptions = possibleOptions;
-        }
-      }
-      // If still no valid options, try to see if the response itself is an array of options
-      else if (Array.isArray(parsedData)) {
-        console.warn('Parsed data is an array, treating as itinerary options directly');
-        itineraryOptions = parsedData;
-      }
-      
-      // Final check if we found valid options
-      if (!itineraryOptions) {
-        console.error('Could not find valid itinerary options in response:', parsedData);
-        return {
-          success: false,
-          error: 'Invalid response format: could not locate itinerary options'
-        };
-      }
-      
-      // Validate content of itinerary options
-      if (itineraryOptions.length === 0) {
-        console.error('Empty itineraryOptions array');
-        return {
-          success: false,
-          error: 'No itinerary options generated'
-        };
-      }
-      
-      // Further validation and processing of the itinerary options
-      const validOptions: ItineraryOption[] = itineraryOptions
-        .filter((option: ParsedItineraryOption) => option && option.days && Array.isArray(option.days))
-        .map((option: ParsedItineraryOption): ItineraryOption => {
-          // Ensure each option has required fields
-          return {
-            id: option.id || `option-${Math.random().toString(36).substring(2, 9)}`,
-            title: option.title || 'Itinerary Option',
-            description: option.description || 'Custom itinerary for your trip',
-            highlights: Array.isArray(option.highlights) ? option.highlights : ['Custom itinerary based on your preferences'],
-            days: option.days?.map((day: ParsedItineraryDayOption): ItineraryDayOption => {
-              // Ensure each day has proper structure
-              return {
-                dayNumber: day.dayNumber || 0,
-                title: day.title || `Day ${day.dayNumber || 0}`,
-                description: day.description || 'Activities for the day',
-                activities: Array.isArray(day.activities) ? day.activities.map((act: ParsedActivityOption): ActivityOption => {
-                  // Ensure each activity has proper structure and validate the type
-                  const activityType = validateActivityType(act.type || 'other');
-                  
-                  return {
-                    id: act.id || `act-${Math.random().toString(36).substring(2, 9)}`,
-                    title: act.title || 'Activity',
-                    description: act.description || '',
-                    type: activityType,
-                    location: act.location || 'Location not specified',
-                    duration: act.duration || '1-2 hours',
-                    cost: act.cost || '$',
-                    dayNumber: day.dayNumber || 0
-                  };
-                }) : [],
-                meals: day.meals || []
-              };
-            }) || []
+        // Try to extract itinerary options using various potential structures
+        let itineraryOptions = null;
+        
+        // Check for directly provided itineraryOptions
+        if (parsedData.itineraryOptions && Array.isArray(parsedData.itineraryOptions)) {
+          console.log('Found itineraryOptions in response');
+          itineraryOptions = parsedData.itineraryOptions;
+        } 
+        // Check if we received a finalItinerary instead
+        else if (parsedData.finalItinerary) {
+          console.warn('Found finalItinerary instead of itineraryOptions, adapting format');
+          // Convert finalItinerary to itinerary option format
+          const adaptedOption = {
+            id: 'adapted-option',
+            title: parsedData.finalItinerary.title || 'Recommended Itinerary',
+            description: parsedData.finalItinerary.description || 'Custom itinerary for your trip',
+            highlights: ['Automatically generated based on your preferences'],
+            days: parsedData.finalItinerary.days || []
           };
+          
+          itineraryOptions = [adaptedOption];
+        }
+        // Check for other possible option array formats
+        else if (parsedData.options || parsedData.itineraries || parsedData.plans) {
+          const possibleOptions = parsedData.options || parsedData.itineraries || parsedData.plans;
+          if (Array.isArray(possibleOptions)) {
+            console.warn('Found alternative options array (options/itineraries/plans), adapting format');
+            itineraryOptions = possibleOptions;
+          }
+        }
+        
+        // If still no valid options, try to see if the response itself is an array of options
+        else if (Array.isArray(parsedData)) {
+          console.warn('Parsed data is an array, treating as itinerary options directly');
+          itineraryOptions = parsedData;
+        }
+        
+        // Final check if we found valid options
+        if (!itineraryOptions) {
+          console.error('Could not find valid itinerary options in response:', parsedData);
+          return {
+            success: false,
+            error: 'Invalid response format: could not locate itinerary options'
+          };
+        }
+        
+        // Validate content of itinerary options
+        if (itineraryOptions.length === 0) {
+          console.error('Empty itineraryOptions array');
+          return {
+            success: false,
+            error: 'No itinerary options generated'
+          };
+        }
+        
+        // Validate each itinerary option has required fields or attempt to fix them
+        const validOptions = itineraryOptions.map((option: any, index: number) => {
+          // Ensure each option has the required fields
+          if (!option.id) {
+            console.warn(`Option at index ${index} missing ID, adding generated ID`);
+            option.id = `option-${index + 1}`;
+          }
+          
+          if (!option.title) {
+            console.warn(`Option at index ${index} missing title, adding placeholder`);
+            option.title = `Itinerary Option ${index + 1}`;
+          }
+          
+          // Handle days property - make sure it's an array
+          if (!option.days || !Array.isArray(option.days)) {
+            console.warn(`Option at index ${index} has invalid or missing days array, creating placeholder`);
+            // Try to extract days from a different structure if available
+            let extractedDays = [];
+            
+            // Check various possible structures
+            if (option.itinerary && Array.isArray(option.itinerary)) {
+              extractedDays = option.itinerary;
+            } else if (option.schedule && Array.isArray(option.schedule)) {
+              extractedDays = option.schedule;
+            } else if (option.plan && Array.isArray(option.plan)) {
+              extractedDays = option.plan;
+            }
+            
+            if (extractedDays.length > 0) {
+              console.log(`Found alternative days array for option ${index}`);
+              option.days = extractedDays;
+            } else {
+              // Create a minimal placeholder day if nothing can be extracted
+              option.days = [{
+                dayNumber: 1,
+                title: `Day 1: ${option.title}`,
+                description: option.description || "Explore the destination",
+                activities: [],
+                meals: ["Breakfast: Local breakfast", "Lunch: Local cuisine", "Dinner: Restaurant dining"]
+              }];
+            }
+          }
+          
+          // Ensure each day has the minimum required properties
+          option.days = option.days.map((day: any, dayIndex: number) => {
+            if (!day.dayNumber) {
+              day.dayNumber = dayIndex + 1;
+            }
+            
+            if (!day.title) {
+              day.title = `Day ${day.dayNumber}`;
+            }
+            
+            if (!day.description) {
+              day.description = "Explore and enjoy the destination";
+            }
+            
+            // Ensure activities is an array
+            if (!day.activities || !Array.isArray(day.activities)) {
+              day.activities = [];
+            }
+            
+            // Ensure each activity has required fields
+            day.activities = day.activities.map((activity: any, actIndex: number) => {
+              if (!activity.id) {
+                activity.id = `day-${day.dayNumber}-activity-${actIndex + 1}`;
+              }
+              
+              if (!activity.title) {
+                activity.title = `Activity ${actIndex + 1}`;
+              }
+              
+              if (!activity.type) {
+                activity.type = 'sightseeing';
+              }
+              
+              if (!activity.location) {
+                activity.location = option.title || 'Local attraction';
+              }
+              
+              return activity;
+            });
+            
+            return day;
+          });
+          
+          // Add highlights if missing
+          if (!option.highlights || !Array.isArray(option.highlights) || option.highlights.length === 0) {
+            option.highlights = [
+              `Explore ${option.title}`,
+              "Experience local culture",
+              "Enjoy amazing cuisine"
+            ];
+          }
+          
+          return option;
         });
-      
-      console.log(`Returning ${validOptions.length} validated itinerary options`);
-      return {
-        success: true,
-        itineraryOptions: validOptions
-      };
-      
+        
+        console.log(`Successfully processed ${validOptions.length} itinerary options`);
+        
+        return {
+          success: true,
+          itineraryOptions: validOptions
+        };
+      } catch (parseError) {
+        console.error('Error parsing JSON from OpenRouter response:', parseError);
+        console.error('Raw response:', responseText);
+        return {
+          success: false,
+          error: 'Invalid JSON format in response'
+        };
+      }
     } catch (error: any) {
       console.error('Error calling OpenRouter API:', error.response ? {
         status: error.response.status,
@@ -665,15 +701,80 @@ export const openRouterService = {
       }
       
       // Extract the response text from OpenRouter format
-      const responseText: string = response.data.choices[0].message.content;
+      const responseText = response.data.choices[0].message.content;
       console.log('OpenRouter API content response for final itinerary:', responseText.substring(0, 200) + '...');   
-      
-      let parsedData: any;
-      
       try {
         // Parse the JSON response - OpenRouter with json_object format should return valid JSON
-        parsedData = JSON.parse(responseText);
+        const parsedData = JSON.parse(responseText);
         console.log('Successfully parsed JSON response from OpenRouter for final itinerary');
+        
+        // Detailed validation of response structure
+        if (!parsedData) {
+          console.error('Empty response from OpenRouter');
+          return {
+            success: false,
+            error: 'Empty response from AI service'
+          };
+        }
+        
+        if (!parsedData.finalItinerary) {
+          console.error('Missing finalItinerary in response:', parsedData);
+          
+          // Check if we received itineraryOptions instead (wrong format but salvageable)
+          if (parsedData.itineraryOptions && Array.isArray(parsedData.itineraryOptions) && parsedData.itineraryOptions.length > 0) {
+            console.warn('Received itineraryOptions instead of finalItinerary, attempting to adapt the first option');
+            // Convert first itinerary option to final itinerary format
+            const firstOption = parsedData.itineraryOptions[0];
+            if (firstOption && firstOption.days && Array.isArray(firstOption.days)) {
+              return {
+                success: true,
+                finalItinerary: {
+                  id: 'final-' + (firstOption.id || 'itinerary'),
+                  title: firstOption.title || 'Your Final Itinerary',
+                  description: firstOption.description || 'Customized itinerary for your trip',
+                  days: firstOption.days
+                }
+              };
+            }
+          }
+          
+          return {
+            success: false,
+            error: 'Invalid response format: finalItinerary not found'
+          };
+        }
+        
+        // Validate the finalItinerary structure
+        if (!parsedData.finalItinerary.days || !Array.isArray(parsedData.finalItinerary.days)) {
+          console.error('Invalid finalItinerary structure: days array missing or not an array');
+          return {
+            success: false,
+            error: 'Invalid itinerary format: days missing or invalid'
+          };
+        }
+        
+        if (parsedData.finalItinerary.days.length === 0) {
+          console.error('Empty days array in finalItinerary');
+          return {
+            success: false,
+            error: 'Generated itinerary contains no days'
+          };
+        }
+        
+        // Make sure we have title and description
+        if (!parsedData.finalItinerary.title) {
+          parsedData.finalItinerary.title = tripDetails.title || 'Your Trip to ' + tripDetails.mainDestination;
+        }
+        
+        if (!parsedData.finalItinerary.description) {
+          parsedData.finalItinerary.description = `A ${tripDetails.duration}-day itinerary for ${tripDetails.mainDestination}`;
+        }
+        
+        console.log(`Successfully validated final itinerary with ${parsedData.finalItinerary.days.length} days`);
+        return {
+          success: true,
+          finalItinerary: parsedData.finalItinerary
+        };
       } catch (parseError) {
         console.error('Error parsing JSON from OpenRouter response:', parseError);
         console.error('Raw response:', responseText);
@@ -682,84 +783,11 @@ export const openRouterService = {
           error: 'Invalid JSON format in response'
         };
       }
-      
-      // Detailed validation of response structure
-      if (!parsedData) {
-        console.error('Empty response from OpenRouter');
-        return {
-          success: false,
-          error: 'Empty response from AI service'
-        };
-      }
-      
-      if (!parsedData.finalItinerary) {
-        console.error('Missing finalItinerary in response:', parsedData);
-        
-        // Check if we received itineraryOptions instead (wrong format but salvageable)
-        if (parsedData.itineraryOptions && Array.isArray(parsedData.itineraryOptions) && parsedData.itineraryOptions.length > 0) {
-          console.warn('Received itineraryOptions instead of finalItinerary, attempting to adapt the first option');
-          // Convert first itinerary option to final itinerary format
-          const firstOption = parsedData.itineraryOptions[0];
-          if (firstOption && firstOption.days && Array.isArray(firstOption.days)) {
-            return {
-              success: true,
-              finalItinerary: {
-                id: 'final-' + (firstOption.id || 'itinerary'),
-                title: firstOption.title || 'Your Final Itinerary',
-                description: firstOption.description || 'Customized itinerary for your trip',
-                days: firstOption.days
-              }
-            };
-          }
-        }
-        
-        return {
-          success: false,
-          error: 'Invalid response format: finalItinerary not found'
-        };
-      }
-      
-      // Validate the finalItinerary structure
-      if (!parsedData.finalItinerary.days || !Array.isArray(parsedData.finalItinerary.days)) {
-        console.error('Invalid finalItinerary structure: days array missing or not an array');
-        return {
-          success: false,
-          error: 'Invalid itinerary format: days missing or invalid'
-        };
-      }
-      
-      if (parsedData.finalItinerary.days.length === 0) {
-        console.error('Empty days array in finalItinerary');
-        return {
-          success: false,
-          error: 'Generated itinerary contains no days'
-        };
-      }
-      
-      // Make sure we have title and description
-      if (!parsedData.finalItinerary.title) {
-        parsedData.finalItinerary.title = tripDetails.title || 'Your Trip to ' + tripDetails.mainDestination;
-      }
-      
-      if (!parsedData.finalItinerary.description) {
-        parsedData.finalItinerary.description = `A ${tripDetails.duration}-day itinerary for ${tripDetails.mainDestination}`;
-      }
-      
-      console.log(`Successfully validated final itinerary with ${parsedData.finalItinerary.days.length} days`);
-      return {
-        success: true,
-        finalItinerary: parsedData.finalItinerary
-      };
-      
-    } catch (error: any) {
-      console.error('Error calling OpenRouter API for final itinerary:', error.response ? {
-        status: error.response.status,
-        data: error.response.data
-      } : error.message);
-      
+    } catch (error) {
+      console.error('Error calling OpenRouter API for final itinerary:', error);
       return {
         success: false,
-        error: error.response?.data?.error?.message || error.message || 'Failed to generate final itinerary. Please try again.'
+        error: 'Failed to generate final itinerary. Please try again.'
       };
     }
   }

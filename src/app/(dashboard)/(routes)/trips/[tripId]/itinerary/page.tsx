@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { PandaAssistant } from '@/components/ui/PandaAssistant';
 import { PandaModal } from '@/components/ui/PandaModal';
+import { useAuth } from '@/hooks/auth';
 import axios from 'axios';
 import { 
   OpenRouterResponse, 
@@ -23,25 +24,28 @@ const activityTypeIcons: Record<string, string> = {
   other: '📌',
 };
 
-// Mock getTrip function - replace with your actual API call
+// Fetch trip data from the API
 const getTrip = async (tripId: string): Promise<any> => {
-  // Simulate API call
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  // Return mock data
-  return {
-    id: tripId,
-    title: 'My Amazing Trip',
-    start_date: '2025-06-10',
-    end_date: '2025-06-18',
-    budget: '2000',
-    notes: 'Looking for a mix of adventure and relaxation',
-    destination: 'Hong Kong, China',
-    destination_coords: { lat: 22.3193, lng: 114.1694 },
-    place_id: 'ChIJD3uTd9sABDQRIaLbfVE2Qh0',
-    additional_destinations: [],
-    user_id: 'user123'
-  };
+  try {
+    // Call the API to get the real trip data
+    const response = await fetch(`/api/trips/${tripId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch trip data: ${response.status}`);
+    }
+    
+    const tripData = await response.json();
+    console.log('Fetched trip data:', tripData);
+    return tripData;
+  } catch (error) {
+    console.error('Error fetching trip details:', error);
+    throw error;
+  }
 };
 
 export default function ItineraryPage() {
@@ -50,6 +54,7 @@ export default function ItineraryPage() {
   const searchParams = useSearchParams();
   const tripId = params.tripId as string;
   const isNewTrip = searchParams.get('new') === 'true';
+  const { user } = useAuth(); // Get user info including country
 
   // States
   const [trip, setTrip] = useState<any>(null);
@@ -98,6 +103,24 @@ export default function ItineraryPage() {
       setPandaEmotion('thinking');
       setPandaMessage('Generating exciting itinerary options based on your trip details...');
       
+      // Extract all destinations (main + additional)
+      const additionalDestinations = Array.isArray(tripData.additional_destinations) && tripData.additional_destinations.length > 0
+        ? tripData.additional_destinations.map((d: any) => d.description)
+        : [];
+      
+      // Create the full list of destinations, making sure there are no duplicates
+      const allDestinations = [tripData.destination, ...additionalDestinations];
+      
+      console.log('All destinations for itinerary generation:', allDestinations);
+      
+      // Include user's country if available from auth context
+      const userCountry = user?.country;
+      if (userCountry) {
+        console.log('User country detected:', userCountry);
+      } else {
+        console.log('No user country information available');
+      }
+      
       // Prepare trip details for the OpenRouter API
       const tripDetails: TripDetails = {
         title: tripData.title,
@@ -107,7 +130,8 @@ export default function ItineraryPage() {
         budget: tripData.budget,
         notes: tripData.notes,
         mainDestination: tripData.destination,
-        allDestinations: [tripData.destination, ...(tripData.additional_destinations || []).map((d: any) => d.description)]
+        allDestinations: allDestinations,
+        userCountry: userCountry // Include user's country of origin for better recommendations
       };
       
       // Call the API endpoint that will use the OpenRouter service

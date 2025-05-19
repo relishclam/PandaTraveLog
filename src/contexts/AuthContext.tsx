@@ -10,6 +10,7 @@ type User = {
   name?: string;
   phone?: string;
   isPhoneVerified?: boolean;
+  country?: string; // Add country of origin
 };
 
 type AuthContextType = {
@@ -19,6 +20,7 @@ type AuthContextType = {
   signUp: (email: string, password: string, name: string) => Promise<{ id: string }>;
   signOut: () => Promise<void>;
   updateUserPhone: (userId: string, phoneNumber: string, isVerified: boolean) => Promise<void>;
+  updateUserCountry: (userId: string, country: string) => Promise<void>; // Add function to update user's country
   resetPassword: (email: string) => Promise<void>; // Added resetPassword function
 };
 
@@ -241,6 +243,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw error;
     }
   };
+  
+  const updateUserCountry = async (userId: string, country: string) => {
+    console.log("🌎 AuthContext: updateUserCountry called");
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          country: country,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+        
+      if (error) {
+        console.error("❌ AuthContext: Update country error", error);
+        throw error;
+      }
+      
+      // Update local user state if the current user is the one being updated
+      if (user && user.id === userId) {
+        setUser({
+          ...user,
+          country: country
+        });
+      }
+      console.log("✅ AuthContext: Country updated successfully");
+    } catch (error) {
+      console.error('❌ AuthContext: Error updating user country:', error);
+      throw error;
+    }
+  };
 
   // resetPassword function
   const resetPassword = async (email: string) => {
@@ -287,6 +319,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signUp, 
     signOut, 
     updateUserPhone, 
+    updateUserCountry,
     resetPassword
   };
 

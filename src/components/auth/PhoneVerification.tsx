@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { PandaAssistant } from '@/components/ui/PandaAssistant';
+import { useAuth } from '@/hooks/auth';
+import { COUNTRY_CODES } from '@/lib/country-codes';
 
 type PhoneVerificationProps = {
   onVerified: (phoneNumber: string) => void;
@@ -13,6 +15,9 @@ export const PhoneVerification: React.FC<PhoneVerificationProps> = ({
   onVerified,
   userId
 }) => {
+  const { updateUserCountry } = useAuth();
+  const [selectedCountry, setSelectedCountry] = useState('US');
+  const [countryPrefix, setCountryPrefix] = useState('+1');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
@@ -20,6 +25,23 @@ export const PhoneVerification: React.FC<PhoneVerificationProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [pandaMessage, setPandaMessage] = useState('Hi! Let\'s verify your phone number to keep your account secure.');
   const [pandaEmotion, setPandaEmotion] = useState<'happy' | 'thinking' | 'excited' | 'confused'>('happy');
+  
+  // List of country codes for the dropdown
+  const countryOptions = Object.entries(COUNTRY_CODES).map(([country, code]) => ({
+    label: `${country} (${code})`,
+    value: country,
+    prefix: code
+  })).sort((a, b) => a.label.localeCompare(b.label));
+  
+  // Handle country selection
+  const handleCountryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const country = e.target.value;
+    setSelectedCountry(country);
+    
+    // Find the prefix for the selected country
+    const prefix = countryOptions.find(option => option.value === country)?.prefix || '+1';
+    setCountryPrefix(prefix);
+  };
 
   const handleSendCode = async () => {
     if (!phoneNumber) {
@@ -29,16 +51,30 @@ export const PhoneVerification: React.FC<PhoneVerificationProps> = ({
       return;
     }
     
+    // Combine country code and phone number
+    const fullPhoneNumber = `${countryPrefix}${phoneNumber.startsWith('0') ? phoneNumber.substring(1) : phoneNumber}`;
+    
     setLoading(true);
     setError(null);
     setPandaEmotion('thinking');
     setPandaMessage('Sending your verification code...');
     
     try {
+      // Save the user's country first
+      if (userId) {
+        try {
+          await updateUserCountry(userId, selectedCountry);
+          console.log(`Updated user country to: ${selectedCountry}`);
+        } catch (err) {
+          console.error('Failed to update user country:', err);
+          // Continue with verification even if country update fails
+        }
+      }
+      
       const response = await fetch('/api/auth/otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber })
+        body: JSON.stringify({ phoneNumber: fullPhoneNumber })
       });
       
       const data = await response.json();
@@ -64,38 +100,42 @@ export const PhoneVerification: React.FC<PhoneVerificationProps> = ({
     if (!verificationCode) {
       setError('Please enter the verification code');
       setPandaEmotion('confused');
-      setPandaMessage('You need to enter the verification code I sent you!');
+      setPandaMessage('I need that verification code to continue!');
       return;
     }
+    
+    // Combine country code and phone number
+    const fullPhoneNumber = `${countryPrefix}${phoneNumber.startsWith('0') ? phoneNumber.substring(1) : phoneNumber}`;
     
     setLoading(true);
     setError(null);
     setPandaEmotion('thinking');
-    setPandaMessage('Checking your verification code...');
+    setPandaMessage('Verifying your code...');
     
     try {
-      const response = await fetch('/api/auth/verify', {
+      const response = await fetch('/api/auth/otp/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          phoneNumber, 
-          code: verificationCode,
-          userId
+          phoneNumber: fullPhoneNumber, 
+          verificationCode, 
+          userId,
+          country: selectedCountry 
         })
       });
       
       const data = await response.json();
       
       if (!data.success) {
-        throw new Error(data.message || 'Invalid verification code');
+        throw new Error(data.message || 'Failed to verify code');
       }
       
       setPandaEmotion('excited');
-      setPandaMessage('Phone verified successfully! Let\'s continue with your adventure!');
+      setPandaMessage('Great! Your phone number is verified!');
       
       // Call the onVerified callback with the verified phone number
-      onVerified(phoneNumber);
-    } catch (error) {
+      onVerified(fullPhoneNumber);
+    } catch (error: any) {
       console.error('Error verifying code:', error);
       setError(typeof error === 'string' ? error : 'Invalid verification code');
       setPandaEmotion('confused');
@@ -116,32 +156,54 @@ export const PhoneVerification: React.FC<PhoneVerificationProps> = ({
       )}
       
       {!codeSent ? (
-        <>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Phone Number
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1">
+              Select your country
             </label>
-            <div className="flex items-center">
+            <select
+              id="country"
+              value={selectedCountry}
+              onChange={handleCountryChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              disabled={loading}
+            >
+              {countryOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div>
+            <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-1">
+              Enter your phone number
+            </label>
+            <div className="flex">
+              <div className="inline-flex items-center px-3 py-2 border border-r-0 border-gray-300 bg-gray-50 text-gray-500 rounded-l-md">
+                {countryPrefix}
+              </div>
               <input
+                id="phoneNumber"
                 type="tel"
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="+1234567890"
-                className="flex-1 p-3 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-backpack-orange focus:border-backpack-orange"
-              />
-              <Button
-                onClick={handleSendCode}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-r-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder="123 456 7890"
                 disabled={loading}
-                className="bg-backpack-orange hover:bg-backpack-orange/90 text-white rounded-l-none rounded-r-md"
-              >
-                {loading ? 'Sending...' : 'Send Code'}
-              </Button>
+              />
             </div>
-            <p className="mt-2 text-sm text-gray-500">
-              Enter your phone number with country code (e.g., +1 for US)
-            </p>
+            <p className="mt-1 text-xs text-gray-500">Don't include the country code in the phone number field</p>
           </div>
-        </>
+          <Button
+            onClick={handleSendCode}
+            disabled={loading}
+            className="w-full mt-4 bg-backpack-orange hover:bg-backpack-orange/90 text-white py-2 rounded-md"
+          >
+            {loading ? 'Sending...' : 'Send Code'}
+          </Button>
+        </div>
       ) : (
         <>
           <div className="mb-6">
@@ -179,7 +241,7 @@ export const PhoneVerification: React.FC<PhoneVerificationProps> = ({
       )}
       
       <PandaAssistant
-        emotion={pandaEmotion}
+        emotion={pandaEmotion as 'happy' | 'thinking' | 'excited' | 'confused'}
         message={pandaMessage}
         position="bottom-right"
       />
