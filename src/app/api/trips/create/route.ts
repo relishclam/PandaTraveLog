@@ -19,11 +19,12 @@ export async function POST(request: Request) {
       );
     }
     
-    // Insert into trips table
+    // Insert into trips table with the client-provided ID
     const { data, error } = await supabase
       .from('trips')
       .insert([
         {
+          id: tripData.id, // Use the pre-generated ID from client
           user_id: tripData.user_id,
           title: tripData.title,
           start_date: tripData.start_date,
@@ -58,21 +59,21 @@ export async function POST(request: Request) {
     
     // If additional destinations exist, save them too
     if (tripData.additional_destinations && tripData.additional_destinations.length > 0) {
-      const tripId = data?.[0]?.id || `trip-${Date.now()}`; // Fallback ID
+      const tripId = tripData.id; // Use the pre-generated ID
       
       // In a production app, you would insert these into a separate table
       console.log('Additional destinations for trip', tripId, ':', tripData.additional_destinations);
     }
     
-    // Return the created trip ID
+    // Return the same trip ID that was provided
     return NextResponse.json({
-      id: data?.[0]?.id || `trip-${Date.now()}`,
+      id: tripData.id,
       message: 'Trip created successfully'
     });
   } catch (error: any) {
     console.error('Error in create trip API route:', error);
     
-    // For development, return a mock response to avoid blocking the flow
+    // For development, return a fallback ID since tripData is not available in the catch block
     return NextResponse.json({
       id: `trip-${Date.now()}`,
       message: 'Trip created successfully (mock response despite error)'

@@ -239,8 +239,12 @@ export default function NewTripPage() {
     setPandaMessage('Creating your trip and preparing your adventure...');
     
     try {
+      // Generate a consistent ID format that will be used for both Supabase and OpenRouter
+      const tripId = `trip-${Date.now()}`;
+      
       // Prepare trip data
       const tripData = {
+        id: tripId, // Use the pre-generated ID
         user_id: user.id,
         title: data.title,
         start_date: data.startDate,
@@ -259,10 +263,9 @@ export default function NewTripPage() {
           []
       };
       
-      console.log('Creating trip:', tripData);
+      console.log('Creating trip with ID:', tripId);
       
-      // Create the trip in the database (replace with your actual API call)
-      // This should save the basic trip details and return a trip ID
+      // Create the trip in the database with our pre-generated ID
       const response = await fetch('/api/trips/create', {
         method: 'POST',
         headers: {
@@ -276,7 +279,7 @@ export default function NewTripPage() {
       }
       
       const result = await response.json();
-      const tripId = result.id || `trip-${Date.now()}`; // Fallback ID if none returned
+      // Use our pre-generated ID instead of relying on the response
       
       setPandaEmotion('excited');
       setPandaMessage("Trip saved! Now let's plan your itinerary!");
