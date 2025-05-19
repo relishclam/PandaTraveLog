@@ -276,80 +276,147 @@ export const openRouterService = {
 
       // Log response details for debugging
       console.log('OpenRouter API response received');
+      console.log('OpenRouter API response data:', JSON.stringify(response.data, null, 2));
       
       // Safely extract the response text from OpenRouter format with proper error handling
-      if (!response.data || !response.data.choices || !response.data.choices.length || !response.data.choices[0].message) {
-        console.error('Unexpected API response structure:', response.data);
+      if (!response.data) {
+        console.error('Empty response data from OpenRouter API');
         return {
           success: false,
-          error: 'Invalid API response structure'
+          error: 'Empty response from OpenRouter API'
         };
       }
       
-      const responseText = response.data.choices[0].message.content;
+      // Check for choices array existence
+      if (!response.data.choices || !Array.isArray(response.data.choices) || response.data.choices.length === 0) {
+        console.error('Missing or empty choices array in OpenRouter response:', response.data);
+        return {
+          success: false,
+          error: 'Invalid response format from AI service'
+        };
+      }
+      
+      // Get the first choice content based on whether it's streaming or not
+      const firstChoice = response.data.choices[0];
+      let responseText;
+      
+      if (firstChoice.message && firstChoice.message.content) {
+        // Standard format
+        responseText = firstChoice.message.content;
+      } else if (firstChoice.delta && firstChoice.delta.content) {
+        // Streaming format
+        responseText = firstChoice.delta.content;
+      } else if (firstChoice.text) {
+        // Legacy format
+        responseText = firstChoice.text;
+      } else {
+        console.error('Cannot find content in API response choice:', firstChoice);
+        return {
+          success: false,
+          error: 'Could not extract content from AI response'
+        };
+      }
+      
+      // Check if we actually have text content
+      if (typeof responseText !== 'string' || !responseText.trim()) {
+        console.error('Empty or invalid content received from OpenRouter:', responseText);
+        return {
+          success: false,
+          error: 'Received empty content from AI service'
+        };
+      }
       
       try {
-        // Parse the JSON response
-        const parsedData = JSON.parse(responseText);
-        console.log('Successfully parsed JSON response from OpenRouter');
+        // The response from OpenRouter is already in the responseText variable
+        // Check if it's already a valid JSON object or string
+        let parsedData;
+        
+        try {
+          // First, log the start of the response to help with debugging
+          console.log('Response text preview:', responseText.substring(0, 200) + '...');
+          
+          // Try to parse as JSON
+          parsedData = JSON.parse(responseText);
+          console.log('Successfully parsed JSON from OpenRouter response');
+        } catch (parseError) {
+          console.error('Failed to parse response as JSON:', parseError);
+          // The text might contain a JSON string embedded in explanatory text
+          // Try to extract JSON using regex
+          try {
+            const jsonMatch = responseText.match(/\{[\s\S]*\}/); // Matches JSON object
+            if (jsonMatch) {
+              console.log('Found potential JSON object in response text, attempting to parse');
+              parsedData = JSON.parse(jsonMatch[0]);
+              console.log('Successfully extracted and parsed JSON from response text');
+            } else {
+              throw new Error('Could not find valid JSON in response');
+            }
+          } catch (extractError) {
+            console.error('Failed to extract and parse JSON from response:', extractError);
+            return {
+              success: false,
+              error: 'Could not parse response from AI service'
+            };
+          }
+        }
         
         // Detailed validation of response structure
         if (!parsedData) {
-          console.error('Empty response from OpenRouter');
+          console.error('Empty parsed data from OpenRouter');
           return {
             success: false,
             error: 'Empty response from AI service'
           };
         }
         
-        if (!parsedData.itineraryOptions) {
-          console.error('Missing itineraryOptions in response:', parsedData);
+        // Try to extract itinerary options using various potential structures
+        let itineraryOptions = null;
+        
+        // Check for directly provided itineraryOptions
+        if (parsedData.itineraryOptions && Array.isArray(parsedData.itineraryOptions)) {
+          console.log('Found itineraryOptions in response');
+          itineraryOptions = parsedData.itineraryOptions;
+        } 
+        // Check if we received a finalItinerary instead
+        else if (parsedData.finalItinerary) {
+          console.warn('Found finalItinerary instead of itineraryOptions, adapting format');
+          // Convert finalItinerary to itinerary option format
+          const adaptedOption = {
+            id: 'adapted-option',
+            title: parsedData.finalItinerary.title || 'Recommended Itinerary',
+            description: parsedData.finalItinerary.description || 'Custom itinerary for your trip',
+            highlights: ['Automatically generated based on your preferences'],
+            days: parsedData.finalItinerary.days || []
+          };
           
-          // Check if we received finalItinerary instead (wrong format but salvageable)
-          if (parsedData.finalItinerary) {
-            console.warn('Received finalItinerary instead of itineraryOptions, attempting to adapt');
-            // Convert finalItinerary to itinerary option format
-            const adaptedOption = {
-              id: 'adapted-option',
-              title: parsedData.finalItinerary.title || 'Recommended Itinerary',
-              description: parsedData.finalItinerary.description || 'Custom itinerary for your trip',
-              highlights: ['Automatically generated based on your preferences'],
-              days: parsedData.finalItinerary.days || []
-            };
-            
-            return {
-              success: true,
-              itineraryOptions: [adaptedOption]
-            };
+          itineraryOptions = [adaptedOption];
+        }
+        // Check for other possible option array formats
+        else if (parsedData.options || parsedData.itineraries || parsedData.plans) {
+          const possibleOptions = parsedData.options || parsedData.itineraries || parsedData.plans;
+          if (Array.isArray(possibleOptions)) {
+            console.warn('Found alternative options array (options/itineraries/plans), adapting format');
+            itineraryOptions = possibleOptions;
           }
-          
-          // Check for other possible response formats
-          if (parsedData.options || parsedData.itineraries || parsedData.plans) {
-            const possibleOptions = parsedData.options || parsedData.itineraries || parsedData.plans;
-            if (Array.isArray(possibleOptions)) {
-              console.warn('Found alternative options array, attempting to adapt');
-              return {
-                success: true,
-                itineraryOptions: possibleOptions
-              };
-            }
-          }
-          
+        }
+        
+        // If still no valid options, try to see if the response itself is an array of options
+        else if (Array.isArray(parsedData)) {
+          console.warn('Parsed data is an array, treating as itinerary options directly');
+          itineraryOptions = parsedData;
+        }
+        
+        // Final check if we found valid options
+        if (!itineraryOptions) {
+          console.error('Could not find valid itinerary options in response:', parsedData);
           return {
             success: false,
-            error: 'Invalid response format: itineraryOptions not found'
+            error: 'Invalid response format: could not locate itinerary options'
           };
         }
         
-        if (!Array.isArray(parsedData.itineraryOptions)) {
-          console.error('itineraryOptions is not an array:', parsedData.itineraryOptions);
-          return {
-            success: false,
-            error: 'Invalid response format: itineraryOptions is not an array'
-          };
-        }
-        
-        if (parsedData.itineraryOptions.length === 0) {
+        // Validate content of itinerary options
+        if (itineraryOptions.length === 0) {
           console.error('Empty itineraryOptions array');
           return {
             success: false,
@@ -357,24 +424,106 @@ export const openRouterService = {
           };
         }
         
-        // Validate each itinerary option has required fields
-        const validOptions = parsedData.itineraryOptions.filter((option: any) => {
-          return option && option.id && option.title && option.days && Array.isArray(option.days);
+        // Validate each itinerary option has required fields or attempt to fix them
+        const validOptions = itineraryOptions.map((option: any, index: number) => {
+          // Ensure each option has the required fields
+          if (!option.id) {
+            console.warn(`Option at index ${index} missing ID, adding generated ID`);
+            option.id = `option-${index + 1}`;
+          }
+          
+          if (!option.title) {
+            console.warn(`Option at index ${index} missing title, adding placeholder`);
+            option.title = `Itinerary Option ${index + 1}`;
+          }
+          
+          // Handle days property - make sure it's an array
+          if (!option.days || !Array.isArray(option.days)) {
+            console.warn(`Option at index ${index} has invalid or missing days array, creating placeholder`);
+            // Try to extract days from a different structure if available
+            let extractedDays = [];
+            
+            // Check various possible structures
+            if (option.itinerary && Array.isArray(option.itinerary)) {
+              extractedDays = option.itinerary;
+            } else if (option.schedule && Array.isArray(option.schedule)) {
+              extractedDays = option.schedule;
+            } else if (option.plan && Array.isArray(option.plan)) {
+              extractedDays = option.plan;
+            }
+            
+            if (extractedDays.length > 0) {
+              console.log(`Found alternative days array for option ${index}`);
+              option.days = extractedDays;
+            } else {
+              // Create a minimal placeholder day if nothing can be extracted
+              option.days = [{
+                dayNumber: 1,
+                title: `Day 1: ${option.title}`,
+                description: option.description || "Explore the destination",
+                activities: [],
+                meals: ["Breakfast: Local breakfast", "Lunch: Local cuisine", "Dinner: Restaurant dining"]
+              }];
+            }
+          }
+          
+          // Ensure each day has the minimum required properties
+          option.days = option.days.map((day: any, dayIndex: number) => {
+            if (!day.dayNumber) {
+              day.dayNumber = dayIndex + 1;
+            }
+            
+            if (!day.title) {
+              day.title = `Day ${day.dayNumber}`;
+            }
+            
+            if (!day.description) {
+              day.description = "Explore and enjoy the destination";
+            }
+            
+            // Ensure activities is an array
+            if (!day.activities || !Array.isArray(day.activities)) {
+              day.activities = [];
+            }
+            
+            // Ensure each activity has required fields
+            day.activities = day.activities.map((activity: any, actIndex: number) => {
+              if (!activity.id) {
+                activity.id = `day-${day.dayNumber}-activity-${actIndex + 1}`;
+              }
+              
+              if (!activity.title) {
+                activity.title = `Activity ${actIndex + 1}`;
+              }
+              
+              if (!activity.type) {
+                activity.type = 'sightseeing';
+              }
+              
+              if (!activity.location) {
+                activity.location = option.title || 'Local attraction';
+              }
+              
+              return activity;
+            });
+            
+            return day;
+          });
+          
+          // Add highlights if missing
+          if (!option.highlights || !Array.isArray(option.highlights) || option.highlights.length === 0) {
+            option.highlights = [
+              `Explore ${option.title}`,
+              "Experience local culture",
+              "Enjoy amazing cuisine"
+            ];
+          }
+          
+          return option;
         });
         
-        if (validOptions.length === 0) {
-          console.error('No valid itinerary options in response');
-          return {
-            success: false,
-            error: 'No valid itinerary options received'
-          };
-        }
+        console.log(`Successfully processed ${validOptions.length} itinerary options`);
         
-        if (validOptions.length < parsedData.itineraryOptions.length) {
-          console.warn(`Only ${validOptions.length} of ${parsedData.itineraryOptions.length} options were valid`);
-        }
-        
-        console.log(`Successfully extracted ${validOptions.length} valid itinerary options`);
         return {
           success: true,
           itineraryOptions: validOptions
