@@ -109,7 +109,10 @@ export const geminiService = {
   generateItineraryOptions: async (tripDetails: TripDetails): Promise<GeminiResponse> => {
     try {
       console.log('Generating itinerary options with Gemini API for:', tripDetails);
-      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      // Try server-side key first, then fall back to client-side key if necessary
+      const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      
+      console.log('API Key available:', !!apiKey, apiKey ? `(length: ${apiKey.length})` : '');
       
       if (!apiKey) {
         console.error('Gemini API key is missing');
@@ -376,9 +379,10 @@ export const geminiService = {
       }
 
       const parsedData = JSON.parse(jsonMatch[0]);
+      console.log('Successfully parsed Gemini API response:', parsedData);
       return {
         success: true,
-        finalItinerary: parsedData.finalItinerary
+        itineraryOptions: parsedData.itineraryOptions
       };
     } catch (error) {
       console.error('Error calling Gemini API for final itinerary:', error);
