@@ -537,7 +537,7 @@ export default function NewTripPage() {
         secondaryAction={{
           text: "No, continue with this destination",
           onClick: () => {
-            console.log("User chose to continue with one destination");
+            console.log(`User chose to continue with ${destinations.length} destination${destinations.length !== 1 ? 's' : ''}`);
             setShowMultiDestModal(false);
             setStep(2);
             setPandaMessage(`Perfect! Let's set up your trip to ${primaryDestination?.mainText}.`);
