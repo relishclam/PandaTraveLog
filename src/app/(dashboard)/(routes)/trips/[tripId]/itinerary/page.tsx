@@ -26,9 +26,23 @@ const activityTypeIcons: Record<string, string> = {
 
 // Fetch trip data from the API (only needed for existing trips)
 const getTrip = async (tripId: string, isNewTrip: boolean = false): Promise<any> => {
-  // If we're creating a new trip, we shouldn't need to fetch from Supabase
-  // but we'll keep the retry logic as a fallback
-  const maxRetries = isNewTrip ? 3 : 0; // Fewer retries for new trips since we should have client data
+  // First, try to get trip data from sessionStorage if this is a new trip
+  if (isNewTrip && typeof window !== 'undefined') {
+    const storedTripData = sessionStorage.getItem(`trip-${tripId}`);
+    if (storedTripData) {
+      try {
+        const parsedData = JSON.parse(storedTripData);
+        console.log('Retrieved trip data from sessionStorage:', parsedData);
+        return parsedData;
+      } catch (err) {
+        console.error('Error parsing stored trip data:', err);
+        // Continue to API fallback if parsing fails
+      }
+    }
+  }
+  
+  // Fallback to API if sessionStorage doesn't have the data
+  const maxRetries = isNewTrip ? 3 : 0; // Fewer retries for new trips
   let retryCount = 0;
   let lastError;
 
@@ -101,6 +115,25 @@ export default function ItineraryPage() {
   useEffect(() => {
     const loadTrip = async () => {
       try {
+        // First check sessionStorage for trip data (for new trips)
+        if (isNewTrip && typeof window !== 'undefined') {
+          const storedTripData = sessionStorage.getItem(`trip-${tripId}`);
+          if (storedTripData) {
+            try {
+              const parsedData = JSON.parse(storedTripData);
+              console.log('Retrieved trip data from sessionStorage:', parsedData);
+              setTrip(parsedData);
+              setPandaEmotion('excited');
+              setPandaMessage('I\'m generating exciting itinerary options for your trip!');
+              setLoading(false);
+              return; // Exit early since we have the data
+            } catch (err) {
+              console.error('Error parsing stored trip data:', err);
+              // Continue to other data sources if parsing fails
+            }
+          }
+        }
+        
         // For new trips with client-side data available, use that directly
         if (isNewTrip && clientTripData) {
           console.log('Using client-side trip data:', clientTripData);

@@ -289,22 +289,31 @@ export default function NewTripPage() {
     try {
       console.log("Navigating to the itinerary generation page with ID:", tripId);
       
-      // Store trip data in history state for client-side access
+      // Use the complete trip data we already have
+      const clientTripData = {
+        ...tripData,
+        // Ensure these fields match what the itinerary page expects
+        id: tripId,
+        trip_id: tripId
+      };
+      
+      console.log("Passing client-side trip data:", clientTripData);
+      
       if (typeof window !== 'undefined') {
-        // Use the complete trip data we already have
-        const clientTripData = {
-          ...tripData,
-          // Ensure these fields match what the itinerary page expects
-          client_id: tripId,
-          trip_id: tripId
-        };
-        
-        console.log("Passing client-side trip data:", clientTripData);
-        window.history.pushState({ clientTripData }, '', `/trips/${tripId}/itinerary?new=true`);
-        router.push(`/trips/${tripId}/itinerary?new=true`);
-      } else {
-        router.push(`/trips/${tripId}/itinerary?new=true`);
+        try {
+          // Store the full trip data in sessionStorage with the trip ID as key
+          sessionStorage.setItem(`trip-${tripId}`, JSON.stringify(tripData));
+          console.log('Trip data stored in sessionStorage');
+        } catch (err) {
+          console.error('Error storing trip data in sessionStorage:', err);
+          // Continue with navigation even if storage fails
+        }
       }
+      
+      // Navigate to the itinerary page with the trip data
+      console.log('Navigating to itinerary page with trip data');
+      // In Next.js App Router, we need to use a string URL with query parameters
+      router.push(`/trips/${tripId}/itinerary?new=true`);
     } catch (err: any) {
       console.error("Error navigating:", err);
       setError("Failed to navigate to trip. Please try again.");

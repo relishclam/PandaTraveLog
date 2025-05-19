@@ -81,12 +81,55 @@ export async function POST(request: Request) {
     }
     
     // Call service to generate itinerary options with explicit API key
-    const response = await openRouterService.generateItineraryOptions(tripDetails, apiKey);
-    console.log('OpenRouter service response:', response.success ? 'Success' : 'Failed', 
-               response.error || '', 
-               response.itineraryOptions ? `Got ${response.itineraryOptions.length} options` : 'No options');
-    
-    return NextResponse.json(response);
+    try {
+      // Set a timeout for the API call to prevent Netlify function timeout
+      const timeoutMs = 9000; // 9 seconds
+      let timeoutId: NodeJS.Timeout | undefined;
+      
+      // Create a promise that rejects after the timeout
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error('OpenRouter API request timed out'));
+        }, timeoutMs);
+      });
+      
+      // Race the API call against the timeout
+      const response = await Promise.race([
+        openRouterService.generateItineraryOptions(tripDetails, apiKey),
+        timeoutPromise
+      ]) as any;
+      
+      // Clear the timeout if the API call completes successfully
+      if (timeoutId) clearTimeout(timeoutId);
+      
+      console.log('OpenRouter service response:', response.success ? 'Success' : 'Failed', 
+                 response.error || '', 
+                 response.itineraryOptions ? `Got ${response.itineraryOptions.length} options` : 'No options');
+      
+      return NextResponse.json(response);
+    } catch (error: any) {
+      console.error('Error calling OpenRouter service:', error.message);
+      
+      // If it's a timeout error, return a more user-friendly message
+      if (error.message && error.message.includes('timed out')) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'The itinerary generation service is taking too long to respond. Please try again later.'
+          },
+          { status: 408 } // Request Timeout status
+        );
+      }
+      
+      // For other errors, pass through the error message
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: error.message || 'Failed to generate itinerary options'
+        },
+        { status: 500 }
+      );
+    }
   } catch (error: any) {
     console.error('Error in generate-options API route:', error);
     return NextResponse.json(
