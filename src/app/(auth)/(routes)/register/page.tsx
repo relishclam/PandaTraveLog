@@ -13,6 +13,7 @@ import { PhoneVerification } from '@/components/auth/PhoneVerification';
 type FormData = {
   name: string;
   email: string;
+  phone: string;
   password: string;
   confirmPassword: string;
 };
@@ -52,23 +53,28 @@ export default function RegisterPage() {
       setPandaEmotion('thinking');
       setPandaMessage('Creating your account...');
       
-      // Sign up the user
-      const { id } = await signUp(data.email, data.password, data.name);
+      // Validate phone number format if provided
+      if (data.phone && !/^\+?[1-9]\d{1,14}$/.test(data.phone)) {
+        setError('Please enter a valid phone number with country code (e.g., +1234567890)');
+        setPandaEmotion('confused');
+        setPandaMessage('The phone number format doesn\'t look right. Please include the country code.');
+        setIsLoading(false);
+        return;
+      }
       
-      // Skip phone verification and redirect directly to trips page
+      // Sign up the user with phone number
+      const { id } = await signUp(data.email, data.password, data.name, data.phone);
+      
+      // The redirect is now handled in the AuthContext after successful signup
       setPandaEmotion('excited');
       setPandaMessage('Your account is created! Redirecting to your dashboard...');
       
-      // Short delay before redirect to show success message
-      setTimeout(() => {
-        router.push('/trips');
-      }, 1500);
+      // No need for manual redirect as it's handled in AuthContext
     } catch (err: any) {
       console.error('Registration error:', err);
       setError(err.message || 'An error occurred during registration');
       setPandaEmotion('confused');
       setPandaMessage('Oh no! Something went wrong. Please try again.');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -139,6 +145,20 @@ export default function RegisterPage() {
                 {errors.email && (
                   <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
                 )}
+              </div>
+              
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone Number (with country code)
+                </label>
+                <input
+                  id="phone"
+                  type="tel"
+                  placeholder="+1234567890"
+                  {...register('phone')}
+                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-backpack-orange focus:border-backpack-orange"
+                />
+                <p className="mt-1 text-xs text-gray-500">Optional. Include country code (e.g., +1 for US)</p>
               </div>
               
               <div>

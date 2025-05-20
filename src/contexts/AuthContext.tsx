@@ -17,7 +17,7 @@ type AuthContextType = {
   user: User | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name: string) => Promise<{ id: string }>;
+  signUp: (email: string, password: string, name: string, phone?: string) => Promise<{ id: string }>;
   signOut: () => Promise<void>;
   updateUserPhone: (userId: string, phoneNumber: string, isVerified: boolean) => Promise<void>;
   updateUserCountry: (userId: string, country: string) => Promise<void>; // Add function to update user's country
@@ -135,14 +135,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (data?.user) {
         console.log("✅ AuthContext: Sign in successful");
-        await updateUserState(data.user);
         
-        // Use a small delay to ensure state is updated before navigation
-        setTimeout(() => {
-          // Use window.location for a full page navigation instead of router.push
-          // This helps avoid client-side navigation issues after authentication
-          window.location.href = '/trips';
-        }, 100);
+        // Force a complete page reload to the trips page
+        // This bypasses any client-side routing issues
+        console.log("🔄 AuthContext: Redirecting to trips page via hard navigation");
+        window.location.replace('/trips');
+        
+        // Don't update state since we're doing a full page navigation
+        return;
       }
     } catch (error: any) {
       console.error('❌ AuthContext: Error signing in:', error);
@@ -152,7 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signUp = async (email: string, password: string, name: string) => {
+  const signUp = async (email: string, password: string, name: string, phone?: string) => {
     console.log("📝 AuthContext: signUp called");
     setIsLoading(true);
     try {
@@ -171,14 +171,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       console.log("✅ AuthContext: User created, creating profile");
-      // Create profile entry
+      // Create profile entry with phone if provided
       await supabase.from('profiles').upsert({
         id: data.user.id,
         email: email,
         name: name,
+        phone: phone || '',
         is_phone_verified: false,
         updated_at: new Date().toISOString(),
       });
+      
+      // After successful signup, automatically sign in the user
+      if (data.session) {
+        console.log("✅ AuthContext: User has active session after signup");
+        
+        // Force a complete page reload to the trips page
+        setTimeout(() => {
+          console.log("🔄 AuthContext: Redirecting to trips page after signup");
+          window.location.replace('/trips');
+        }, 500);
+      }
       
       // Return the user ID for phone verification
       return { id: data.user.id };
