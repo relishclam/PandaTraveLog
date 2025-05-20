@@ -92,6 +92,9 @@ export async function POST(request: NextRequest) {
     }
     
     // Create the trip in the database - ensure we're using the correct column names and data types
+    // Based on the error, 'destination_coords' column doesn't exist in the trips table
+    
+    // Prepare the trip record with the columns we know exist in the database
     const tripRecord = {
       // Use the ID without the 'trip-' prefix for database
       id: tripData.id.replace('trip-', ''),
@@ -104,12 +107,21 @@ export async function POST(request: NextRequest) {
               (tripData.budget ? parseFloat(tripData.budget) : null),
       notes: tripData.notes || '',
       destination: tripData.destination,
-      // Ensure coordinates are properly formatted as PostgreSQL JSON
-      destination_coords: JSON.stringify(tripData.destination_coords || {}),
       place_id: tripData.place_id || '',
       status: 'planning',
       created_at: new Date().toISOString()
     };
+    
+    // Add latitude and longitude if they exist in the destination_coords
+    if (tripData.destination_coords) {
+      // Use the separate latitude and longitude columns you mentioned
+      if (tripData.destination_coords.lat) {
+        (tripRecord as any).destination_latitude = tripData.destination_coords.lat;
+      }
+      if (tripData.destination_coords.lng) {
+        (tripRecord as any).destination_longitude = tripData.destination_coords.lng;
+      }
+    }
     
     console.log('Inserting trip record:', tripRecord);
     
