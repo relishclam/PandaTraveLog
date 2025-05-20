@@ -170,11 +170,9 @@ export default function NewTripPage() {
       // Add to destinations array
       setDestinations([place]);
       
-      // Show multi-destination modal after a short delay
-      setTimeout(() => {
-        console.log("Showing multi-destination modal");
-        setShowMultiDestModal(true);
-      }, 500);
+      // Show multi-destination modal immediately
+      console.log("Setting showMultiDestModal to true");
+      setShowMultiDestModal(true);
       
       setPandaEmotion('excited');
     } catch (error) {
@@ -194,11 +192,9 @@ export default function NewTripPage() {
     setPandaEmotion('excited');
     setPandaMessage(`Great! ${place.mainText} added to your trip. You can add more destinations or continue to trip details.`);
     
-    // Show the modal again for each additional destination
-    setTimeout(() => {
-      console.log("Showing multi-destination modal again");
-      setShowMultiDestModal(true);
-    }, 500);
+    // Show the modal immediately
+    console.log("Showing multi-destination modal again");
+    setShowMultiDestModal(true);
   };
   
   // Remove a destination
