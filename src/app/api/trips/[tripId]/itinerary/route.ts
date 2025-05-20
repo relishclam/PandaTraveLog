@@ -51,11 +51,12 @@ function processItineraryCoordinates(itinerary: any): any {
   return processedItinerary;
 }
 
-// Helper function to extract location data from the itinerary for map visualization
-function extractLocationData(itinerary: any): any {
+// Helper function to extract locations from the itinerary for saving to the locations table
+function extractLocationsFromItinerary(itinerary: any): any[] {
   if (!itinerary) return [];
   
   const locations: any[] = [];
+  let orderCounter = 0;
   
   // Extract from days and activities
   if (Array.isArray(itinerary.days)) {
@@ -70,11 +71,24 @@ function extractLocationData(itinerary: any): any {
               type: activity.type || 'activity',
               lat: activity.location.lat,
               lng: activity.location.lng,
-              description: activity.description || ''
+              description: activity.description || '',
+              place_id: activity.place_id || '',
+              order: orderCounter++
             });
           }
         });
       }
+    });
+  }
+  
+  // If no activities with locations, add at least the main destination if available
+  if (locations.length === 0 && itinerary.destination && itinerary.destination.lat && itinerary.destination.lng) {
+    locations.push({
+      name: itinerary.destination.name || 'Main Destination',
+      lat: itinerary.destination.lat,
+      lng: itinerary.destination.lng,
+      place_id: itinerary.destination.place_id || '',
+      order: 0
     });
   }
   
@@ -134,37 +148,65 @@ export async function POST(
     // Process the itinerary to ensure all location coordinates are properly formatted
     const processedItinerary = processItineraryCoordinates(itinerary);
     
-    // Extract location data for potential future use
-    const locationData = extractLocationData(processedItinerary);
-    console.log('Extracted location data for map visualization:', locationData);
-    
-    // Save the itinerary to the database
+    // Create a new itinerary record
     const { data: savedItinerary, error: saveError } = await supabase
-      .from('trip_itineraries')
+      .from('itineraries')
       .upsert({
         trip_id: trip.id,
-        itinerary_data: processedItinerary,
-        location_data: locationData, // Store location data separately if the column exists
+        name: processedItinerary.title || `Itinerary for ${tripId}`,
+        description: processedItinerary.description || '',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
       .select();
+      
+    if (saveError) {
+      console.error('Error saving itinerary:', saveError);
+      return NextResponse.json(
+        { error: 'Failed to save itinerary', details: saveError.message },
+        { status: 500 }
+      );
+    }
+    
+    // Extract and save locations to the locations table
+    if (savedItinerary && savedItinerary.length > 0) {
+      const itineraryId = savedItinerary[0].id;
+      
+      // Extract locations from the itinerary
+      const locations = extractLocationsFromItinerary(processedItinerary);
+      
+      // Save each location to the locations table
+      for (const location of locations) {
+        const { error: locationError } = await supabase
+          .from('locations')
+          .insert({
+            itinerary_id: itineraryId,
+            lat: location.lat,
+            lng: location.lng,
+            address: location.name || '',
+            place_id: location.place_id || '',
+            order: location.order || 0
+          });
+          
+        if (locationError) {
+          console.error('Error saving location:', locationError);
+          // Continue with other locations even if one fails
+        }
+      }
+    }
     
     if (saveError) {
       console.error('Error saving itinerary:', saveError);
       console.error('Supabase connection details:', {
         url: supabaseUrl ? 'Set' : 'Not set',
         key: supabaseKey ? 'Set' : 'Not set',
-        error: saveError.message,
-        details: saveError.details,
-        hint: saveError.hint
+        error: typeof saveError === 'object' ? (saveError as any).message : String(saveError)
       });
       
       return NextResponse.json(
         { 
           error: 'Failed to save itinerary', 
-          details: saveError.message,
-          code: saveError.code
+          details: typeof saveError === 'object' ? (saveError as any).message : String(saveError)
         },
         { status: 500 }
       );

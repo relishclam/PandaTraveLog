@@ -112,15 +112,19 @@ export async function POST(request: NextRequest) {
       created_at: new Date().toISOString()
     };
     
-    // Add latitude and longitude if they exist in the destination_coords
+    // Add coordinates to the trip record using the correct column names: destination_lat and destination_lng
     if (tripData.destination_coords) {
-      // Use the separate latitude and longitude columns you mentioned
-      if (tripData.destination_coords.lat) {
-        (tripRecord as any).destination_latitude = tripData.destination_coords.lat;
+      // Use the correct column names as shown in the Supabase schema
+      if (tripData.destination_coords.lat !== undefined) {
+        (tripRecord as any).destination_lat = tripData.destination_coords.lat;
       }
-      if (tripData.destination_coords.lng) {
-        (tripRecord as any).destination_longitude = tripData.destination_coords.lng;
+      if (tripData.destination_coords.lng !== undefined) {
+        (tripRecord as any).destination_lng = tripData.destination_coords.lng;
       }
+      console.log('Added coordinates to trip record:', {
+        lat: tripData.destination_coords.lat,
+        lng: tripData.destination_coords.lng
+      });
     }
     
     console.log('Inserting trip record:', tripRecord);
