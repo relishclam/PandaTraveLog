@@ -1,43 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-
-// Validate environment variables
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables:', {
-    url: supabaseUrl ? 'Set' : 'Missing',
-    key: supabaseAnonKey ? 'Set' : 'Missing'
-  });
-}
-
-// Create the Supabase client with proper options
-const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: false, // Don't persist session in server environment
-    autoRefreshToken: false // Don't auto refresh token in server environment
-  },
-  global: {
-    fetch: fetch // Use the global fetch
-  },
-  db: {
-    schema: 'public'
-  }
-});
+// We'll create the Supabase client inside the handler to get the session
+// from the request cookies
 
 export async function POST(request: NextRequest) {
   try {
     const tripData = await request.json();
     console.log('Received trip data:', tripData);
-    
-    // Log Supabase connection details
-    console.log('Supabase connection details:', {
-      url: supabaseUrl,
-      keyLength: supabaseAnonKey ? supabaseAnonKey.length : 0,
-      hasKey: !!supabaseAnonKey
-    });
     
     // Validate required fields
     if (!tripData.id || !tripData.title || !tripData.start_date || !tripData.end_date || !tripData.destination) {
@@ -47,49 +18,46 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Get the authenticated user
-    let userId;
-    try {
-      const { data: { session }, error: authError } = await supabase.auth.getSession();
-      
-      if (authError) {
-        console.error('Auth error:', authError);
-        return NextResponse.json(
-          { error: 'Authentication error', details: authError.message },
-          { status: 401 }
-        );
-      }
-      
-      userId = session?.user?.id;
-      
-      if (!userId) {
-        console.log('No user session found, using fallback ID');
-        // For development/demo, use a fallback ID if no session
-        userId = tripData.user_id || 'demo-user';
-      }
-    } catch (authErr: any) {
-      console.error('Error getting auth session:', authErr);
-      // Continue with a fallback user ID for development
-      userId = tripData.user_id || 'demo-user';
+    // Create a Supabase client with the auth cookie
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    
+    // Get the current session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError || !session) {
+      console.error('No session found:', sessionError);
+      return NextResponse.json(
+        { error: 'Not authenticated', details: sessionError?.message },
+        { status: 401 }
+      );
     }
     
-    // Ensure the trip has a user_id
+    // Use the authenticated user's ID
+    const userId = session.user.id;
     tripData.user_id = userId;
     
-    // Test the database connection first
+    console.log('Authenticated user ID:', userId);
+    
+    // Test the database connection with the authenticated user
     try {
-      const { error: pingError } = await supabase.from('trips').select('id').limit(1);
-      if (pingError) {
-        console.error('Database ping failed:', pingError);
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', userId)
+        .single();
+        
+      if (profileError || !profile) {
+        console.error('User profile not found:', profileError);
         return NextResponse.json(
-          { error: 'Database connection test failed', details: pingError.message },
-          { status: 500 }
+          { error: 'User profile not found', details: profileError?.message },
+          { status: 404 }
         );
       }
-    } catch (pingErr: any) {
-      console.error('Error pinging database:', pingErr);
+    } catch (err: any) {
+      console.error('Error verifying user profile:', err);
       return NextResponse.json(
-        { error: 'Database connection error', details: pingErr.message },
+        { error: 'Error verifying user', details: err.message },
         { status: 500 }
       );
     }
@@ -215,20 +183,13 @@ export async function POST(request: NextRequest) {
     
     if (error) {
       console.error('Error creating trip in database:', error);
-      console.error('Supabase connection details:', {
-        url: supabaseUrl ? 'Set' : 'Not set',
-        key: supabaseAnonKey ? 'Set' : 'Not set',
-        error: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code
-      });
       
       return NextResponse.json(
         { 
-          error: 'Failed to create trip in database', 
+          error: 'Failed to create trip in database',
           details: error.message,
-          code: error.code
+          code: error.code || 'UNKNOWN_ERROR',
+          hint: error.hint
         },
         { status: 500 }
       );
