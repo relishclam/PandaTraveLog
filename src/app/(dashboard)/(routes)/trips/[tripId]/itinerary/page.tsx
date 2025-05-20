@@ -212,7 +212,7 @@ export default function ItineraryPage() {
         endDate: tripData.end_date,
         duration: Math.ceil((new Date(tripData.end_date).getTime() - new Date(tripData.start_date).getTime()) / (1000 * 3600 * 24)) + 1,
         budget: tripData.budget,
-        notes: tripData.notes,
+        interests: tripData.interests,
         mainDestination: tripData.destination,
         allDestinations: allDestinations,
         userCountry: userCountry // Include user's country of origin for better recommendations
@@ -293,7 +293,7 @@ export default function ItineraryPage() {
         endDate: trip.end_date,
         duration: Math.ceil((new Date(trip.end_date).getTime() - new Date(trip.start_date).getTime()) / (1000 * 3600 * 24)) + 1,
         budget: trip.budget,
-        notes: trip.notes,
+        interests: trip.interests,
         mainDestination: trip.destination,
         allDestinations: [trip.destination, ...(trip.additional_destinations || []).map((d: any) => d.description)]
       };

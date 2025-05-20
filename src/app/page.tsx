@@ -5,7 +5,7 @@ import { PandaAssistant } from '@/components/ui/PandaAssistant';
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-bamboo-light">
+    <div className="min-h-screen h-full flex flex-col bg-bamboo-light">
       {/* PO Logo at Top */}
       <div className="w-full flex justify-center pt-10 pb-2">
         <Image
