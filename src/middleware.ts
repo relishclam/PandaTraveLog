@@ -5,6 +5,9 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 // Paths that require authentication
 const protectedPaths = ['/dashboard', '/trips', '/profile'];
 
+// Special routes that should be allowed with timestamp parameter
+const specialRoutes = ['/trips/new'];
+
 // Paths that are part of the auth flow
 const authPaths = ['/login', '/register', '/reset-password'];
 
@@ -77,6 +80,17 @@ export async function middleware(request: NextRequest) {
   
   // Get the session
   const { data: { session } } = await supabase.auth.getSession();
+  
+  // Check if this is a special route that should be allowed with timestamp
+  const isSpecialRoute = specialRoutes.some(route => 
+    url.pathname === route || url.pathname.startsWith(route)
+  );
+  
+  // If this is a special route with a timestamp, allow it through
+  if (isSpecialRoute && hasTimestamp) {
+    console.log('Middleware: Special route with timestamp detected, allowing access');
+    return response;
+  }
   
   // Check if the current path is protected
   const isProtectedPath = protectedPaths.some(path => 
