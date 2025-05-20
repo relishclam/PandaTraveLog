@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { PandaAssistant } from '@/components/ui/PandaAssistant';
 import { PandaModal } from '@/components/ui/PandaModal';
-import { LocationSearch } from '@/components/maps/LocationSearch';
+import DestinationSearchWrapper from '@/components/maps/DestinationSearchWrapper';
 import { useAuth } from '@/contexts/AuthContext';
 
 // Simple button component
@@ -184,19 +184,35 @@ export default function NewTripPage() {
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>();
   
   // Handle primary destination selection
-  const handleDestinationSelect = (place: any) => {
-    console.log("handleDestinationSelect called with:", place);
+  const handleDestinationSelect = (destination: any) => {
+    console.log("handleDestinationSelect called with:", destination);
     setPandaEmotion('thinking');
-    setPandaMessage(`Hmm, ${place.mainText}... Let me see what I can find!`);
+    setPandaMessage(`Hmm, ${destination.name}... Let me see what I can find!`);
     
     try {
+      // Format the destination to match the expected structure
+      const place = {
+        description: destination.formattedName,
+        placeId: destination.place_id,
+        mainText: destination.name,
+        secondaryText: destination.country,
+        location: {
+          lat: destination.coordinates[1],
+          lng: destination.coordinates[0]
+        },
+        details: {
+          country: destination.country,
+          formatted: destination.formattedName
+        }
+      };
+      
       // Set as primary destination
       setPrimaryDestination(place);
       
       // Add to destinations array
       setDestinations([place]);
       
-      // Show multi-destination modal immediately
+      // Show multi-destination modal
       console.log("Setting showMultiDestModal to true");
       setShowMultiDestModal(true);
       
@@ -210,15 +226,32 @@ export default function NewTripPage() {
   };
   
   // Add another destination
-  const addDestination = (place: any) => {
-    console.log("Adding destination:", place);
+  const addDestination = (destination: any) => {
+    console.log("Adding destination:", destination);
+    
+    // Format the destination to match the expected structure
+    const place = {
+      description: destination.formattedName,
+      placeId: destination.place_id,
+      mainText: destination.name,
+      secondaryText: destination.country,
+      location: {
+        lat: destination.coordinates[1],
+        lng: destination.coordinates[0]
+      },
+      details: {
+        country: destination.country,
+        formatted: destination.formattedName
+      }
+    };
+    
     setDestinations(prev => [...prev, place]);
     
     // After adding a destination, show a confirmation message
     setPandaEmotion('excited');
-    setPandaMessage(`Great! ${place.mainText} added to your trip. You can add more destinations or continue to trip details.`);
+    setPandaMessage(`Great! ${destination.name} added to your trip. You can add more destinations or continue to trip details.`);
     
-    // Show the modal immediately
+    // Show the modal
     console.log("Showing multi-destination modal again");
     setShowMultiDestModal(true);
   };
@@ -424,60 +457,64 @@ export default function NewTripPage() {
             <h2 className="text-xl font-bold">Where would you like to go?</h2>
             
             {/* Primary destination search */}
-            {destinations.length === 0 ? (
-              <LocationSearch 
-                onSelect={handleDestinationSelect}
-                placeholder="Search for a destination (country, city, etc)..."
-                focusOnLoad={true}
-                id="primary-destination"
-              />
-            ) : (
-              <div>
-                <h3 className="text-lg font-medium mb-2">Your destinations:</h3>
-                <div className="space-y-3">
-                  {destinations.map((dest, index) => (
-                    <div key={`${dest.placeId}-${index}`} className="flex items-center bg-green-50 p-3 rounded-lg">
-                      <div className="flex-1">
-                        <div className="font-medium">
-                          {index === 0 ? '🌟 ' : '📍'}{dest.mainText}
+            <div className="space-y-4">
+              {destinations.length === 0 ? (
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Where would you like to go?</h3>
+                  <DestinationSearchWrapper 
+                    onDestinationSelect={handleDestinationSelect}
+                    placeholder="Search for a destination (country, city, etc)..."
+                    label=""
+                  />
+                </div>
+              ) : (
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Your destinations:</h3>
+                  <div className="space-y-3">
+                    {destinations.map((dest, index) => (
+                      <div key={`${dest.placeId}-${index}`} className="flex items-center bg-green-50 p-3 rounded-lg">
+                        <div className="flex-1">
+                          <div className="font-medium">
+                            {index === 0 ? '🌟 ' : '📍'}{dest.mainText}
+                          </div>
+                          {dest.secondaryText && (
+                            <div className="text-sm text-gray-600">{dest.secondaryText}</div>
+                          )}
                         </div>
-                        {dest.secondaryText && (
-                          <div className="text-sm text-gray-600">{dest.secondaryText}</div>
+                        
+                        {/* Don't allow removing the last destination */}
+                        {(destinations.length > 1 || index > 0) && (
+                          <button
+                            onClick={() => removeDestination(index)}
+                            className="text-red-500 hover:text-red-700 p-1"
+                            type="button"
+                            aria-label="Remove destination"
+                          >
+                            <span className="text-xl">🗑️</span>
+                          </button>
                         )}
                       </div>
-                      
-                      {/* Don't allow removing the last destination */}
-                      {(destinations.length > 1 || index > 0) && (
-                        <button
-                          onClick={() => removeDestination(index)}
-                          className="text-red-500 hover:text-red-700 p-1"
-                          type="button"
-                          aria-label="Remove destination"
-                        >
-                          <span className="text-xl">🗑️</span>
-                        </button>
-                      )}
+                    ))}
+                    
+                    {/* Add another destination */}
+                    <div className="mt-4">
+                      <h3 className="text-lg font-medium mb-2">Add another destination:</h3>
+                      <DestinationSearchWrapper 
+                        onDestinationSelect={addDestination}
+                        placeholder="Search for another destination..."
+                        label=""
+                      />
                     </div>
-                  ))}
-                  
-                  {/* Add another destination */}
-                  <div className="mt-4">
-                    <h3 className="text-lg font-medium mb-2">Add another destination:</h3>
-                    <LocationSearch 
-                      onSelect={addDestination}
-                      placeholder="Search for another destination..."
-                      id="additional-destination"
-                    />
-                  </div>
-                  
-                  <div className="flex justify-end mt-4">
-                    <Button onClick={() => setStep(2)}>
-                      Continue to Trip Details
-                    </Button>
+                    
+                    <div className="flex justify-end mt-4">
+                      <Button onClick={() => setStep(2)}>
+                        Continue to Trip Details
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
         
