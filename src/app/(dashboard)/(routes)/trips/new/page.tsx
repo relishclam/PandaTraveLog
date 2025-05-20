@@ -267,6 +267,7 @@ export default function NewTripPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include cookies for authentication
         body: JSON.stringify(tripData),
       });
       
