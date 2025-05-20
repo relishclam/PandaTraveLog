@@ -14,5 +14,8 @@
   NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhoZGNjY216Y2libHBicmNybmlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkyMzg3MTAsImV4cCI6MjA1NDgxNDcxMH0.HH1tJatUQiHZC62Kl0_h7wTxrh2ZKHJAjcncKE30UYU"
   # Add your Geoapify API key here for Netlify deployments
   NEXT_PUBLIC_GEOAPIFY_API_KEY = "5a047258d51943729c19139c17b7ff1a"
+  # Add OpenRouter API key for AI itinerary generation
+  OPEN_ROUTER_API_KEY = "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"
+  NEXT_PUBLIC_OPEN_ROUTER_API_KEY = "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"
   # Disable Twilio in production to allow fallback mechanisms
   DISABLE_TWILIO = "true"
