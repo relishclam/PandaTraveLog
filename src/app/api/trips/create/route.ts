@@ -132,11 +132,64 @@ export async function POST(request: NextRequest) {
     
     console.log('Inserting trip record:', tripRecord);
     
-    // Now that the interests column exists in the database, we can use the Supabase builder pattern
-    const { data, error } = await supabase
-      .from('trips')
-      .insert(tripRecord)
-      .select();
+    // Try using the Supabase builder pattern first since we've added the columns to the database
+    let data: any = null;
+    let error: any = null;
+    
+    try {
+      const result = await supabase
+        .from('trips')
+        .insert(tripRecord)
+        .select();
+        
+      data = result.data;
+      error = result.error;
+      
+      // If there's an error with the builder pattern, try a raw SQL query
+      if (error) {
+        console.log('Builder pattern failed, trying raw SQL query:', error);
+        
+        // Create a raw SQL query string
+        const query = `
+          INSERT INTO trips (
+            id, user_id, title, start_date, end_date, budget, 
+            interests, destination, place_id, status, created_at,
+            destination_lat, destination_lng
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+          )
+          RETURNING *
+        `;
+        
+        const values = [
+          tripRecord.id,
+          tripRecord.user_id,
+          tripRecord.title,
+          tripRecord.start_date,
+          tripRecord.end_date,
+          tripRecord.budget,
+          tripRecord.interests,
+          tripRecord.destination,
+          tripRecord.place_id,
+          tripRecord.status,
+          tripRecord.created_at,
+          (tripRecord as any).destination_lat,
+          (tripRecord as any).destination_lng
+        ];
+        
+        const rawResult = await supabase.rpc('exec_sql', { query, params: values });
+        
+        if (!rawResult.error) {
+          data = rawResult.data;
+          error = null;
+        } else {
+          console.error('Raw SQL query also failed:', rawResult.error);
+        }
+      }
+    } catch (e) {
+      console.error('Exception during database operation:', e);
+      error = e;
+    }
     
     if (error) {
       console.error('Error creating trip in database:', error);
