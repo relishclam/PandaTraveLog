@@ -1,5 +1,85 @@
 import { NextResponse } from 'next/server';
-import { openRouterService, TripDetails } from '@/services/openrouter-service';
+import { openRouterService, TripDetails, ItineraryOption } from '@/services/openrouter-service';
+import axios from 'axios';
+
+// Function to generate fallback options if the API call fails
+function generateFallbackOptions(tripDetails: TripDetails): ItineraryOption[] {
+  // This is just a placeholder - in production, you'd want to implement proper fallbacks
+  return [];
+}
+
+// Direct OpenRouter API call function
+async function callOpenRouterDirectly(tripDetails: TripDetails, apiKey: string) {
+  const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+  
+  // Create a detailed prompt for the itinerary generation
+  const prompt = `Generate 3 different itinerary options for a ${tripDetails.duration}-day trip to ${tripDetails.mainDestination}.
+  Trip details:
+  - Title: ${tripDetails.title}
+  - Dates: ${tripDetails.startDate} to ${tripDetails.endDate}
+  - Duration: ${tripDetails.duration} days
+  - Main destination: ${tripDetails.mainDestination}
+  - Additional destinations: ${tripDetails.allDestinations.join(', ')}
+  ${tripDetails.interests ? `- Interests: ${tripDetails.interests}` : ''}
+  ${tripDetails.budget ? `- Budget: ${tripDetails.budget}` : ''}
+  ${tripDetails.userCountry ? `- Traveler from: ${tripDetails.userCountry}` : ''}
+  
+  Format the response as a valid JSON object with the following structure:
+  {
+    "itineraryOptions": [
+      {
+        "id": "option-1",
+        "title": "Option 1 Title",
+        "description": "Brief description of this itinerary option",
+        "highlights": ["Highlight 1", "Highlight 2", "Highlight 3"],
+        "days": [
+          {
+            "dayNumber": 1,
+            "title": "Day 1 Title",
+            "description": "Description of day 1",
+            "activities": [
+              {
+                "id": "activity-1-1",
+                "title": "Activity Title",
+                "description": "Activity description",
+                "type": "sightseeing",
+                "location": "Location name",
+                "duration": "2 hours",
+                "cost": "$$$"
+              }
+            ],
+            "meals": ["Breakfast at...", "Lunch at...", "Dinner at..."]
+          }
+        ]
+      }
+    ]
+  }`;
+  
+  // Configure the API request
+  const response = await axios.post(
+    OPENROUTER_API_URL,
+    {
+      model: 'openai/gpt-4o',
+      messages: [
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      response_format: { type: 'json_object' }
+    },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': 'https://pandatravelog.netlify.app',
+        'X-Title': 'PandaTraveLog Itinerary Generator'
+      }
+    }
+  );
+  
+  return response.data;
+}
 
 export async function POST(request: Request) {
   try {
@@ -71,6 +151,11 @@ export async function POST(request: Request) {
     // Check for OpenRouter API key
     const apiKey = process.env.OPEN_ROUTER_API_KEY || process.env.NEXT_PUBLIC_OPEN_ROUTER_API_KEY;
     console.log('OpenRouter API key available:', !!apiKey, apiKey ? `(length: ${apiKey.length})` : '');
+    console.log('Environment variables available:', {
+      OPEN_ROUTER_API_KEY: !!process.env.OPEN_ROUTER_API_KEY,
+      NEXT_PUBLIC_OPEN_ROUTER_API_KEY: !!process.env.NEXT_PUBLIC_OPEN_ROUTER_API_KEY,
+      NODE_ENV: process.env.NODE_ENV
+    });
     
     if (!apiKey) {
       console.error('OpenRouter API key missing in server environment');
@@ -80,10 +165,12 @@ export async function POST(request: Request) {
       );
     }
     
-    // Call service to generate itinerary options with explicit API key
+    // Call OpenRouter API directly
     try {
+      console.log('Calling OpenRouter API directly with API key');
+      
       // Set a timeout for the API call to prevent Netlify function timeout
-      const timeoutMs = 9000; // 9 seconds
+      const timeoutMs = 25000; // 25 seconds - longer timeout for direct API call
       let timeoutId: NodeJS.Timeout | undefined;
       
       // Create a promise that rejects after the timeout
@@ -93,42 +180,52 @@ export async function POST(request: Request) {
         }, timeoutMs);
       });
       
-      // Race the API call against the timeout
-      const response = await Promise.race([
-        openRouterService.generateItineraryOptions(tripDetails, apiKey),
+      // Race the direct API call against the timeout
+      const openRouterResponse = await Promise.race([
+        callOpenRouterDirectly(tripDetails, apiKey),
         timeoutPromise
       ]) as any;
       
       // Clear the timeout if the API call completes successfully
       if (timeoutId) clearTimeout(timeoutId);
       
-      console.log('OpenRouter service response:', response.success ? 'Success' : 'Failed', 
-                 response.error || '', 
-                 response.itineraryOptions ? `Got ${response.itineraryOptions.length} options` : 'No options');
+      console.log('Direct OpenRouter API response received');
       
-      return NextResponse.json(response);
+      // Extract the content from the OpenRouter response
+      const content = openRouterResponse.choices[0].message.content;
+      console.log('OpenRouter content response (first 100 chars):', content.substring(0, 100));
+      
+      // Parse the JSON response
+      const parsedData = JSON.parse(content);
+      
+      // Return the itinerary options
+      return NextResponse.json({
+        success: true,
+        itineraryOptions: parsedData.itineraryOptions,
+        directApiCall: true
+      });
     } catch (error: any) {
-      console.error('Error calling OpenRouter service:', error.message);
+      console.error('Error calling OpenRouter API directly:', error.message);
       
-      // If it's a timeout error, return a more user-friendly message
-      if (error.message && error.message.includes('timed out')) {
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: 'The itinerary generation service is taking too long to respond. Please try again later.'
-          },
-          { status: 408 } // Request Timeout status
-        );
+      // Try the service as a fallback
+      try {
+        console.log('Falling back to openRouterService');
+        const response = await openRouterService.generateItineraryOptions(tripDetails, apiKey);
+        
+        return NextResponse.json(response);
+      } catch (serviceError: any) {
+        console.error('Service fallback also failed:', serviceError.message);
+        
+        // Return a more detailed error response
+        return NextResponse.json({
+          success: false,
+          error: 'Failed to generate itinerary options',
+          details: {
+            directApiError: error.message,
+            serviceError: serviceError.message
+          }
+        }, { status: 500 });
       }
-      
-      // For other errors, pass through the error message
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: error.message || 'Failed to generate itinerary options'
-        },
-        { status: 500 }
-      );
     }
   } catch (error: any) {
     console.error('Error in generate-options API route:', error);
