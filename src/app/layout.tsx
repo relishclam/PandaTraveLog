@@ -28,7 +28,7 @@ export default function RootLayout({
         <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
         <link rel="manifest" href="/site.webmanifest" />
       </head>
-      <body className="font-nunito antialiased">
+      <body className="font-nunito antialiased min-h-screen flex flex-col bg-bamboo-light" style={{ minHeight: '100vh', height: '100%' }}>
         <Providers>
           {children}
         </Providers>

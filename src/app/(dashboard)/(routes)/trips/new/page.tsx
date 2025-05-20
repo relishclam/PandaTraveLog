@@ -554,7 +554,9 @@ export default function NewTripPage() {
           // Don't automatically go to step 2 when closing
         }}
         title="Plan Your Adventure"
-        message={`Great choice! ${primaryDestination?.mainText} sounds amazing! Do you want to add more destinations to your trip?`}
+        message={destinations.length > 1 ? 
+          `Fantastic! You've selected ${destinations.map(d => d.mainText).join(' and ')}. Would you like to add more destinations to your adventure?` : 
+          `Great choice! ${primaryDestination?.mainText} sounds amazing! Do you want to add more destinations to your trip?`}
         emotion="excited"
         primaryAction={{
           text: "Yes, add more destinations",

@@ -21,6 +21,9 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
   global: {
     fetch: fetch // Use the global fetch
+  },
+  db: {
+    schema: 'public'
   }
 });
 
@@ -128,10 +131,26 @@ export async function POST(request: NextRequest) {
     }
     
     console.log('Inserting trip record:', tripRecord);
+    console.log('Database schema being used:', supabase.schema);
     
+    // Try a more direct approach to insert the data
     const { data, error } = await supabase
       .from('trips')
-      .insert(tripRecord)
+      .insert({
+        id: tripRecord.id,
+        user_id: tripRecord.user_id,
+        title: tripRecord.title,
+        start_date: tripRecord.start_date,
+        end_date: tripRecord.end_date,
+        budget: tripRecord.budget,
+        interests: tripRecord.interests,
+        destination: tripRecord.destination,
+        place_id: tripRecord.place_id,
+        status: tripRecord.status,
+        created_at: tripRecord.created_at,
+        destination_lat: (tripRecord as any).destination_lat,
+        destination_lng: (tripRecord as any).destination_lng
+      })
       .select();
     
     if (error) {

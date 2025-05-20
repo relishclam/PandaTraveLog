@@ -1,5 +1,8 @@
 /* src/app/globals.css */
+/* This file uses Tailwind CSS directives - IDE warnings can be ignored */
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap');
+
+/* Tailwind directives */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -22,10 +25,26 @@
   }
 }
 
+html, body, #__next, main {
+  height: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+html {
+  background-color: var(--bamboo-light);
+}
+
 body {
-  background: var(--bamboo-light);
+  background-color: var(--bamboo-light);
   color: var(--panda-black);
   font-family: 'Nunito', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
 }
 
 .panda-shadow {
