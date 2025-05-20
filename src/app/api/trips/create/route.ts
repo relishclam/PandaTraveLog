@@ -47,10 +47,33 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Get the authenticated user
+    // Get the authenticated user and their session token
     let userId;
+    let supabaseWithAuth = supabase; // Default to the anonymous client
+    
     try {
-      const { data: { session }, error: authError } = await supabase.auth.getSession();
+      // Extract the session token from the request cookies
+      const authToken = request.cookies.get('sb-access-token')?.value;
+      const refreshToken = request.cookies.get('sb-refresh-token')?.value;
+      
+      // If we have a token, create a new Supabase client with it
+      if (authToken) {
+        console.log('Found auth token in cookies, creating authenticated client');
+        supabaseWithAuth = createClient(supabaseUrl, supabaseAnonKey, {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false
+          },
+          global: {
+            headers: {
+              Authorization: `Bearer ${authToken}`
+            }
+          }
+        });
+      }
+      
+      // Get the user session
+      const { data: { session }, error: authError } = await supabaseWithAuth.auth.getSession();
       
       if (authError) {
         console.error('Auth error:', authError);
@@ -78,7 +101,7 @@ export async function POST(request: NextRequest) {
     
     // Test the database connection first
     try {
-      const { error: pingError } = await supabase.from('trips').select('id').limit(1);
+      const { error: pingError } = await supabaseWithAuth.from('trips').select('id').limit(1);
       if (pingError) {
         console.error('Database ping failed:', pingError);
         return NextResponse.json(
@@ -163,9 +186,10 @@ export async function POST(request: NextRequest) {
     
     // Log the final trip record being inserted
     console.log('Final trip record:', tripRecord);
+    console.log('Using authenticated Supabase client:', !!supabaseWithAuth);
     
-    // Insert the trip record into the database
-    const { data, error } = await supabase
+    // Insert the trip record into the database using the authenticated client
+    const { data, error } = await supabaseWithAuth
       .from('trips')
       .insert(tripRecord)
       .select();
