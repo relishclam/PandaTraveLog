@@ -264,10 +264,26 @@ export default function NewTripPage() {
       // Generate a consistent ID format that will be used for both Supabase and OpenRouter
       const tripId = `trip-${Date.now()}`;
       
+      // Get user ID from auth context or sessionStorage
+      let userId = user?.id;
+      
+      // If we don't have a user ID from auth context, check sessionStorage
+      if (!userId) {
+        const storedUserId = sessionStorage.getItem('user_id');
+        if (storedUserId) {
+          console.log('Using user ID from sessionStorage:', storedUserId);
+          userId = storedUserId;
+        } else {
+          console.log('No user ID available, using emergency fallback ID');
+          // Generate a fallback ID for emergency situations
+          userId = `temp-${Date.now()}`;
+        }
+      }
+      
       // Prepare trip data
       const tripData = {
         id: tripId, // Use the pre-generated ID
-        user_id: user.id,
+        user_id: userId,
         title: data.title,
         start_date: data.startDate,
         end_date: data.endDate,
@@ -288,11 +304,27 @@ export default function NewTripPage() {
       console.log('Creating trip with ID:', tripId);
       
       // Create the trip in the database with our pre-generated ID
+      // Add emergency authentication headers if we're using emergency auth
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Add emergency auth headers if we have them in sessionStorage
+      const authSuccess = sessionStorage.getItem('auth_success');
+      const userEmail = sessionStorage.getItem('user_email');
+      
+      if (authSuccess === 'true') {
+        console.log('Adding emergency auth headers to API request');
+        headers['x-emergency-auth'] = 'true';
+        
+        if (userEmail) {
+          headers['x-user-email'] = userEmail;
+        }
+      }
+      
       const response = await fetch('/api/trips/create', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         credentials: 'include', // Include cookies for authentication
         body: JSON.stringify(tripData),
       });
