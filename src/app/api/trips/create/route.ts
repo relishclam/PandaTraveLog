@@ -97,22 +97,38 @@ export async function POST(request: NextRequest) {
     // Create the trip in the database - ensure we're using the correct column names and data types
     // Based on the error, 'destination_coords' column doesn't exist in the trips table
     
-    // Prepare the trip record with the columns we know exist in the database
+    // Generate a proper UUID for the trip ID
+    const generateUUID = () => {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    };
+    
+    // Prepare the trip record with the columns that exist in the database
     const tripRecord = {
-      // Use the ID without the 'trip-' prefix for database
-      id: tripData.id.replace('trip-', ''),
+      // Use a proper UUID format for the ID
+      id: generateUUID(),
       user_id: tripData.user_id,
       title: tripData.title,
+      // Add description field (can be null)
+      description: tripData.description || null,
       start_date: tripData.start_date,
       end_date: tripData.end_date,
       // Ensure budget is a number or null
       budget: typeof tripData.budget === 'number' ? tripData.budget : 
               (tripData.budget ? parseFloat(tripData.budget) : null),
-      interests: tripData.interests || '', // Using interests field from frontend
+      // Use correct capitalization for Interests column
+      Interests: tripData.interests || '', // Using interests field from frontend
       destination: tripData.destination,
+      // Include place_id field
       place_id: tripData.place_id || '',
+      // Add default values for other required fields
+      currency: 'USD', // Default currency
       status: 'planning',
-      created_at: new Date().toISOString()
+      is_public: false, // Default to private trips
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
     
     // Add coordinates to the trip record using the correct column names: destination_lat and destination_lng
@@ -132,64 +148,27 @@ export async function POST(request: NextRequest) {
     
     console.log('Inserting trip record:', tripRecord);
     
-    // Try using the Supabase builder pattern first since we've added the columns to the database
-    let data: any = null;
-    let error: any = null;
+    // Use the Supabase builder pattern since we've fixed the database schema
+    console.log('Using Supabase builder pattern with correct column names');
     
-    try {
-      const result = await supabase
-        .from('trips')
-        .insert(tripRecord)
-        .select();
-        
-      data = result.data;
-      error = result.error;
-      
-      // If there's an error with the builder pattern, try a raw SQL query
-      if (error) {
-        console.log('Builder pattern failed, trying raw SQL query:', error);
-        
-        // Create a raw SQL query string
-        const query = `
-          INSERT INTO trips (
-            id, user_id, title, start_date, end_date, budget, 
-            interests, destination, place_id, status, created_at,
-            destination_lat, destination_lng
-          ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
-          )
-          RETURNING *
-        `;
-        
-        const values = [
-          tripRecord.id,
-          tripRecord.user_id,
-          tripRecord.title,
-          tripRecord.start_date,
-          tripRecord.end_date,
-          tripRecord.budget,
-          tripRecord.interests,
-          tripRecord.destination,
-          tripRecord.place_id,
-          tripRecord.status,
-          tripRecord.created_at,
-          (tripRecord as any).destination_lat,
-          (tripRecord as any).destination_lng
-        ];
-        
-        const rawResult = await supabase.rpc('exec_sql', { query, params: values });
-        
-        if (!rawResult.error) {
-          data = rawResult.data;
-          error = null;
-        } else {
-          console.error('Raw SQL query also failed:', rawResult.error);
-        }
+    // Add coordinates to the trip record
+    if (tripData.destination_coords) {
+      if (tripData.destination_coords.lat !== undefined) {
+        (tripRecord as any).destination_lat = tripData.destination_coords.lat;
       }
-    } catch (e) {
-      console.error('Exception during database operation:', e);
-      error = e;
+      if (tripData.destination_coords.lng !== undefined) {
+        (tripRecord as any).destination_lng = tripData.destination_coords.lng;
+      }
     }
+    
+    // Log the final trip record being inserted
+    console.log('Final trip record:', tripRecord);
+    
+    // Insert the trip record into the database
+    const { data, error } = await supabase
+      .from('trips')
+      .insert(tripRecord)
+      .select();
     
     if (error) {
       console.error('Error creating trip in database:', error);
@@ -220,9 +199,9 @@ export async function POST(request: NextRequest) {
       console.log('Additional destinations for trip', tripId, ':', tripData.additional_destinations);
     }
     
-    // Return the same trip ID that was provided
+    // Return the generated UUID as the trip ID
     return NextResponse.json({
-      id: tripData.id,
+      id: tripRecord.id,
       message: 'Trip created successfully'
     });
   } catch (error: any) {
