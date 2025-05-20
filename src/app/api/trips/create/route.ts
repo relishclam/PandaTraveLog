@@ -47,33 +47,10 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Get the authenticated user and their session token
+    // Get the authenticated user
     let userId;
-    let supabaseWithAuth = supabase; // Default to the anonymous client
-    
     try {
-      // Extract the session token from the request cookies
-      const authToken = request.cookies.get('sb-access-token')?.value;
-      const refreshToken = request.cookies.get('sb-refresh-token')?.value;
-      
-      // If we have a token, create a new Supabase client with it
-      if (authToken) {
-        console.log('Found auth token in cookies, creating authenticated client');
-        supabaseWithAuth = createClient(supabaseUrl, supabaseAnonKey, {
-          auth: {
-            persistSession: false,
-            autoRefreshToken: false
-          },
-          global: {
-            headers: {
-              Authorization: `Bearer ${authToken}`
-            }
-          }
-        });
-      }
-      
-      // Get the user session
-      const { data: { session }, error: authError } = await supabaseWithAuth.auth.getSession();
+      const { data: { session }, error: authError } = await supabase.auth.getSession();
       
       if (authError) {
         console.error('Auth error:', authError);
@@ -101,7 +78,7 @@ export async function POST(request: NextRequest) {
     
     // Test the database connection first
     try {
-      const { error: pingError } = await supabaseWithAuth.from('trips').select('id').limit(1);
+      const { error: pingError } = await supabase.from('trips').select('id').limit(1);
       if (pingError) {
         console.error('Database ping failed:', pingError);
         return NextResponse.json(
@@ -128,40 +105,41 @@ export async function POST(request: NextRequest) {
       });
     };
     
-    // Prepare the trip record with the columns that exist in the database
-    const tripRecord = {
-      // Use a proper UUID format for the ID
+    // Prepare the trip record with the columns from the Supabase schema
+    const tripRecord: Record<string, any> = {
+      // Required fields
       id: generateUUID(),
       user_id: tripData.user_id,
       title: tripData.title,
-      // Add description field (can be null)
-      description: tripData.description || null,
       start_date: tripData.start_date,
       end_date: tripData.end_date,
-      // Ensure budget is a number or null
-      budget: typeof tripData.budget === 'number' ? tripData.budget : 
-              (tripData.budget ? parseFloat(tripData.budget) : null),
-      // Use correct capitalization for Interests column
-      Interests: tripData.interests || '', // Using interests field from frontend
       destination: tripData.destination,
-      // Include place_id field
-      place_id: tripData.place_id || '',
-      // Add default values for other required fields
-      currency: 'USD', // Default currency
+      
+      // Optional fields with defaults
+      description: tripData.description || '',
+      budget: typeof tripData.budget === 'number' ? tripData.budget : 
+             (tripData.budget ? parseFloat(tripData.budget) : null),
+      currency: tripData.currency || 'USD',
       status: 'planning',
-      is_public: false, // Default to private trips
+      is_public: tripData.is_public || false,
+      Interests: tripData.interests || '', // Note: Capital 'I' to match schema
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      
+      // Destination details
+      destination_name: tripData.destination_name || tripData.destination,
+      destination_city: tripData.destination_city || '',
+      destination_country: tripData.destination_country || '',
+      place_id: tripData.place_id || ''
     };
     
-    // Add coordinates to the trip record using the correct column names: destination_lat and destination_lng
+    // Add coordinates if provided
     if (tripData.destination_coords) {
-      // Use the correct column names as shown in the Supabase schema
       if (tripData.destination_coords.lat !== undefined) {
-        (tripRecord as any).destination_lat = tripData.destination_coords.lat;
+        tripRecord.destination_lat = parseFloat(tripData.destination_coords.lat);
       }
       if (tripData.destination_coords.lng !== undefined) {
-        (tripRecord as any).destination_lng = tripData.destination_coords.lng;
+        tripRecord.destination_lng = parseFloat(tripData.destination_coords.lng);
       }
       console.log('Added coordinates to trip record:', {
         lat: tripData.destination_coords.lat,
@@ -169,30 +147,71 @@ export async function POST(request: NextRequest) {
       });
     }
     
-    console.log('Inserting trip record:', tripRecord);
-    
-    // Use the Supabase builder pattern since we've fixed the database schema
-    console.log('Using Supabase builder pattern with correct column names');
-    
-    // Add coordinates to the trip record
-    if (tripData.destination_coords) {
-      if (tripData.destination_coords.lat !== undefined) {
-        (tripRecord as any).destination_lat = tripData.destination_coords.lat;
-      }
-      if (tripData.destination_coords.lng !== undefined) {
-        (tripRecord as any).destination_lng = tripData.destination_coords.lng;
-      }
+    // Handle cover image if provided
+    if (tripData.cover_image_url) {
+      tripRecord.cover_image_url = tripData.cover_image_url;
     }
     
-    // Log the final trip record being inserted
-    console.log('Final trip record:', tripRecord);
-    console.log('Using authenticated Supabase client:', !!supabaseWithAuth);
+    console.log('Inserting trip record:', tripRecord);
     
-    // Insert the trip record into the database using the authenticated client
-    const { data, error } = await supabaseWithAuth
-      .from('trips')
-      .insert(tripRecord)
-      .select();
+    // Try using the Supabase builder pattern first since we've added the columns to the database
+    let data: any = null;
+    let error: any = null;
+    
+    try {
+      const result = await supabase
+        .from('trips')
+        .insert(tripRecord)
+        .select();
+        
+      data = result.data;
+      error = result.error;
+      
+      // If there's an error with the builder pattern, try a raw SQL query
+      if (error) {
+        console.log('Builder pattern failed, trying raw SQL query:', error);
+        
+        // Create a raw SQL query string
+        const query = `
+          INSERT INTO trips (
+            id, user_id, title, start_date, end_date, budget, 
+            interests, destination, place_id, status, created_at,
+            destination_lat, destination_lng
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+          )
+          RETURNING *
+        `;
+        
+        const values = [
+          tripRecord.id,
+          tripRecord.user_id,
+          tripRecord.title,
+          tripRecord.start_date,
+          tripRecord.end_date,
+          tripRecord.budget,
+          tripRecord.interests,
+          tripRecord.destination,
+          tripRecord.place_id,
+          tripRecord.status,
+          tripRecord.created_at,
+          (tripRecord as any).destination_lat,
+          (tripRecord as any).destination_lng
+        ];
+        
+        const rawResult = await supabase.rpc('exec_sql', { query, params: values });
+        
+        if (!rawResult.error) {
+          data = rawResult.data;
+          error = null;
+        } else {
+          console.error('Raw SQL query also failed:', rawResult.error);
+        }
+      }
+    } catch (e) {
+      console.error('Exception during database operation:', e);
+      error = e;
+    }
     
     if (error) {
       console.error('Error creating trip in database:', error);
