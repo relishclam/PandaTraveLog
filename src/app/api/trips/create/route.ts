@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
       // Ensure budget is a number or null
       budget: typeof tripData.budget === 'number' ? tripData.budget : 
               (tripData.budget ? parseFloat(tripData.budget) : null),
-      notes: tripData.notes || '',
+      interests: tripData.interests || '', // Using interests field from frontend
       destination: tripData.destination,
       place_id: tripData.place_id || '',
       status: 'planning',

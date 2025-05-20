@@ -115,7 +115,7 @@ type FormData = {
   startDate: string;
   endDate: string;
   budget?: string;
-  notes?: string;
+  interests?: string;
 };
 
 type Destination = {
@@ -250,7 +250,7 @@ export default function NewTripPage() {
         start_date: data.startDate,
         end_date: data.endDate,
         budget: data.budget ? parseFloat(data.budget) : null,
-        notes: data.notes,
+        interests: data.interests,
         destination: primaryDestination.description,
         destination_coords: primaryDestination.location,
         place_id: primaryDestination.placeId,
@@ -478,16 +478,17 @@ export default function NewTripPage() {
             </div>
             
             <div>
-              <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
-                Notes (Optional)
+              <label htmlFor="interests" className="block text-sm font-medium text-gray-700 mb-1">
+                Interests (Optional)
               </label>
               <textarea
-                id="notes"
-                placeholder="Any special requests or notes for your trip"
+                id="interests"
+                placeholder="Enter your interests here. Ex. Adventure, Shopping, Local Food, etc"
                 rows={3}
-                {...register('notes')}
+                {...register('interests')}
                 className="w-full p-2 border border-gray-300 rounded-md"
               ></textarea>
+              <p className="mt-1 text-xs text-gray-500 italic">Your interests will help us create a better itinerary for you</p>
             </div>
             
             {primaryDestination && (

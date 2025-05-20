@@ -7,7 +7,7 @@ export interface TripDetails {
   endDate: string;
   duration: number;
   budget?: string;
-  notes?: string;
+  interests?: string;
   mainDestination: string;
   allDestinations: string[];
   userCountry?: string;
@@ -214,7 +214,7 @@ export const openRouterService = {
         - Dates: From ${tripDetails.startDate} to ${tripDetails.endDate}
         - Duration: ${tripDetails.duration} days
         - Budget: ${tripDetails.budget || 'Not specified'}
-        ${tripDetails.notes ? `- Special notes: ${tripDetails.notes}` : ''}
+        ${tripDetails.interests ? `- Traveler interests: ${tripDetails.interests}` : ''}
         ${tripDetails.allDestinations.length > 1 ? `- Other destinations to include: ${tripDetails.allDestinations.filter(d => d !== tripDetails.mainDestination).join(', ')}` : ''}
         
         Consider the season and weather for ${tripDetails.mainDestination} during ${new Date(tripDetails.startDate).toLocaleString('en-US', { month: 'long' })}.
@@ -552,7 +552,7 @@ export const openRouterService = {
         - Duration: ${tripDetails.duration} days
         - Dates: From ${tripDetails.startDate} to ${tripDetails.endDate} (${new Date(tripDetails.startDate).toLocaleString('en-US', { month: 'long' })})
         - Budget: ${tripDetails.budget || 'Not specified'}
-        ${tripDetails.notes ? `- Special notes: ${tripDetails.notes}` : ''}
+        ${tripDetails.interests ? `- Traveler interests: ${tripDetails.interests}` : ''}
         ${tripDetails.allDestinations.length > 1 ? `- Other destinations to include: ${tripDetails.allDestinations.filter(d => d !== tripDetails.mainDestination).join(', ')}` : ''}
         
         The traveler has selected the following activities:
