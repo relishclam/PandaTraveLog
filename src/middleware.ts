@@ -76,12 +76,18 @@ export async function middleware(request: NextRequest) {
   
   // If the path is protected and there's no session, redirect to login
   if (isProtectedPath && !session) {
-    return NextResponse.redirect(new URL('/login', request.url));
+    // Add a cache-control header to prevent caching of the redirect
+    const response = NextResponse.redirect(new URL('/login', request.url));
+    response.headers.set('Cache-Control', 'no-store, max-age=0');
+    return response;
   }
   
   // If the user is logged in and trying to access an auth page, redirect to trips
   if (isAuthPath && session) {
-    return NextResponse.redirect(new URL('/trips', request.url));
+    // Add a cache-control header to prevent caching of the redirect
+    const response = NextResponse.redirect(new URL('/trips', request.url));
+    response.headers.set('Cache-Control', 'no-store, max-age=0');
+    return response;
   }
   
   return response;

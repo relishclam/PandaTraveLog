@@ -33,6 +33,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // This flag helps us avoid hydration mismatches
   const [mounted, setMounted] = useState(false);
 
+  // Helper function to update user state from Supabase user
+  const updateUserState = async (supabaseUser: any) => {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', supabaseUser.id)
+      .single();
+
+    setUser({
+      id: supabaseUser.id,
+      email: supabaseUser.email!,
+      name: profile?.name || '',
+      phone: profile?.phone || '',
+      isPhoneVerified: profile?.is_phone_verified || false,
+      country: profile?.country || ''
+    });
+    
+    console.log("👤 AuthContext: User set", {
+      email: supabaseUser.email,
+      hasName: !!profile?.name,
+      hasPhone: !!profile?.phone
+    });
+    
+    setIsLoading(false);
+  };
+
   // This ensures we're only running this code on the client side
   useEffect(() => {
     const initAuth = async () => {
@@ -77,31 +103,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
     
-    // Helper function to update user state from Supabase user
-    const updateUserState = async (supabaseUser: any) => {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', supabaseUser.id)
-        .single();
-
-      setUser({
-        id: supabaseUser.id,
-        email: supabaseUser.email!,
-        name: profile?.name || '',
-        phone: profile?.phone || '',
-        isPhoneVerified: profile?.is_phone_verified || false
-      });
-      
-      console.log("👤 AuthContext: User set", {
-        email: supabaseUser.email,
-        hasName: !!profile?.name,
-        hasPhone: !!profile?.phone
-      });
-      
-      setIsLoading(false);
-    };
-    
     // Start the auth initialization process
     let authListenerCleanup: any;
     
@@ -126,51 +127,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email,
         password,
       });
-
-      console.log("📥 AuthContext: Supabase response:", { 
-        success: !error,
-        hasUser: !!data?.user,
-        hasSession: !!data?.session,
-        userId: data?.user?.id
-      });
-
+      
       if (error) {
-        console.error("❌ AuthContext: Auth error", error);
+        console.error("❌ AuthContext: Sign in error", error);
         throw error;
       }
-
-      console.log("✅ AuthContext: Authentication successful");
       
-      // Add a delay to allow the session to be established
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Update local user state immediately
-      if (data.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
-          
-        setUser({
-          id: data.user.id,
-          email: data.user.email!,
-          name: profile?.name || '',
-          phone: profile?.phone || '',
-          isPhoneVerified: profile?.is_phone_verified || false
-        });
+      if (data?.user) {
+        console.log("✅ AuthContext: Sign in successful");
+        await updateUserState(data.user);
+        
+        // Use a small delay to ensure state is updated before navigation
+        setTimeout(() => {
+          // Use window.location for a full page navigation instead of router.push
+          // This helps avoid client-side navigation issues after authentication
+          window.location.href = '/trips';
+        }, 100);
       }
-      
-      // Force a complete page reload to prevent SPA navigation issues
-      console.log("🔄 AuthContext: Redirecting to trips page");
-      router.push('/trips');
-      router.refresh();
     } catch (error: any) {
       console.error('❌ AuthContext: Error signing in:', error);
       throw error;
     } finally {
       setIsLoading(false);
-      console.log("🏁 AuthContext: signIn process completed");
     }
   };
 
@@ -300,8 +278,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await supabase.auth.signOut();
       console.log("✅ AuthContext: Signed out successfully");
-      router.push('/');
-      router.refresh();
+      
+      // Use window.location for a full page navigation
+      // This ensures all state is cleared properly
+      window.location.href = '/';
     } catch (error) {
       console.error('❌ AuthContext: Error signing out:', error);
       throw error;
