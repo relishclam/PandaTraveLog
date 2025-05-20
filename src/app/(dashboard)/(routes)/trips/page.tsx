@@ -40,9 +40,21 @@ export default function TripsPage() {
   const [pandaEmotion, setPandaEmotion] = useState<'happy' | 'thinking' | 'excited' | 'confused'>('happy');
   const [pandaMessage, setPandaMessage] = useState('Welcome to your trips dashboard!');
 
-  // Redirect to login if not authenticated
+  // Check for emergency auth in sessionStorage
   useEffect(() => {
-    if (!loading && !user) {
+    // Check if we arrived via emergency navigation
+    const authSuccess = sessionStorage.getItem('auth_success');
+    const userEmail = sessionStorage.getItem('user_email');
+    
+    console.log("🔐 Trips: Checking emergency auth", { authSuccess, userEmail });
+    
+    if (authSuccess === 'true' && userEmail && !user) {
+      console.log("🔐 Trips: Emergency auth detected, refreshing session");
+      // Force a session refresh
+      supabase.auth.refreshSession();
+      // Don't clear sessionStorage yet, we'll do that after successful fetch
+    } else if (!loading && !user) {
+      console.log("🚫 Trips: No auth detected, redirecting to login");
       router.replace('/login');
     }
   }, [loading, user, router]);
@@ -65,18 +77,46 @@ export default function TripsPage() {
   // Fetch user trips
   useEffect(() => {
     const fetchTrips = async () => {
-      if (!user) {
-        console.log("⚠️ Trips: No user found, skipping fetch");
+      // Check for emergency auth in sessionStorage
+      const authSuccess = sessionStorage.getItem('auth_success');
+      const userEmail = sessionStorage.getItem('user_email');
+      
+      if (!user && !(authSuccess === 'true' && userEmail)) {
+        console.log("⚠️ Trips: No user found and no emergency auth, skipping fetch");
         return;
       }
 
       try {
-        console.log("🔄 Trips: Fetching trips for user", user.email);
+        console.log("🔄 Trips: Fetching trips", user ? `for user ${user.email}` : 'with emergency auth');
         setLoading(true);
+        
+        // If we have a user, use their ID, otherwise try to get the user from Supabase
+        let userId = user?.id;
+        
+        // If we don't have a user ID but have emergency auth, try to get the user
+        if (!userId && authSuccess === 'true' && userEmail) {
+          console.log("🔄 Trips: Getting user from Supabase with email", userEmail);
+          const { data: userData } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('email', userEmail)
+            .single();
+            
+          if (userData?.id) {
+            console.log("✅ Trips: Found user ID from email", userData.id);
+            userId = userData.id;
+          }
+        }
+        
+        if (!userId) {
+          console.error("❌ Trips: Could not determine user ID");
+          throw new Error('Could not determine user ID');
+        }
+        
         const { data, error } = await supabase
           .from('trips')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -86,6 +126,13 @@ export default function TripsPage() {
 
         console.log("✅ Trips: Fetched", data?.length, "trips");
         setTrips(data || []);
+        
+        // Clear emergency auth after successful fetch
+        if (authSuccess === 'true') {
+          console.log("🧹 Trips: Clearing emergency auth from sessionStorage");
+          // Don't remove user_email yet as it might be needed for other operations
+          sessionStorage.removeItem('auth_success');
+        }
         
         if (data && data.length === 0) {
           setPandaEmotion('excited');

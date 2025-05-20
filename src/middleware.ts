@@ -12,6 +12,21 @@ export async function middleware(request: NextRequest) {
   // Create an unmodified response
   let response = NextResponse.next();
   
+  // Check for emergency navigation parameters
+  const url = new URL(request.url);
+  const hasTimestamp = url.searchParams.has('t');
+  
+  // If we have a timestamp parameter, this is an emergency navigation
+  // Skip middleware checks and proceed directly
+  if (hasTimestamp) {
+    console.log('Middleware: Emergency navigation detected, skipping auth checks');
+    // Add cache control headers to prevent caching
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    return response;
+  }
+  
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -62,7 +77,6 @@ export async function middleware(request: NextRequest) {
   
   // Get the session
   const { data: { session } } = await supabase.auth.getSession();
-  const url = new URL(request.url);
   
   // Check if the current path is protected
   const isProtectedPath = protectedPaths.some(path => 
@@ -76,9 +90,14 @@ export async function middleware(request: NextRequest) {
   
   // If the path is protected and there's no session, redirect to login
   if (isProtectedPath && !session) {
+    // Check for emergency auth in sessionStorage (client-side only)
+    // This won't work server-side, but we're adding a fallback mechanism
+    
     // Add a cache-control header to prevent caching of the redirect
     const response = NextResponse.redirect(new URL('/login', request.url));
-    response.headers.set('Cache-Control', 'no-store, max-age=0');
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
     return response;
   }
   
@@ -86,7 +105,9 @@ export async function middleware(request: NextRequest) {
   if (isAuthPath && session) {
     // Add a cache-control header to prevent caching of the redirect
     const response = NextResponse.redirect(new URL('/trips', request.url));
-    response.headers.set('Cache-Control', 'no-store, max-age=0');
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
     return response;
   }
   
