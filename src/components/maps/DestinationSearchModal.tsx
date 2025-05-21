@@ -144,7 +144,7 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
           text: query,
           format: 'json',
           apiKey,
-          filter: 'not.category:commercial,amenity,building.commercial',
+          filter: 'countrycode:none,not.category:commercial,not.category:amenity,not.category:building.commercial',
           type: selectedCountry ? 'city,district,tourism' : 'country,city',
           limit: '10',
         });
@@ -590,19 +590,6 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
               >
                 {/* Bamboo-themed header */}
                 <div className="flex items-center p-4 bg-bamboo-light rounded-t-xl border-b-2 border-green-500">
-                  <div className="w-20 h-20 mr-4">
-                    <Image
-                      src={imageError 
-                        ? '/images/po/logo/fallback-logo.png' 
-                        : `/images/po/emotions/${poEmotion}.png`
-                      }
-                      alt={`PO the Travel Panda (${poEmotion})`}
-                      width={80}
-                      height={80}
-                      className="object-contain animate-bounce-gentle"
-                      onError={() => setImageError(true)}
-                    />
-                  </div>
                   <div className="flex-1">
                     <h2 className="text-2xl font-bold text-green-800" id="modal-title">Find Your Destination</h2>
                     <p className="text-green-700">{poMessage}</p>

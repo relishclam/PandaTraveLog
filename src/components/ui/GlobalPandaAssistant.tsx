@@ -7,6 +7,13 @@ import { usePandaAssistant } from '@/contexts/PandaAssistantContext';
 export const GlobalPandaAssistant: React.FC = () => {
   const { state, hideMainAssistant, hideFloatingAssistant } = usePandaAssistant();
 
+  // Determine if we're on the search page with an error
+  const isOnSearchPage = typeof window !== 'undefined' && 
+    window.location.pathname.includes('/trips/new');
+
+  // Choose appropriate position for floating assistant based on current page
+  const floatingPosition = isOnSearchPage ? "center" : "top-left";
+
   return (
     <>
       {/* Main assistant - fixed at bottom right */}
@@ -26,7 +33,7 @@ export const GlobalPandaAssistant: React.FC = () => {
           message={state.floatingAssistant.message || undefined}
           emotion={state.floatingAssistant.emotion}
           showMessage={!!state.floatingAssistant.message}
-          position="top-right" 
+          position={floatingPosition}
           size="sm"
           initiallyVisible={true}
           onMessageClose={hideFloatingAssistant}
