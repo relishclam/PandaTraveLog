@@ -144,11 +144,15 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
           text: query,
           format: 'json',
           apiKey,
-          // Fix filter format - separate with pipes instead of commas
-          filter: 'countrycode:none|not.category:commercial|not.category:amenity|not.category:building.commercial',
           type: selectedCountry ? 'city,district,tourism' : 'country,city',
           limit: '10',
         });
+        
+        // Add filter parameters separately
+        params.append('filter', 'countrycode:none');
+        params.append('filter', 'not.category:commercial');
+        params.append('filter', 'not.category:amenity');
+        params.append('filter', 'not.category:building.commercial');
         
         // Add country parameter only if it exists
         if (selectedCountry?.properties?.country_code) {
@@ -692,19 +696,11 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
                 {error && (
                   <div className="px-4 py-3 text-red-600 bg-red-100 rounded mx-4 mb-2 flex items-center">
                     <div className="flex-shrink-0 mr-3">
-                      <Image 
-                        src="/images/panda-sad.png" 
-                        alt="Sad Panda" 
-                        width={40} 
-                        height={40}
-                        className="rounded-full"
-                        unoptimized={true}
-                        onError={(e) => {
-                          // Fallback if image fails to load
-                          const target = e.currentTarget as HTMLImageElement;
-                          target.style.display = 'none';
-                        }}
-                      />
+                      <div className="flex items-center justify-center w-10 h-10 bg-red-200 rounded-full text-red-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                      </div>
                     </div>
                     <div>
                       <p className="font-medium">Error: {error}</p>
