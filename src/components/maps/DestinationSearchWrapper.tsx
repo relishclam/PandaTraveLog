@@ -13,7 +13,11 @@ type Destination = {
 };
 
 interface DestinationSearchWrapperProps {
-  onDestinationSelect: (destination: Destination) => void;
+  /**
+   * Handler for selected destinations. Always receives an array, even for single selection.
+   * For single destination: use destinations[0]
+   */
+  onDestinationSelect: (destinations: Destination[]) => void;
   selectedDestination?: Destination | null;
   label?: string;
   placeholder?: string;

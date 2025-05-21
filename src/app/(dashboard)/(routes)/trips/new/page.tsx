@@ -183,15 +183,16 @@ export default function NewTripPage() {
   
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>();
   
-  // Handle primary destination selection
-  const handleDestinationSelect = (destination: any) => {
-    console.log("handleDestinationSelect called with:", destination);
+  // Handle primary destination selection (now expects an array of destinations)
+  const handleDestinationSelect = (destinations: any[]) => {
+    console.log("handleDestinationSelect called with:", destinations);
+    if (!destinations || destinations.length === 0) return;
     setPandaEmotion('thinking');
-    setPandaMessage(`Hmm, ${destination.name}... Let me see what I can find!`);
-    
+    setPandaMessage(`Hmm, ${destinations[0].name}... Let me see what I can find!`);
+
     try {
-      // Format the destination to match the expected structure
-      const place = {
+      // Format all destinations to match the expected structure
+      const places = destinations.map(destination => ({
         description: destination.formattedName,
         placeId: destination.place_id,
         mainText: destination.name,
@@ -204,31 +205,29 @@ export default function NewTripPage() {
           country: destination.country,
           formatted: destination.formattedName
         }
-      };
-      
-      // Set as primary destination
-      setPrimaryDestination(place);
-      
-      // Add to destinations array
-      setDestinations([place]);
-      
+      }));
+
+      // Set the first as primary destination
+      setPrimaryDestination(places[0]);
+      // Add all to destinations array
+      setDestinations(places);
       // Show multi-destination modal
-      console.log("Setting showMultiDestModal to true");
       setShowMultiDestModal(true);
-      
       setPandaEmotion('excited');
     } catch (error) {
-      console.error('Error processing destination:', error);
+      console.error('Error processing destinations:', error);
       setPandaEmotion('confused');
       setPandaMessage("I'm having trouble finding information about this place. Could you try a different destination?");
       setError('Failed to load place details');
     }
   };
-  
-  // Add another destination
-  const addDestination = (destination: any) => {
+
+  // Add another destination (expects an array, but can use destinations[0] for single)
+  const addDestination = (destinations: any[]) => {
+    if (!destinations || destinations.length === 0) return;
+    const destination = destinations[0]; // Only add the first if user picks one at a time
     console.log("Adding destination:", destination);
-    
+
     // Format the destination to match the expected structure
     const place = {
       description: destination.formattedName,
@@ -244,18 +243,13 @@ export default function NewTripPage() {
         formatted: destination.formattedName
       }
     };
-    
+
     setDestinations(prev => [...prev, place]);
-    
-    // After adding a destination, show a confirmation message
     setPandaEmotion('excited');
     setPandaMessage(`Great! ${destination.name} added to your trip. You can add more destinations or continue to trip details.`);
-    
-    // Show the modal
-    console.log("Showing multi-destination modal again");
     setShowMultiDestModal(true);
   };
-  
+
   // Remove a destination
   const removeDestination = (index: number) => {
     setDestinations(prev => {
