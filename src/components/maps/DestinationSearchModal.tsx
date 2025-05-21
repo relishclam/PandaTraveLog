@@ -144,14 +144,14 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
           text: query,
           format: 'json',
           apiKey,
-          type: selectedCountry ? 'city,district,tourism' : 'country,city',
           limit: '10',
-          filter: 'countrycode:none'
         });
-        
-        // Add country parameter only if it exists
+        // Add each type as a separate parameter
+        const types = selectedCountry ? ['city', 'district', 'tourism'] : ['country', 'city'];
+        types.forEach(type => params.append('type', type));
+        // Add country filter if a country is selected
         if (selectedCountry?.properties?.country_code) {
-          params.append('country', selectedCountry.properties.country_code);
+          params.append('filter', `countrycode:${selectedCountry.properties.country_code}`);
         }
         
         const response = await fetch(
