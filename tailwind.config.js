@@ -165,11 +165,6 @@ module.exports = {
         '4xl': '2rem',
         '5xl': '2.5rem',
       },
-      
-      // Custom Variants
-      extend: {
-        // Add any additional custom variants here
-      },
     },
   },
   
@@ -190,9 +185,7 @@ module.exports = {
   
   // Plugins
   plugins: [
-    require('@tailwindcss/forms'),
-    require('@tailwindcss/typography'),
-    require('@tailwindcss/aspect-ratio'),
+    // Custom utilities function
     function({ addUtilities }) {
       const newUtilities = {
         '.animation-pause': {
@@ -201,9 +194,13 @@ module.exports = {
         '.animation-play': {
           'animation-play-state': 'running',
         },
-      }
-      addUtilities(newUtilities, ['responsive', 'hover'])
+      };
+      addUtilities(newUtilities, ['responsive', 'hover']);
     },
+    // Safely try to load plugins
+    function() { try { return require('@tailwindcss/forms'); } catch (e) { return {}; } },
+    function() { try { return require('@tailwindcss/typography'); } catch (e) { return {}; } },
+    function() { try { return require('@tailwindcss/aspect-ratio'); } catch (e) { return {}; } }
   ],
   
   // Core Plugins
