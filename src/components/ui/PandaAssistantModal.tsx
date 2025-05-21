@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, HTMLMotionProps } from 'framer-motion';
 import { PoGuide } from '@/components/po/svg/PoGuide';
 
 type Destination = {
@@ -25,23 +25,42 @@ const PandaAssistantModal: React.FC<PandaAssistantModalProps> = ({
   destinations, 
   onAddMore 
 }) => {
+  const overlayStyle: React.CSSProperties = {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 50,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)'
+  };
+
+  const modalStyle: React.CSSProperties = {
+    position: 'relative',
+    width: '100%',
+    maxWidth: '28rem',
+    padding: '1.5rem',
+    backgroundColor: 'white',
+    borderRadius: '0.75rem',
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+  };
   return (
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+          style={overlayStyle}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={onClose}
+          onTap={onClose}
         >
           <motion.div
-            className="relative w-full max-w-md p-6 bg-white rounded-xl shadow-xl"
+            style={modalStyle}
             initial={{ scale: 0.7, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.7, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            onClick={e => e.stopPropagation()}
+            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            onTap={(e: Event) => e.stopPropagation()}
           >
             <div className="flex flex-col items-center">
               <div className="w-24 h-24 mb-4">
