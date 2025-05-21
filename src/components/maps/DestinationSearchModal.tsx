@@ -47,6 +47,7 @@ type GeoapifyFeature = {
   geometry: {
     coordinates: [number, number];
   };
+  bbox?: number[];
 };
 
 type SuggestionItem = {
@@ -161,14 +162,14 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
         
         const data = await response.json();
         
-        if (data.features && data.features.length > 0) {
+        if (data.results && data.results.length > 0) {
           const organizedResults = selectedCountry 
             ? organizeDestinationsInCountry(data)
             : organizeCountryResults(data);
           
           setSuggestions(organizedResults);
           setPoEmotion('excited');
-          setPoMessage(`I found ${data.features.length} great places for you!`);
+          setPoMessage(`I found ${data.results.length} great places for you!`);
         } else {
           setSuggestions([]);
           setPoEmotion('sad');
@@ -272,30 +273,117 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
   }, []);
   
   // Handle item selection
-  const handleItemSelect = useCallback((item: SuggestionItem) => {
-    if (item.isHeader) return;
-    
-    if (item.type === 'country' && item.full) {
-      setSelectedCountry(item.full);
-      setPoEmotion('excited');
-      setPoMessage(`Great choice! Let's explore ${item.name || 'this country'}! What places interest you?`);
-      setQuery('');
-      if (inputRef.current) inputRef.current.focus();
-    } else if (multiSelect) {
-      handleDestinationAdd(item);
-    } else if (item.full && item.name) {
-      // Close the modal and pass the selection to parent
-      setPoEmotion('happy');
-      onSelect({
-        place_id: item.full.properties.place_id || '',
-        name: item.name,
-        formattedName: item.formattedName || item.name,
-        country: item.full.properties.country || '',
-        coordinates: item.full.geometry.coordinates
-      });
-      onClose();
+  // Enhanced selection handler: triggers secondary queries for countries/cities
+const handleItemSelect = useCallback(async (item: SuggestionItem) => {
+  if (item.isHeader) return;
+
+  // Helper to fetch cities in a country
+  const fetchCitiesInCountry = async (countryCode: string) => {
+    const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
+    if (!apiKey) return [];
+    const params = new URLSearchParams({
+      type: 'city',
+      filter: `countrycode:${countryCode}`,
+      format: 'json',
+      apiKey,
+      limit: '20',
+    });
+    const response = await fetch(`https://api.geoapify.com/v1/geocode/search?${params.toString()}`);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.features || [];
+  };
+
+  // Helper to fetch POIs in a bounding box
+  const fetchPOIsInBBox = async (bbox: number[]) => {
+    const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
+    if (!apiKey) return [];
+    const bboxParam = bbox.join(',');
+    const params = new URLSearchParams({
+      categories: 'tourism,sights,entertainment',
+      filter: `rect:${bboxParam}`,
+      limit: '20',
+      apiKey,
+    });
+    const response = await fetch(`https://api.geoapify.com/v2/places?${params.toString()}`);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.features || [];
+  };
+
+  // Helper to fetch nearby cities by circle
+  const fetchNearbyCities = async (lon: number, lat: number, radius: number = 30000) => {
+    const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
+    if (!apiKey) return [];
+    const params = new URLSearchParams({
+      type: 'city',
+      filter: `circle:${lon},${lat},${radius}`,
+      format: 'json',
+      apiKey,
+      limit: '10',
+    });
+    const response = await fetch(`https://api.geoapify.com/v1/geocode/search?${params.toString()}`);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.features || [];
+  };
+
+  if (item.type === 'country' && item.full) {
+    setSelectedCountry(item.full);
+    setPoEmotion('excited');
+    setPoMessage(`Great choice! Let's explore ${item.name || 'this country'}! Fetching cities and attractions...`);
+    setQuery('');
+    if (inputRef.current) inputRef.current.focus();
+
+    // --- Enhancement: Fetch cities and POIs in country ---
+    const countryCode = item.full.properties.country_code;
+    const bbox = item.full.bbox || undefined;
+    let cities: any[] = [];
+    let pois: any[] = [];
+    if (countryCode) {
+      cities = await fetchCitiesInCountry(countryCode);
     }
-  }, [multiSelect, onSelect, onClose, handleDestinationAdd]);
+    if (bbox) {
+      pois = await fetchPOIsInBBox(bbox);
+    }
+    // Optionally, update suggestions or UI with these results
+    // setSuggestions([...]);
+    // setPoMessage(...);
+  } else if (item.type === 'city' && item.full) {
+    setPoEmotion('excited');
+    setPoMessage(`Exploring ${item.name}! Fetching places of interest and nearby cities...`);
+    setQuery('');
+    if (inputRef.current) inputRef.current.focus();
+
+    // --- Enhancement: Fetch POIs in city and nearby cities ---
+    const coords = item.full.geometry.coordinates;
+    const bbox = item.full.bbox || undefined;
+    let pois: any[] = [];
+    let nearbyCities: any[] = [];
+    if (bbox) {
+      pois = await fetchPOIsInBBox(bbox);
+    }
+    if (coords) {
+      nearbyCities = await fetchNearbyCities(coords[0], coords[1]);
+    }
+    // Optionally, update suggestions or UI with these results
+    // setSuggestions([...]);
+    // setPoMessage(...);
+  } else if (multiSelect) {
+    handleDestinationAdd(item);
+  } else if (item.full && item.name) {
+    // Close the modal and pass the selection to parent
+    setPoEmotion('happy');
+    onSelect({
+      place_id: item.full.properties.place_id || '',
+      name: item.name,
+      formattedName: item.formattedName || item.name,
+      country: item.full.properties.country || '',
+      coordinates: item.full.geometry.coordinates
+    });
+    onClose();
+  }
+}, [multiSelect, onSelect, onClose, handleDestinationAdd]);
   
   // Organize country results
   const organizeCountryResults = useCallback((geoapifyResults: { features?: GeoapifyFeature[] }): SuggestionItem[] => {

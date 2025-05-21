@@ -28,13 +28,14 @@ const DestinationSearchWrapper: React.FC<DestinationSearchWrapperProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   const handleDestinationSelect = (destination: Destination | Destination[]) => {
-    // Handle single destination selection
-    if (!Array.isArray(destination)) {
-      onDestinationSelect(destination);
-    } 
-    // If we get an array (from multi-select mode), take the first one
-    else if (destination.length > 0) {
-      onDestinationSelect(destination[0]);
+    // In multi-select mode, always get an array
+    if (Array.isArray(destination)) {
+      // Move on to next step with all selected destinations
+      // (You may replace this with your next-step logic)
+      onDestinationSelect(destination); // Pass the array to parent
+    } else {
+      // For single select fallback
+      onDestinationSelect([destination]);
     }
   };
   
@@ -78,6 +79,7 @@ const DestinationSearchWrapper: React.FC<DestinationSearchWrapperProps> = ({
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSelect={handleDestinationSelect}
+        multiSelect={true}
       />
     </div>
   );
