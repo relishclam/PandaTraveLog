@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Helper functions for using the Panda Assistant across the application
  */
