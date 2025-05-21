@@ -144,7 +144,8 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
           text: query,
           format: 'json',
           apiKey,
-          filter: 'countrycode:none,not.category:commercial,not.category:amenity,not.category:building.commercial',
+          // Fix filter format - separate with pipes instead of commas
+          filter: 'countrycode:none|not.category:commercial|not.category:amenity|not.category:building.commercial',
           type: selectedCountry ? 'city,district,tourism' : 'country,city',
           limit: '10',
         });
@@ -687,10 +688,28 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
                   </div>
                 </div>
                 
-                {/* Error message */}
+                {/* Error message with panda image */}
                 {error && (
-                  <div className="px-4 py-2 text-red-600 bg-red-100 rounded mx-4 mb-2">
-                    <p className="font-medium">Error: {error}</p>
+                  <div className="px-4 py-3 text-red-600 bg-red-100 rounded mx-4 mb-2 flex items-center">
+                    <div className="flex-shrink-0 mr-3">
+                      <Image 
+                        src="/images/panda-sad.png" 
+                        alt="Sad Panda" 
+                        width={40} 
+                        height={40}
+                        className="rounded-full"
+                        unoptimized={true}
+                        onError={(e) => {
+                          // Fallback if image fails to load
+                          const target = e.currentTarget as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <p className="font-medium">Error: {error}</p>
+                      <p className="text-sm text-red-500">Please try a different search term or try again later.</p>
+                    </div>
                   </div>
                 )}
                 

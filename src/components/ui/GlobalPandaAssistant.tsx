@@ -5,40 +5,31 @@ import { PandaAssistant } from './PandaAssistant';
 import { usePandaAssistant } from '@/contexts/PandaAssistantContext';
 
 export const GlobalPandaAssistant: React.FC = () => {
-  const { state, hideMainAssistant, hideFloatingAssistant } = usePandaAssistant();
+  const { state, hideMainAssistant } = usePandaAssistant();
 
-  // Determine if we're on the search page with an error
-  const isOnSearchPage = typeof window !== 'undefined' && 
-    window.location.pathname.includes('/trips/new');
-
-  // Choose appropriate position for floating assistant based on current page
-  const floatingPosition = isOnSearchPage ? "center" : "top-left";
+  // Combine messages from both assistants if floating assistant is visible
+  const combinedMessage = state.floatingAssistant.visible && state.floatingAssistant.message
+    ? state.floatingAssistant.message
+    : state.mainAssistant.message || undefined;
+    
+  // Use floating assistant emotion if it's visible, otherwise use main assistant emotion
+  const combinedEmotion = state.floatingAssistant.visible
+    ? state.floatingAssistant.emotion
+    : state.mainAssistant.emotion;
 
   return (
     <>
-      {/* Main assistant - fixed at bottom right */}
+      {/* Single assistant at bottom right that combines functionality */}
       <PandaAssistant
-        message={state.mainAssistant.message || undefined}
-        emotion={state.mainAssistant.emotion}
-        showMessage={!!state.mainAssistant.message}
+        message={combinedMessage}
+        emotion={combinedEmotion}
+        showMessage={!!combinedMessage}
         position="bottom-right"
         size="md"
         initiallyVisible={state.mainAssistant.visible}
         onMessageClose={hideMainAssistant}
       />
-
-      {/* Optional floating assistant - only shown when needed */}
-      {state.floatingAssistant.visible && (
-        <PandaAssistant
-          message={state.floatingAssistant.message || undefined}
-          emotion={state.floatingAssistant.emotion}
-          showMessage={!!state.floatingAssistant.message}
-          position={floatingPosition}
-          size="sm"
-          initiallyVisible={true}
-          onMessageClose={hideFloatingAssistant}
-        />
-      )}
     </>
   );
+
 };
