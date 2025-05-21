@@ -13,6 +13,11 @@ export default function Home() {
   useEffect(() => {
     showPanda("Hi there! I'm PO, your friendly travel assistant. Need help planning your next adventure?", "excited");
   }, [showPanda]);
+  
+  // Handle direct navigation
+  const handleNavigation = (path: string) => {
+    window.location.href = path;
+  };
   return (
     <div className="min-h-screen flex flex-col bg-bamboo-light">
       {/* PO Logo at Top */}
@@ -38,12 +43,18 @@ export default function Home() {
               Your friendly travel panda helps you create perfect itineraries, discover hidden gems, and make your travel dreams come true!
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
-              <Link href="/register" className="inline-flex items-center justify-center rounded-md text-sm font-bold transition-colors h-11 px-8 bg-backpack-orange hover:bg-backpack-orange/90 text-white">
+              <button 
+                onClick={() => handleNavigation('/register')} 
+                className="inline-flex items-center justify-center rounded-md text-sm font-bold h-11 px-8 bg-backpack-orange hover:bg-backpack-orange/90 text-white"
+              >
                 Start Planning
-              </Link>
-              <Link href="/login" className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors h-11 px-8 border border-backpack-orange text-backpack-orange hover:bg-accent hover:text-accent-foreground">
+              </button>
+              <button 
+                onClick={() => handleNavigation('/login')} 
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium h-11 px-8 border border-backpack-orange text-backpack-orange hover:bg-accent hover:text-accent-foreground"
+              >
                 Sign In
-              </Link>
+              </button>
             </div>
           </div>
           
@@ -100,9 +111,12 @@ export default function Home() {
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Plan Your Next Adventure?</h2>
           <p className="text-xl mb-8 max-w-2xl mx-auto">Let PO the Travel Panda help you create unforgettable travel experiences with personalized itineraries.</p>
-          <Link href="/register" className="inline-flex items-center justify-center rounded-md text-sm font-bold transition-colors h-11 px-8 bg-backpack-orange hover:bg-backpack-orange/90 text-white">
+          <button 
+            onClick={() => handleNavigation('/register')} 
+            className="inline-flex items-center justify-center rounded-md text-sm font-bold h-11 px-8 bg-backpack-orange hover:bg-backpack-orange/90 text-white"
+          >
             Start Planning for Free
-          </Link>
+          </button>
         </div>
       </section>
       
