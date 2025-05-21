@@ -106,7 +106,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
       markerEl.style.height = '30px';
       markerEl.style.backgroundImage = markerData.icon 
         ? `url(${markerData.icon})` 
-        : 'url(/images/po/map-pin.png)';
+        : 'url(/images/po/activities/map-pin.png)';
       markerEl.style.backgroundSize = 'contain';
       markerEl.style.backgroundRepeat = 'no-repeat';
       markerEl.style.cursor = 'pointer';

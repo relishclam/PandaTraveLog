@@ -40,7 +40,7 @@ export function PandaSkeleton({
     <div className={cn("flex flex-col items-center py-4", className)} {...props}>
       <div className="w-20 h-20 relative animate-bounce-slow">
         <div className="absolute inset-0 bg-contain bg-center bg-no-repeat" 
-          style={{ backgroundImage: "url('/images/po/thinking.png')" }} />
+          style={{ backgroundImage: "url('/images/po/emotions/thinking.png')" }} />
       </div>
       <div className="mt-4 w-48 h-2 bg-gray-200 rounded animate-pulse" />
       <div className="mt-2 w-32 h-2 bg-gray-200 rounded animate-pulse delay-150" />

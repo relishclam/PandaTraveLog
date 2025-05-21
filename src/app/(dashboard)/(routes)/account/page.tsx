@@ -553,7 +553,7 @@ export default function AccountPage() {
         <div className="bg-bamboo-light rounded-xl p-6 border border-backpack-orange/20">
           <div className="flex items-center mb-4">
             <Image
-              src="/images/po/happy.png"
+              src="/images/po/emotions/happy.png"
               alt="PO"
               width={40}
               height={40}

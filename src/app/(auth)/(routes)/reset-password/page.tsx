@@ -70,7 +70,7 @@ function ResetPasswordForm() {
         <div className="flex flex-col items-center">
           <Link href="/" className="mb-6">
             <Image
-              src="/images/po/thinking.png"
+              src="/images/po/emotions/thinking.png"
               alt="PO the Travel Panda"
               width={80}
               height={80}
@@ -166,7 +166,7 @@ export default function ResetPasswordPage() {
       <div className="min-h-screen bg-bamboo-light flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
           <Image
-            src="/images/po/thinking.png"
+            src="/images/po/emotions/thinking.png"
             alt="PO is thinking"
             width={80}
             height={80}

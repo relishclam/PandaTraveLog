@@ -59,7 +59,7 @@ export default function DashboardLayout({
             <div className="flex items-center">
               <Link href="/trips" className="flex items-center">
                 <Image 
-                  src="/images/po/happy.png" 
+                  src="/images/po/emotions/happy.png" 
                   alt="PandaTraveLog" 
                   width={36} 
                   height={36}

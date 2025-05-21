@@ -242,7 +242,7 @@ export default function TripsPage() {
         <div className="bg-white rounded-lg shadow-md p-8 text-center">
           <div className="flex justify-center mb-4">
             <Image 
-              src="/images/po/excited.png"
+              src="/images/po/emotions/excited.png"
               alt="PO the Travel Panda" 
               width={100} 
               height={100}

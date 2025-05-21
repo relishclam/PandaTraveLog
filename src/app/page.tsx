@@ -9,7 +9,7 @@ export default function Home() {
       {/* PO Logo at Top */}
       <div className="w-full flex justify-center pt-10 pb-2">
         <Image
-          src="/images/po/happy.png"
+          src="/images/po/emotions/happy.png"
           alt="Meet PO the Travel Panda"
           width={252}
           height={252}
@@ -103,7 +103,7 @@ export default function Home() {
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center mb-4 md:mb-0">
               <Image
-                src="/images/po/happy.png"
+                src="/images/po/emotions/happy.png"
                 alt="PO the Travel Panda"
                 width={40}
                 height={40}

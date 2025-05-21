@@ -118,16 +118,16 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
   const getEmotionImage = () => {
     switch(emotion) {
       case 'thinking':
-        return '/images/po/thinking.png';
+        return '/images/po/emotions/thinking.png';
       case 'excited':
-        return '/images/po/excited.png';
+        return '/images/po/emotions/excited.png';
       case 'confused':
-        return '/images/po/confused.png';
+        return '/images/po/emotions/confused.png';
       case 'sad':
-        return '/images/po/sad.png';
+        return '/images/po/emotions/sad.png';
       case 'happy':
       default:
-        return '/images/po/happy.png';
+        return '/images/po/emotions/happy.png';
     }
   };
 
@@ -165,7 +165,7 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
             whileTap={{ scale: 0.9 }}
           >
             <Image 
-              src="/images/po/fallback-logo.png" 
+              src="/images/po/logo/fallback-logo.png" 
               alt="PO" 
               width={30} 
               height={30} 
@@ -286,7 +286,7 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
               {imageError ? (
                 // Fallback using proper logo headshot
                 <Image 
-                  src="/images/po/fallback-logo.png"
+                  src="/images/po/logo/fallback-logo.png"
                   alt="PO the Travel Panda"
                   width={sizeMap['sm'].width}
                   height={sizeMap['sm'].height}
@@ -321,7 +321,7 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
               {imageError ? (
                 // Fallback using proper logo headshot
                 <Image 
-                  src="/images/po/fallback-logo.png"
+                  src="/images/po/logo/fallback-logo.png"
                   alt="PO the Travel Panda"
                   width={sizeMap[size].width}
                   height={sizeMap[size].height}

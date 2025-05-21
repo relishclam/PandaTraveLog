@@ -92,7 +92,7 @@ export default function RegisterPage() {
           <div className="text-center mb-8">
             <Link href="/" className="inline-block">
               <Image
-                src="/images/po/happy.png"
+                src="/images/po/emotions/happy.png"
                 alt="PO the Travel Panda"
                 width={80}
                 height={80}
@@ -227,7 +227,7 @@ export default function RegisterPage() {
           <h2 className="text-3xl font-bold mb-6">Explore the World with PO!</h2>
           <p className="text-xl mb-8">Create personalized travel itineraries, discover hidden gems, and make your adventures unforgettable.</p>
           <Image
-            src="/images/po/excited.png"
+            src="/images/po/emotions/excited.png"
             alt="PO the Travel Panda"
             width={200}
             height={200}

@@ -27,6 +27,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.0.0",
     "date-fns": "^4.1.0",
+    "focus-trap-react": "^11.0.3",
     "framer-motion": "^10.18.0",
     "lucide-react": "^0.511.0",
     "maplibre-gl": "^3.6.0",

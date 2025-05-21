@@ -61,14 +61,14 @@ export function PandaModal({
   const getEmotionImage = () => {
     switch(emotion) {
       case 'thinking':
-        return '/images/po/thinking.png';
+        return '/images/po/emotions/thinking.png';
       case 'excited':
-        return '/images/po/excited.png';
+        return '/images/po/emotions/excited.png';
       case 'confused':
-        return '/images/po/confused.png';
+        return '/images/po/emotions/confused.png';
       case 'happy':
       default:
-        return '/images/po/happy.png';
+        return '/images/po/emotions/happy.png';
     }
   };
   

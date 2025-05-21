@@ -32,7 +32,7 @@ export const PoGuide: React.FC<PoGuideProps> = ({
   }, [message, animated, type]);
   
   // Image paths based on type
-  const imagePath = `/images/po/${type}.png`;
+  const imagePath = `/images/po/emotions/${type}.png`;
   
   // Size classes
   const sizeClasses = {

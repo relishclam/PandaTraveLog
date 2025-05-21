@@ -24,9 +24,9 @@ export const PoTripDiary: React.FC<PoTripDiaryProps> = ({
   
   // Determine which animation to show
   const getAnimation = () => {
-    if (isHovered) return "/images/po/excited.png";
-    if (isAnimating) return "/images/po/map.png";
-    return "/images/po/happy.png";
+    if (isHovered) return "/images/po/emotions/excited.png";
+    if (isAnimating) return "/images/po/activities/map.png";
+    return "/images/po/emotions/happy.png";
   };
   
   // Size classes based on specified size

@@ -83,7 +83,7 @@ export default function LoginContent() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-bamboo-light">
         <div className="flex flex-col items-center">
-          <Image src="/images/po/happy.png" alt="PO the Travel Panda" width={60} height={60} />
+          <Image src="/images/po/emotions/happy.png" alt="PO the Travel Panda" width={60} height={60} />
           <div className="mt-4 text-lg font-medium text-panda-black">Loading...</div>
         </div>
       </div>
@@ -147,7 +147,7 @@ export default function LoginContent() {
         <div className="flex flex-col items-center">
           <Link href="/" className="mb-6">
             <Image
-              src="/images/po/happy.png"
+              src="/images/po/emotions/happy.png"
               alt="PO the Travel Panda"
               width={80}
               height={80}
@@ -248,7 +248,7 @@ export default function LoginContent() {
             {/* Modal Header with Brand Elements */}
             <div className="flex flex-col items-center mb-4">
               <Image 
-                src="/images/po/thinking.png" 
+                src="/images/po/emotions/thinking.png" 
                 alt="PO the Travel Panda" 
                 width={70} 
                 height={70} 
@@ -280,7 +280,7 @@ export default function LoginContent() {
                   <p className="text-sm mt-1">Please check your inbox for instructions from PO.</p>
                 </div>
                 <Image 
-                  src="/images/po/excited.png" 
+                  src="/images/po/emotions/excited.png" 
                   alt="PO is excited" 
                   width={60} 
                   height={60} 
@@ -327,7 +327,7 @@ export default function LoginContent() {
                   {/* Small panda icon for brand reinforcement */}
                   <div className="flex justify-center mb-4">
                     <Image 
-                      src="/images/po/happy.png" 
+                      src="/images/po/emotions/happy.png" 
                       alt="PO is happy to help" 
                       width={40} 
                       height={40} 
