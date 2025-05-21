@@ -148,11 +148,14 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
           limit: '10',
         });
         
-        // Add filter parameters separately
-        params.append('filter', 'countrycode:none');
-        params.append('filter', 'not.category:commercial');
-        params.append('filter', 'not.category:amenity');
-        params.append('filter', 'not.category:building.commercial');
+        // Add filter parameter as a single string
+        const filters = [
+          'countrycode:none',
+          'not.category:commercial',
+          'not.category:amenity',
+          'not.category:building.commercial'
+        ];
+        params.append('filter', filters.join(','));
         
         // Add country parameter only if it exists
         if (selectedCountry?.properties?.country_code) {
