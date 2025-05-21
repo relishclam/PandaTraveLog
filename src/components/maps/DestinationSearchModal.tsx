@@ -146,16 +146,8 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
           apiKey,
           type: selectedCountry ? 'city,district,tourism' : 'country,city',
           limit: '10',
+          filter: 'countrycode:none'
         });
-        
-        // Add filter parameter as a single string
-        const filters = [
-          'countrycode:none',
-          'not.category:commercial',
-          'not.category:amenity',
-          'not.category:building.commercial'
-        ];
-        params.append('filter', filters.join(','));
         
         // Add country parameter only if it exists
         if (selectedCountry?.properties?.country_code) {

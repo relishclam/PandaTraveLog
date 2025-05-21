@@ -71,17 +71,6 @@ const DestinationSearchWrapper: React.FC<DestinationSearchWrapperProps> = ({
             <div className="text-gray-500">{placeholder}</div>
           )}
         </div>
-        
-        {/* PO guide peeking from the side */}
-        <div className="absolute right-12 -top-10 transform translate-y-3 transition-transform hover:translate-y-0">
-          <div className="w-16 h-16">
-            <PoGuide
-              message="Click to find places!"
-              type="excited"
-              size="small"
-            />
-          </div>
-        </div>
       </button>
       
       {/* The modal */}
