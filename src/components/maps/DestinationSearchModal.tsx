@@ -146,10 +146,7 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
           apiKey,
           limit: '10',
         });
-        // Add each type as a separate parameter
-        const types = selectedCountry ? ['city', 'district', 'tourism'] : ['country', 'city'];
-        types.forEach(type => params.append('type', type));
-        // Add country filter if a country is selected
+        // Only add filter if a country is selected
         if (selectedCountry?.properties?.country_code) {
           params.append('filter', `countrycode:${selectedCountry.properties.country_code}`);
         }
