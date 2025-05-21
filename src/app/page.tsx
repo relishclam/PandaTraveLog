@@ -1,9 +1,16 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
-import { PandaAssistant } from '@/components/ui/PandaAssistant';
+import { usePandaHelper } from '@/utils/pandaAssistantHelper';
+import { useEffect } from 'react';
 
 export default function Home() {
+  const { showPanda } = usePandaHelper();
+  
+  // Show welcome message when the component mounts
+  useEffect(() => {
+    showPanda("Hi there! I'm PO, your friendly travel assistant. Need help planning your next adventure?", "excited");
+  }, [showPanda]);
   return (
     <div className="min-h-screen flex flex-col bg-bamboo-light">
       {/* PO Logo at Top */}
@@ -118,13 +125,7 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* PO Assistant */}
-      <PandaAssistant 
-        message="Hi there! I'm PO, your friendly travel assistant. Need help planning your next adventure?"
-        emotion="excited"
-        position="bottom-right"
-        size="lg"
-      />
+      {/* PO Assistant is now managed globally */}
     </div>
   );
 }

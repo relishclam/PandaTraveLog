@@ -5,6 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence, HTMLMotionProps } from 'framer-motion';
 import { IoClose, IoExpand, IoContract } from 'react-icons/io5';
+import { getEmotionImagePath, getLogoIconPath, getFallbackLogoPath } from '@/utils/imagePaths';
 
 type Emotion = 'happy' | 'thinking' | 'excited' | 'confused' | 'sad';
 
@@ -114,21 +115,19 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
     setVisible(false);
   };
 
-  // Map emotions to PO's expressions
+  // Get the emotion image using the utility function
   const getEmotionImage = () => {
-    switch(emotion) {
-      case 'thinking':
-        return '/images/po/emotions/thinking.png';
-      case 'excited':
-        return '/images/po/emotions/excited.png';
-      case 'confused':
-        return '/images/po/emotions/confused.png';
-      case 'sad':
-        return '/images/po/emotions/sad.png';
-      case 'happy':
-      default:
-        return '/images/po/emotions/happy.png';
-    }
+    return getEmotionImagePath(emotion);
+  };
+  
+  // Get the logo image for minimized state using the utility function
+  const getLogoImage = () => {
+    return getLogoIconPath();
+  };
+  
+  // Get fallback logo image using the utility function
+  const getFallbackLogoImage = () => {
+    return getFallbackLogoPath();
   };
 
   // Handle image error
@@ -147,6 +146,8 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
     console.warn("Failed to load fallback image");
     // You could implement additional fallback strategies here
   };
+  
+  // No need for preloading here as it's handled by the imagePaths utility
 
   // If not visible, render only a small button to bring back the assistant
   if (!visible) {
@@ -165,8 +166,8 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
             whileTap={{ scale: 0.9 }}
           >
             <Image 
-              src="/images/po/logo/fallback-logo.png" 
-              alt="PO" 
+              src={getLogoImage()} 
+              alt="Travel Panda" 
               width={30} 
               height={30} 
               className="rounded-full"
@@ -283,31 +284,20 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
             >
-              {imageError ? (
-                // Fallback using proper logo headshot
-                <Image 
-                  src="/images/po/logo/fallback-logo.png"
-                  alt="PO the Travel Panda"
-                  width={sizeMap['sm'].width}
-                  height={sizeMap['sm'].height}
-                  className="rounded-full"
-                  priority
-                  unoptimized={true} // Required for Netlify static export
-                  onError={handleFallbackError}
-                />
-              ) : (
-                // Regular image display
-                <Image 
-                  src={getEmotionImage()}
-                  alt="PO the Travel Panda"
-                  width={sizeMap['sm'].width}
-                  height={sizeMap['sm'].height}
-                  className="rounded-full"
-                  priority
-                  unoptimized={true} // Required for Netlify static export
-                  onError={handleImageError}
-                />
-              )}
+              {/* Always show the logo in minimized mode */}
+              <Image 
+                src={getLogoImage()}
+                alt="Travel Panda"
+                width={sizeMap['sm'].width}
+                height={sizeMap['sm'].height}
+                className="rounded-full"
+                priority
+                unoptimized={true} // Required for Netlify static export
+                onError={() => {
+                  console.warn('Logo image failed to load, trying fallback');
+                  // No fallback needed for minimized view
+                }}
+              />
             </button>
           ) : (
             <button
@@ -319,10 +309,10 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
               type="button"
             >
               {imageError ? (
-                // Fallback using proper logo headshot
+                // Fallback using proper logo
                 <Image 
-                  src="/images/po/logo/fallback-logo.png"
-                  alt="PO the Travel Panda"
+                  src={getFallbackLogoImage()}
+                  alt="Travel Panda"
                   width={sizeMap[size].width}
                   height={sizeMap[size].height}
                   className="rounded-full"
@@ -334,7 +324,7 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
                 // Regular image display
                 <Image 
                   src={getEmotionImage()}
-                  alt="PO the Travel Panda"
+                  alt="Travel Panda"
                   width={sizeMap[size].width}
                   height={sizeMap[size].height}
                   className="rounded-full"

@@ -2,6 +2,8 @@
 
 import React, { useEffect } from 'react';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { PandaAssistantProvider } from '@/contexts/PandaAssistantContext';
+import { GlobalPandaAssistant } from '@/components/ui/GlobalPandaAssistant';
 
 // Simple error boundary component
 class ErrorBoundary extends React.Component<{children: React.ReactNode}> {
@@ -47,7 +49,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        {children}
+        <PandaAssistantProvider>
+          {children}
+          <GlobalPandaAssistant />
+        </PandaAssistantProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

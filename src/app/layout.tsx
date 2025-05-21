@@ -3,6 +3,12 @@ import type { Metadata } from "next";
 // import { Nunito } from "next/font/google";
 import { Providers } from "@/app/providers";
 import "./globals.css";
+import { preloadPandaImages } from "@/utils/imagePaths";
+
+// Preload panda images on the client side
+if (typeof window !== 'undefined') {
+  preloadPandaImages();
+}
 
 export const metadata: Metadata = {
   title: "PandaTraveLog - Your AI Travel Planner",
