@@ -38,12 +38,12 @@ export default function Home() {
               Your friendly travel panda helps you create perfect itineraries, discover hidden gems, and make your travel dreams come true!
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
-              <Button href="/register" size="lg" className="bg-backpack-orange hover:bg-backpack-orange/90 text-white font-bold">
+              <Link href="/register" className="inline-flex items-center justify-center rounded-md text-sm font-bold transition-colors h-11 px-8 bg-backpack-orange hover:bg-backpack-orange/90 text-white">
                 Start Planning
-              </Button>
-              <Button href="/login" size="lg" variant="outline" className="border-backpack-orange text-backpack-orange">
+              </Link>
+              <Link href="/login" className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors h-11 px-8 border border-backpack-orange text-backpack-orange hover:bg-accent hover:text-accent-foreground">
                 Sign In
-              </Button>
+              </Link>
             </div>
           </div>
           
@@ -100,9 +100,9 @@ export default function Home() {
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Plan Your Next Adventure?</h2>
           <p className="text-xl mb-8 max-w-2xl mx-auto">Let PO the Travel Panda help you create unforgettable travel experiences with personalized itineraries.</p>
-          <Button href="/register" size="lg" className="bg-backpack-orange hover:bg-backpack-orange/90 text-white font-bold px-8 py-3">
+          <Link href="/register" className="inline-flex items-center justify-center rounded-md text-sm font-bold transition-colors h-11 px-8 bg-backpack-orange hover:bg-backpack-orange/90 text-white">
             Start Planning for Free
-          </Button>
+          </Link>
         </div>
       </section>
       
