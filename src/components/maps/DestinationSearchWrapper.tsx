@@ -21,13 +21,15 @@ interface DestinationSearchWrapperProps {
   selectedDestination?: Destination | null;
   label?: string;
   placeholder?: string;
+  onStatusChange?: (status: { emotion: 'happy' | 'thinking' | 'excited' | 'sad'; message: string }) => void;
 }
 
 const DestinationSearchWrapper: React.FC<DestinationSearchWrapperProps> = ({ 
   onDestinationSelect, 
   selectedDestination = null,
   label = "Destination",
-  placeholder = "Where would you like to go?"
+  placeholder = "Where would you like to go?",
+  onStatusChange
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   
@@ -84,6 +86,7 @@ const DestinationSearchWrapper: React.FC<DestinationSearchWrapperProps> = ({
         onClose={() => setIsModalOpen(false)}
         onSelect={handleDestinationSelect}
         multiSelect={true}
+        onStatusChange={onStatusChange}
       />
     </div>
   );

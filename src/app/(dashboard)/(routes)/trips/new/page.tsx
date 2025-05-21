@@ -175,8 +175,9 @@ export default function NewTripPage() {
   const [primaryDestination, setPrimaryDestination] = useState<Destination | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pandaEmotion, setPandaEmotion] = useState<'happy' | 'thinking' | 'excited' | 'confused'>('excited');
+  const [pandaEmotion, setPandaEmotion] = useState<'happy' | 'thinking' | 'excited' | 'confused' | 'sad'>('excited');
   const [pandaMessage, setPandaMessage] = useState("Hi there! Let's plan your adventure. Where would you like to go?");
+  const [hasInteracted, setHasInteracted] = useState(false);
   
   // Modal state for adding destinations
   const [showMultiDestModal, setShowMultiDestModal] = useState(false);
@@ -185,6 +186,7 @@ export default function NewTripPage() {
   
   // Handle primary destination selection (now expects an array of destinations)
   const handleDestinationSelect = (destinations: any[]) => {
+    setHasInteracted(true);
     console.log("handleDestinationSelect called with:", destinations);
     if (!destinations || destinations.length === 0) return;
     setPandaEmotion('thinking');
@@ -224,6 +226,7 @@ export default function NewTripPage() {
 
   // Add another destination (expects an array, but can use destinations[0] for single)
   const addDestination = (destinations: any[]) => {
+    setHasInteracted(true);
     if (!destinations || destinations.length === 0) return;
     const destination = destinations[0]; // Only add the first if user picks one at a time
     console.log("Adding destination:", destination);
@@ -252,6 +255,7 @@ export default function NewTripPage() {
 
   // Remove a destination
   const removeDestination = (index: number) => {
+    setHasInteracted(true);
     setDestinations(prev => {
       const newDestinations = [...prev];
       newDestinations.splice(index, 1);
@@ -266,12 +270,14 @@ export default function NewTripPage() {
   
   // Multi-destination modal handlers
   const handleAddMoreDestinations = () => {
+    setHasInteracted(true);
     console.log("User chose to add more destinations");
     setShowMultiDestModal(false);
     setPandaMessage(`Great! You can add more destinations now. ${primaryDestination?.mainText} is your primary destination.`);
   };
   
   const handleFinishDestinations = () => {
+    setHasInteracted(true);
     console.log("User chose to finish with one destination");
     setShowMultiDestModal(false);
     setStep(2);
@@ -280,6 +286,7 @@ export default function NewTripPage() {
   
   // Handle form submission
   const onSubmit = async (data: FormData) => {
+    setHasInteracted(true);
     if (!user || !primaryDestination || destinations.length === 0) return;
     
     setIsLoading(true);
@@ -459,6 +466,11 @@ export default function NewTripPage() {
                     onDestinationSelect={handleDestinationSelect}
                     placeholder="Search for a destination (country, city, etc)..."
                     label=""
+                    onStatusChange={({ emotion, message }) => {
+                      setPandaEmotion(emotion);
+                      setPandaMessage(message);
+                      setHasInteracted(true);
+                    }}
                   />
                 </div>
               ) : (
@@ -497,6 +509,11 @@ export default function NewTripPage() {
                         onDestinationSelect={addDestination}
                         placeholder="Search for another destination..."
                         label=""
+                        onStatusChange={({ emotion, message }) => {
+                          setPandaEmotion(emotion);
+                          setPandaMessage(message);
+                          setHasInteracted(true);
+                        }}
                       />
                     </div>
                     
@@ -642,6 +659,7 @@ export default function NewTripPage() {
         message={pandaMessage}
         position="bottom-right"
         size="lg"
+        showMessage={hasInteracted}
       />
       
       {/* Multi-destination Modal */}

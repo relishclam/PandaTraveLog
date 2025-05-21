@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
-import { PoGuide } from '@/components/po/svg/PoGuide';
 import FocusTrap from 'focus-trap-react'; // You may need to install this package
 
 // Define proper types for Framer Motion components
@@ -65,6 +64,7 @@ interface DestinationSearchModalProps {
   onSelect: (destination: Destination | Destination[]) => void;
   multiSelect?: boolean;
   existingSelections?: Destination[];
+  onStatusChange?: (status: { emotion: 'happy' | 'thinking' | 'excited' | 'sad'; message: string }) => void;
 }
 
 const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({ 
@@ -72,14 +72,14 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
   onClose, 
   onSelect,
   multiSelect = false,
-  existingSelections = []
+  existingSelections = [],
+  onStatusChange
 }) => {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<GeoapifyFeature | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [poEmotion, setPoEmotion] = useState<'happy' | 'thinking' | 'excited' | 'sad'>('happy');
-  const [poMessage, setPoMessage] = useState('Where would you like to explore?');
+  // Emotion and messaging state removed - now handled by global assistant
   const [selectedDestinations, setSelectedDestinations] = useState<Destination[]>(existingSelections || []);
   const [imageError, setImageError] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -125,9 +125,11 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
       return;
     }
     
-    // Update PO's emotions based on search state
-    setPoEmotion('thinking');
-    setPoMessage(`Let me find places like "${query}" for you...`);
+    // Update global assistant via callback
+    onStatusChange?.({ 
+      emotion: 'thinking', 
+      message: `Let me find places like "${query}" for you...`
+    });
     
     const fetchSuggestions = async () => {
       setIsLoading(true);
@@ -168,19 +170,27 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
             : organizeCountryResults(data);
           
           setSuggestions(organizedResults);
-          setPoEmotion('excited');
-          setPoMessage(`I found ${data.results.length} great places for you!`);
+          // Update global assistant with results
+          onStatusChange?.({ 
+            emotion: 'excited', 
+            message: `I found ${data.results.length} great places for you!`
+          });
         } else {
           setSuggestions([]);
-          setPoEmotion('sad');
-          setPoMessage(`I couldn't find any places matching "${query}". Try a different search?`);
+          // Update global assistant with no results
+          onStatusChange?.({ 
+            emotion: 'sad', 
+            message: `I couldn't find any places matching "${query}". Try a different search?`
+          });
         }
       } catch (error) {
         console.error("Error fetching suggestions:", error);
         setSuggestions([]);
-        setPoEmotion('sad');
         setError(error instanceof Error ? error.message : "An unknown error occurred");
-        setPoMessage("Oh no! I had trouble searching for places. Let's try again!");
+        onStatusChange?.({ 
+          emotion: 'sad', 
+          message: "Oh no! I had trouble searching for places. Let's try again!"
+        });
       } finally {
         setIsLoading(false);
       }
@@ -262,9 +272,11 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
     
     setSelectedDestinations(prev => [...prev, newDestination]);
     
-    // Update PO's emotion and message
-    setPoEmotion('excited');
-    setPoMessage(`${item.name} added! Select more destinations or click "Done" when finished.`);
+    // Update global assistant when destination added
+    onStatusChange?.({ 
+      emotion: 'excited', 
+      message: `${item.name} added! Select more destinations or click "Done" when finished.`
+    });
     
     // Clear input to encourage more selections
     setQuery('');
@@ -330,8 +342,11 @@ const handleItemSelect = useCallback(async (item: SuggestionItem) => {
 
   if (item.type === 'country' && item.full) {
     setSelectedCountry(item.full);
-    setPoEmotion('excited');
-    setPoMessage(`Great choice! Let's explore ${item.name || 'this country'}! Fetching cities and attractions...`);
+    // Update global assistant when country selected
+    onStatusChange?.({ 
+      emotion: 'excited', 
+      message: `Great choice! Let's explore ${item.name || 'this country'}! Fetching cities and attractions...`
+    });
     setQuery('');
     if (inputRef.current) inputRef.current.focus();
 
@@ -350,8 +365,11 @@ const handleItemSelect = useCallback(async (item: SuggestionItem) => {
     // setSuggestions([...]);
     // setPoMessage(...);
   } else if (item.type === 'city' && item.full) {
-    setPoEmotion('excited');
-    setPoMessage(`Exploring ${item.name}! Fetching places of interest and nearby cities...`);
+    // Update global assistant when city selected
+    onStatusChange?.({ 
+      emotion: 'excited', 
+      message: `Exploring ${item.name}! Fetching places of interest and nearby cities...`
+    });
     setQuery('');
     if (inputRef.current) inputRef.current.focus();
 
@@ -373,7 +391,7 @@ const handleItemSelect = useCallback(async (item: SuggestionItem) => {
     handleDestinationAdd(item);
   } else if (item.full && item.name) {
     // Close the modal and pass the selection to parent
-    setPoEmotion('happy');
+    // Update global assistant instead via onStatusChange
     onSelect({
       place_id: item.full.properties.place_id || '',
       name: item.name,
@@ -514,8 +532,11 @@ const handleItemSelect = useCallback(async (item: SuggestionItem) => {
               className="ml-1 p-1 hover:bg-green-200 rounded-full transition-colors"
               onClick={() => {
                 setSelectedDestinations(prev => prev.filter((_, i) => i !== index));
-                setPoEmotion('thinking');
-                setPoMessage(`Removed ${dest.name}. Anything else you'd like to explore?`);
+                // Update global assistant when destination removed
+                onStatusChange?.({ 
+                  emotion: 'thinking', 
+                  message: `Removed ${dest.name}. Anything else you'd like to explore?`
+                });
               }}
               aria-label={`Remove ${dest.name}`}
             >
@@ -527,7 +548,7 @@ const handleItemSelect = useCallback(async (item: SuggestionItem) => {
         ))}
       </div>
     </div>
-  ), [selectedDestinations, setPoEmotion, setPoMessage]);
+  ), [selectedDestinations]);
 
   // Create suggestion item component to improve performance with React.memo
   const SuggestionItem = React.memo(({ 
@@ -676,8 +697,7 @@ const handleItemSelect = useCallback(async (item: SuggestionItem) => {
                 {/* Bamboo-themed header */}
                 <div className="flex items-center p-4 bg-bamboo-light rounded-t-xl border-b-2 border-green-500">
                   <div className="flex-1">
-                    <h2 className="text-2xl font-bold text-green-800" id="modal-title">Find Your Destination</h2>
-                    <p className="text-green-700">{poMessage}</p>
+                    <h2 className="text-2xl font-bold text-green-800" id="modal-title">Destination Search</h2>
                   </div>
                   <button 
                     onClick={onClose}
@@ -717,8 +737,11 @@ const handleItemSelect = useCallback(async (item: SuggestionItem) => {
                         className="p-1 hover:bg-backpack-orange/20 rounded-full transition-colors"
                         onClick={() => {
                           setSelectedCountry(null);
-                          setPoEmotion('thinking');
-                          setPoMessage("Let's search for a different destination!");
+                          // Update global assistant when country unselected
+                          onStatusChange?.({ 
+                            emotion: 'thinking', 
+                            message: "Let's search for a different destination!"
+                          });
                         }}
                         aria-label={`Unselect ${selectedCountry.properties.country}`}
                       >
@@ -816,16 +839,13 @@ const handleItemSelect = useCallback(async (item: SuggestionItem) => {
                     </div>
                   ) : query.length > 1 && !isLoading ? (
                     <div className="py-12 flex flex-col items-center justify-center">
-                      <div className="w-32 h-32 mb-6">
-                        <PoGuide 
-                          message="No places found! Try a different search."
-                          type="sad"
-                          size="medium"
-                          animated={true}
-                        />
+                      <div className="mb-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
                       </div>
                       <p className="text-gray-500 text-center max-w-md">
-                        Try searching for a country name, city, or famous landmark!
+                        No matching places found. Try a different search term.
                       </p>
                     </div>
                   ) : !query.length && suggestions.length === 0 ? (
@@ -876,8 +896,11 @@ const handleItemSelect = useCallback(async (item: SuggestionItem) => {
                       className="px-4 py-2 text-sm bg-white border border-green-500 rounded-full hover:bg-green-50 transition-colors"
                       onClick={() => {
                         setSelectedCountry(null);
-                        setPoEmotion('happy');
-                        setPoMessage('Where would you like to explore?');
+                        // Update global assistant when going back to all destinations
+                        onStatusChange?.({ 
+                          emotion: 'happy', 
+                          message: 'Where would you like to explore?'
+                        });
                       }}
                       aria-label="Back to all destinations"
                     >
