@@ -455,13 +455,12 @@ export default function NewTripPage() {
         {/* Step 1: Choose Destination(s) */}
         {step === 1 && (
           <div className="space-y-6">
-            <h2 className="text-xl font-bold">Where would you like to go?</h2>
+            <h2 className="text-xl font-bold">Choose Your Destination</h2>
             
             {/* Primary destination search */}
             <div className="space-y-4">
               {destinations.length === 0 ? (
                 <div>
-                  <h3 className="text-lg font-medium mb-2">Where would you like to go?</h3>
                   <DestinationSearchWrapper 
                     onDestinationSelect={handleDestinationSelect}
                     placeholder="Search for a destination (country, city, etc)..."

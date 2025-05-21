@@ -169,6 +169,8 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
             ? organizeDestinationsInCountry(data)
             : organizeCountryResults(data);
           
+          console.log('Search results found:', data.results.length);
+          console.log('Organized results:', organizedResults);
           setSuggestions(organizedResults);
           // Update global assistant with results
           onStatusChange?.({ 
@@ -562,6 +564,8 @@ const handleItemSelect = useCallback(async (item: SuggestionItem) => {
     isFocused: boolean;
     onSelect: (item: SuggestionItem) => void;
   }) => {
+    // Debug to verify item props
+    console.log('Rendering suggestion item:', item);
     if (item.isHeader) {
       return (
         <div 
