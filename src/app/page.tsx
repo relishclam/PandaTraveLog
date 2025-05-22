@@ -21,7 +21,7 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col bg-bamboo-light">
       {/* PO Logo at Top */}
-      <div className="w-full flex justify-center pt-10 pb-2">
+      <div className="w-full flex justify-center pt-6 pb-2">
         <Image
           src="/images/po/emotions/happy.png"
           alt="Meet PO the Travel Panda"

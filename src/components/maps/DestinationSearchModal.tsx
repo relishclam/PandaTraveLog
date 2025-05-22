@@ -604,6 +604,87 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
 
   const nonHeaderItems = React.useMemo(() => suggestions.filter(s => !s.isHeader), [suggestions]);
 
+  // Render the list of selected destinations (for multi-select mode)
+  const renderSelectedDestinations = () => {
+    return (
+      <div className="mx-4 mt-2">
+        <div className="flex flex-wrap gap-2">
+          {selectedDestinations.map((dest) => (
+            <div 
+              key={dest.place_id} 
+              className="flex items-center bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm"
+            >
+              <span className="mr-1">{dest.name}</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const updatedSelections = selectedDestinations.filter(d => d.place_id !== dest.place_id);
+                  setSelectedDestinations(updatedSelections);
+                }}
+                className="ml-1 p-1 hover:bg-green-200 rounded-full"
+                aria-label={`Remove ${dest.name}`}
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // Handle keyboard navigation in the suggestion list
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (suggestions.length === 0) return;
+    
+    // Filter out header items for navigation purposes
+    const selectableItems = suggestions.filter(item => !item.isHeader);
+    const selectableIndices = suggestions.map((item, index) => !item.isHeader ? index : -1).filter(index => index !== -1);
+    
+    // Find current focused item index in the selectable items
+    const currentSelectableIndex = selectableIndices.indexOf(focusedIndex);
+    
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        if (focusedIndex < 0 || focusedIndex >= suggestions.length - 1) {
+          // If nothing is focused or we're at the end, focus the first selectable item
+          setFocusedIndex(selectableIndices[0] || 0);
+        } else {
+          // Focus the next selectable item
+          const nextIndex = selectableIndices[currentSelectableIndex + 1];
+          if (nextIndex !== undefined) setFocusedIndex(nextIndex);
+        }
+        break;
+        
+      case 'ArrowUp':
+        e.preventDefault();
+        if (focusedIndex <= 0) {
+          // If nothing is focused or we're at the beginning, focus the last selectable item
+          setFocusedIndex(selectableIndices[selectableIndices.length - 1] || 0);
+        } else {
+          // Focus the previous selectable item
+          const prevIndex = selectableIndices[currentSelectableIndex - 1];
+          if (prevIndex !== undefined) setFocusedIndex(prevIndex);
+        }
+        break;
+        
+      case 'Enter':
+        if (focusedIndex >= 0 && !suggestions[focusedIndex].isHeader) {
+          e.preventDefault();
+          handleItemSelect(suggestions[focusedIndex]);
+        }
+        break;
+        
+      case 'Escape':
+        e.preventDefault();
+        doHandleClose();
+        break;
+    }
+  };
+
   const handleItemSelect = useCallback(async (item: SuggestionItem) => {
     if (item.isHeader || !item.full) return;
 
@@ -773,8 +854,244 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <FocusTrap>
-          {/* ... existing modal JSX structure ... */}
-          {/* Include the full modal JSX from your original code */}
+          <div role="dialog" aria-modal="true" aria-labelledby="modal-title">
+            <MotionDiv 
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={doHandleClose}
+            />
+            <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+              <MotionDiv 
+                className="relative w-full max-w-3xl p-1 bg-white rounded-xl shadow-xl pointer-events-auto"
+                initial={{ scale: 0.7, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.7, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
+              >
+                <div className="flex items-center p-4 bg-bamboo-light rounded-t-xl border-b-2 border-green-500">
+                  <div className="flex-1">
+                    <h2 className="text-2xl font-bold text-green-800" id="modal-title">Destination Search</h2>
+                  </div>
+                  <button 
+                    onClick={doHandleClose}
+                    className="p-2 text-green-800 hover:text-green-600 transition-colors"
+                    aria-label="Close destination search"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                
+                {selectedCountry && selectedCountry.country && (
+                  <div className="mx-4 mt-4">
+                    <MotionDiv 
+                      className="flex items-center p-2 bg-backpack-orange/10 rounded-full"
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.1 }}
+                    >
+                      <div className="flex items-center justify-center w-8 h-8 bg-backpack-orange text-white rounded-full mr-2"
+                        aria-hidden="true">
+                        {selectedCountry.country_code && 
+                          String.fromCodePoint(
+                            ...selectedCountry.country_code
+                              .toUpperCase()
+                              .split('')
+                              .map(c => 127397 + c.charCodeAt(0))
+                          )
+                        }
+                      </div>
+                      <span className="flex-1 font-medium">{selectedCountry.country}</span>
+                      <button 
+                        className="p-1 hover:bg-backpack-orange/20 rounded-full transition-colors"
+                        onClick={() => {
+                          setSelectedCountry(null);
+                          onStatusChange?.({ 
+                            emotion: 'thinking', 
+                            message: "Let's search for a different destination!"
+                          });
+                        }}
+                        aria-label={`Unselect ${selectedCountry.country}`}
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </MotionDiv>
+                  </div>
+                )}
+                
+                {multiSelect && selectedDestinations.length > 0 && renderSelectedDestinations()}
+                
+                <div className="p-4">
+                  <div className="relative">
+                    <label htmlFor="destination-search" className="sr-only">
+                      Search destinations
+                    </label>
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    <input
+                      id="destination-search"
+                      ref={inputRef}
+                      type="text"
+                      className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-full text-lg focus:ring-2 focus:ring-backpack-orange focus:border-transparent transition-all"
+                      placeholder={selectedCountry && selectedCountry.country
+                        ? `Find places in ${selectedCountry.country}...` 
+                        : "Where would you like to go?"}
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      aria-controls="search-results"
+                      aria-activedescendant={
+                        focusedIndex >= 0 && 
+                        suggestions[focusedIndex] && 
+                        !suggestions[focusedIndex].isHeader && 
+                        suggestions[focusedIndex].full?.place_id 
+                          ? `suggestion-item-${suggestions[focusedIndex].full!.place_id}` 
+                          : undefined
+                      }
+                      aria-expanded={suggestions.length > 0}
+                      role="combobox"
+                      aria-autocomplete="list"
+                    />
+                    {isLoading && (
+                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                        <div className="w-5 h-5 border-t-2 border-backpack-orange rounded-full animate-spin"
+                          aria-hidden="true" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {error && (
+                  <div className="px-4 py-3 text-red-600 bg-red-100 rounded mx-4 mb-2 flex items-center">
+                    <div className="flex-shrink-0 mr-3">
+                      <div className="flex items-center justify-center w-10 h-10 bg-red-200 rounded-full text-red-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="font-medium">Error: {error}</p>
+                      <p className="text-sm text-red-500">Please try a different search term or try again later.</p>
+                    </div>
+                  </div>
+                )}
+                
+                <div 
+                  className="mt-4 max-h-[calc(100vh-20rem)] overflow-y-auto pr-2 space-y-2 custom-scrollbar"
+                  id="search-results"
+                  role="listbox"
+                  aria-label="Search results"
+                  ref={listRef}
+                >
+                  {suggestions.length > 0 ? (
+                    <div className="space-y-2">
+                      {suggestions.map((item, index) => {
+                        const itemId = item.isHeader 
+                          ? `suggestion-header-${item.text}` 
+                          : `suggestion-item-${item.full?.place_id || index}`;
+                        return (
+                          <SuggestionItemComponent
+                            key={itemId}
+                            id={itemId}
+                            item={item}
+                            onSelectItem={handleItemSelect}
+                            isFocused={focusedIndex === index}
+                            isSelected={item.full ? selectedDestinations.some(dest => dest.place_id === item.full?.place_id) : false}
+                            multiSelect={multiSelect}
+                          />
+                        );
+                      })}
+                    </div>
+                  ) : isLoading ? (
+                    <div className="py-12 flex flex-col items-center justify-center">
+                      <div className="mb-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                      <p className="text-gray-500 text-center max-w-md">
+                        Searching for places...
+                      </p>
+                    </div>
+                  ) : query.length > 1 && !isLoading ? (
+                    <div className="py-12 flex flex-col items-center justify-center">
+                      <div className="mb-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                      <p className="text-gray-500 text-center max-w-md">
+                        No matching places found. Try a different search term.
+                      </p>
+                    </div>
+                  ) : !query.trim() && !selectedCountry ? (
+                    <div className="py-6">
+                      <p className="text-sm font-medium text-gray-500 mb-3">
+                        Popular destinations:
+                      </p>
+                      <div 
+                        className="grid grid-cols-2 sm:grid-cols-3 gap-3"
+                        role="list"
+                        aria-label="Popular destinations"
+                      >
+                        {getPopularDestinations().slice(1).map((dest, index) => ( 
+                          <div 
+                            key={`popular-${index}`}
+                            className="flex flex-col items-center cursor-pointer p-2 hover:bg-gray-100 rounded-lg transition-colors duration-150"
+                            onClick={() => {
+                              if (dest.full) {
+                                handleItemSelect({
+                                  id: dest.id || `popular-item-${index}`,
+                                  name: dest.name,
+                                  formattedName: dest.formattedName,
+                                  type: dest.type,
+                                  full: dest.full,
+                                  isHeader: false,
+                                });
+                              }
+                            }}
+                          >
+                            <div className="w-10 h-10 bg-green-100 text-green-800 rounded-full flex items-center justify-center text-lg font-semibold mb-2">
+                              {dest.name ? dest.name.substring(0, 1) : '?'}
+                            </div>
+                            <span className="text-sm text-center">{dest.formattedName}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+                
+                {multiSelect && selectedDestinations.length > 0 && (
+                  <div className="mt-6 pt-4 border-t border-gray-200">
+                    <button
+                      onClick={() => {
+                        onSelect(selectedDestinations);
+                        doHandleClose();
+                      }}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-opacity-75 flex items-center justify-center space-x-2"
+                      aria-label="Confirm selected destinations and close modal"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      <span>Done ({selectedDestinations.length} Selected)</span>
+                    </button>
+                  </div>
+                )}
+              </MotionDiv>
+            </div>
+          </div>
         </FocusTrap>
       )}
     </AnimatePresence>
