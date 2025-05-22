@@ -21,7 +21,7 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col bg-bamboo-light">
       {/* PO Logo at Top */}
-      <div className="w-full flex justify-center pt-6 pb-2">
+      <div className="w-full flex justify-center pt-10 pb-2">
         <Image
           src="/images/po/emotions/happy.png"
           alt="Meet PO the Travel Panda"
@@ -33,7 +33,7 @@ export default function Home() {
       </div>
       {/* Hero Section */}
       <section className="relative overflow-hidden">
-        <div className="container mx-auto px-4 py-4 md:py-12 flex flex-col md:flex-row items-center justify-between">
+        <div className="container mx-auto px-4 py-2 md:py-6 flex flex-col md:flex-row items-center justify-between">
           {/* Hero Text */}
           <div className="md:w-1/2 mb-10 md:mb-0 text-center md:text-left">
             <h1 className="text-4xl md:text-6xl font-bold mb-6 text-panda-black">
