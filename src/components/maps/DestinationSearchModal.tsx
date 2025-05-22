@@ -398,9 +398,9 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
     let apiUrl = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(currentQuery)}&format=json&apiKey=${apiKey}&limit=10`;
 
     if (selectedCountry && selectedCountry.country_code) {
-      apiUrl += `&filter=countrycode:${selectedCountry.country_code}&type=city,administrative,tourism,natural,airport`;
+      apiUrl += `&filter=countrycode:${selectedCountry.country_code}&type=city,locality,amenity`;
     } else {
-      apiUrl += `&type=country,state,city,administrative,tourism`; 
+      apiUrl += `&type=country,state,city`; 
     }
 
     try {
