@@ -1,9 +1,10 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
-import { FocusTrap } from 'focus-trap-react'; // Fixed import
+import { FocusTrap } from 'focus-trap-react';
 
 // Define proper types for Framer Motion components
 type MotionDivProps = React.ComponentProps<'div'> & {
@@ -50,6 +51,48 @@ type GeoapifyFeature = {
     coordinates: [number, number]; // Typically [lon, lat]
   };
   bbox?: number[];
+};
+
+// Type for Geoapify API response
+type GeoapifyApiResponse = {
+  results: Array<{
+    datasource?: {
+      sourcename?: string;
+      attribution?: string;
+      license?: string;
+      url?: string;
+    };
+    country?: string;
+    country_code?: string;
+    name?: string;
+    city?: string;
+    state?: string;
+    district?: string;
+    formatted?: string;
+    address_line1?: string;
+    address_line2?: string;
+    category?: string | string[];
+    place_id: string;
+    lon: number;
+    lat: number;
+    result_type?: string;
+    rank?: {
+      importance?: number;
+      popularity?: number; 
+      confidence?: number;
+      match_type?: string;
+    };
+    bbox?: {
+      lon1: number;
+      lat1: number;
+      lon2: number;
+      lat2: number;
+    };
+  }>;
+  query?: {
+    text?: string;
+    parsed?: any;
+  }
 };
 
 // Type for Geoapify Autocomplete API results (flatter structure)
@@ -267,36 +310,47 @@ const createHeaderSuggestion = (id: string, text: string): SuggestionItem => ({
   formattedName: '',
 });
 
-// Improved result organization function
+// FIXED: Improved result organization function to handle the direct API response format
 const organizeAndMapResults = (
-  results: any[], // Expected to be GeoapifyFeature[] from API
+  apiResults: any[], // Expected to be from API response
   isCountrySpecificQuery: boolean,
   countryQueryString?: string
 ): SuggestionItem[] => {
-  if (!results || results.length === 0) {
+  if (!apiResults || apiResults.length === 0) {
     return [];
   }
 
   const suggestions: SuggestionItem[] = [];
 
-  // Helper to map a Geoapify item to our Suggestion type
-  const mapItemToSuggestion = (item: any): SuggestionItem => ({
-    id: item.properties?.place_id || `sug-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    name: item.properties?.name || item.properties?.city || item.properties?.address_line1 || 'Unknown Location',
-    formattedName: item.properties?.formatted,
-    country: item.properties?.country,
-    country_code: item.properties?.country_code,
-    state: item.properties?.state,
-    city: item.properties?.city,
-    type: determineItemType(item.properties),
-    full: {
-      ...item.properties,
-      place_id: item.properties?.place_id,
-      lon: item.geometry?.coordinates[0],
-      lat: item.geometry?.coordinates[1]
-    },
-    isHeader: false,
-  });
+  // Helper to map a Geoapify API response item to our Suggestion type
+  const mapItemToSuggestion = (item: any): SuggestionItem => {
+    // Handle direct format from API (no nested properties object)
+    return {
+      id: item.place_id || `sug-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name: item.name || item.city || item.address_line1 || 'Unknown Location',
+      formattedName: item.formatted,
+      country: item.country,
+      country_code: item.country_code,
+      state: item.state,
+      city: item.city,
+      type: determineItemType(item),
+      full: {
+        place_id: item.place_id,
+        name: item.name || item.city || 'Unknown Location',
+        formatted: item.formatted,
+        country: item.country,
+        country_code: item.country_code,
+        city: item.city,
+        state: item.state,
+        result_type: item.result_type,
+        lon: item.lon,
+        lat: item.lat,
+        category: Array.isArray(item.category) ? item.category : 
+                  item.category ? [item.category] : []
+      },
+      isHeader: false,
+    };
+  };
 
   // Helper to determine the item type based on properties
   function determineItemType(properties: any): string {
@@ -306,13 +360,14 @@ const organizeAndMapResults = (
     if (properties.result_type === 'city' || properties.result_type === 'town') return 'city';
     
     if (properties.category) {
-      const category = Array.isArray(properties.category) 
+      const categories = Array.isArray(properties.category) 
         ? properties.category.join(',').toLowerCase() 
-        : properties.category.toString().toLowerCase();
+        : String(properties.category).toLowerCase();
         
-      if (category.includes('tourism')) return 'attraction';
-      if (category.includes('entertainment')) return 'attraction';
-      if (category.includes('leisure')) return 'attraction';
+      if (categories.includes('tourism')) return 'attraction';
+      if (categories.includes('entertainment')) return 'attraction';
+      if (categories.includes('leisure')) return 'attraction';
+      if (categories.includes('administrative')) return 'administrative';
     }
     
     if (properties.result_type === 'amenity') return 'attraction';
@@ -323,17 +378,17 @@ const organizeAndMapResults = (
 
   // For country-specific queries, organize results into categories
   if (isCountrySpecificQuery && countryQueryString) {
-    const cities = results.filter(item => 
-      item.properties?.result_type === "city" ||
-      item.properties?.result_type === "town"
+    const cities = apiResults.filter(item => 
+      item.result_type === "city" ||
+      item.result_type === "town"
     );
 
-    const attractions = results.filter(item => {
+    const attractions = apiResults.filter(item => {
       // Check for tourism/entertainment in category
-      if (item.properties?.category) {
-        const category = Array.isArray(item.properties.category) 
-          ? item.properties.category.join(',').toLowerCase() 
-          : item.properties.category.toString().toLowerCase();
+      if (item.category) {
+        const category = Array.isArray(item.category) 
+          ? item.category.join(',').toLowerCase() 
+          : String(item.category).toLowerCase();
           
         if (category.includes('tourism') || 
             category.includes('entertainment') || 
@@ -343,8 +398,8 @@ const organizeAndMapResults = (
       }
       
       // Include amenities that are not already listed as cities
-      if (item.properties?.result_type === "amenity") {
-        return !cities.some(c => c.properties?.place_id === item.properties?.place_id);
+      if (item.result_type === "amenity") {
+        return !cities.some(c => c.place_id === item.place_id);
       }
       
       return false;
@@ -363,12 +418,12 @@ const organizeAndMapResults = (
     }
 
     // Fallback: If no cities or attractions were categorized but results exist, show them all
-    if (suggestions.length === 0 && results.length > 0) {
-      suggestions.push(...results.map(mapItemToSuggestion));
+    if (suggestions.length === 0 && apiResults.length > 0) {
+      suggestions.push(...apiResults.map(mapItemToSuggestion));
     }
   } else {
     // For non-country searches, just map all results without specific headers
-    suggestions.push(...results.map(mapItemToSuggestion));
+    suggestions.push(...apiResults.map(mapItemToSuggestion));
   }
 
   return suggestions;
@@ -493,20 +548,25 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
       });
       
       const response = await fetch(apiUrl);
-      const data = await response.json();
+      const data = await response.json() as GeoapifyApiResponse;
       
-      // Process and organize results
-      const processed = organizeAndMapResults(
-        data.results || [],
-        isCountrySearch, 
-        isCountrySearch ? currentQuery : undefined
-      );
-      
-      if (processed.length === 0) {
-        setError("No results found for your search.");
-        setSuggestions(getPopularDestinations(currentQuery));
+      // FIXED: Process the direct results array from the API response
+      if (data && data.results) {
+        const processed = organizeAndMapResults(
+          data.results,
+          isCountrySearch, 
+          isCountrySearch ? currentQuery : undefined
+        );
+        
+        if (processed.length === 0) {
+          setError("No results found for your search.");
+          setSuggestions(getPopularDestinations(currentQuery));
+        } else {
+          setSuggestions(processed);
+        }
       } else {
-        setSuggestions(processed);
+        setError("Invalid response format from API.");
+        setSuggestions(getPopularDestinations());
       }
     } catch (error: any) {
       console.error("Error fetching suggestions:", error);
