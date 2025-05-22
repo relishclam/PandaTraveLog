@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { itineraryService } from '@/services/itinerary-service';
 import supabase from '@/lib/supabase';
