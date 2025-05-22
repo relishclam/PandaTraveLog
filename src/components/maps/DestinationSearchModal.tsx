@@ -420,18 +420,19 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
     setIsLoading(true);
     setError(null);
 
-    // Use the 'search' endpoint, add 'lang=en', and remove the problematic 'type' parameter.
     let apiUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&format=json&apiKey=${apiKey}&limit=10&lang=en`;
 
+    const potentialCountryCodeFromQuery = getCountryCode(currentQuery);
+
     if (selectedCountry && selectedCountry.country_code) {
-      // When a country is selected, filter by that country
+      // If a country is ALREADY selected from the dropdown, strictly filter by it.
       apiUrl += `&filter=countrycode:${selectedCountry.country_code}`;
+    } else if (potentialCountryCodeFromQuery) {
+      // If NO country is selected, BUT the search query ITSELF is a country name, strictly filter by it.
+      apiUrl += `&filter=countrycode:${potentialCountryCodeFromQuery}`;
     } else {
-      // If no country is selected, check if the query itself is a country name to bias results
-      const potentialCountryCode = getCountryCode(currentQuery);
-      if (potentialCountryCode) {
-        apiUrl += `&bias=countrycode:${potentialCountryCode}`;
-      }
+      // No country selected, and query is not a country name (e.g., city, POI) - perform a global search.
+      // No additional country-specific parameters needed here.
     }
 
     try {
