@@ -72,7 +72,7 @@ jobs:
       # Deploy Production for Main Branch
       - name: Deploy Production to Netlify
         if: github.ref == 'refs/heads/main'
-        uses: netlify/actions/cli@main
+        uses: netlify/actions/cli@master
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
