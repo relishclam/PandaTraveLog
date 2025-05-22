@@ -204,6 +204,114 @@ const SuggestionItemComponent: React.FC<SuggestionItemComponentProps> = memo(({
 });
 SuggestionItemComponent.displayName = 'SuggestionItemComponent';
 
+const popularDestinationsData = {
+  countries: [
+    { name: "Malaysia", country_code: "MY", type: "country" },
+    { name: "Thailand", country_code: "TH", type: "country" },
+    { name: "Singapore", country_code: "SG", type: "country" },
+    { name: "Japan", country_code: "JP", type: "country" },
+    // Add more countries if needed for direct matching in getPopularDestinations
+  ],
+  cities: [
+    { name: "Kuala Lumpur", formattedName: "Kuala Lumpur, Malaysia", country: "Malaysia", country_code: "MY", city: "Kuala Lumpur", type: "city" },
+    { name: "Bangkok", formattedName: "Bangkok, Thailand", country: "Thailand", country_code: "TH", city: "Bangkok", type: "city" },
+    { name: "Singapore", formattedName: "Singapore, Singapore", country: "Singapore", country_code: "SG", city: "Singapore", type: "city" },
+    { name: "Tokyo", formattedName: "Tokyo, Japan", country: "Japan", country_code: "JP", city: "Tokyo", type: "city" },
+    { name: "Paris", formattedName: "Paris, France", country: "France", country_code: "FR", city: "Paris", type: "city" },
+    { name: "Rome", formattedName: "Rome, Italy", country: "Italy", country_code: "IT", city: "Rome", type: "city" },
+    { name: "New York", formattedName: "New York, USA", country: "United States", country_code: "US", city: "New York", type: "city" },
+  ]
+};
+
+// Helper to generate a default Suggestion object for headers
+const createHeaderSuggestion = (id: string, text: string): SuggestionItem => ({
+  id,
+  text,
+  isHeader: true,
+  name: '', // Default for required fields
+  formattedName: '',
+  full: null,
+  // Add other required fields from Suggestion with default/null values if necessary
+  country: undefined,
+  country_code: undefined,
+  state: undefined,
+  city: undefined,
+  postcode: undefined,
+  latitude: undefined,
+  longitude: undefined,
+  result_type: undefined,
+  category: undefined,
+});
+
+// Replaces the old processSuggestions function
+const organizeAndMapResults = (
+  results: any[], // Expected to be GeoapifyFeature[] from API
+  isCountrySpecificQuery: boolean,
+  countryQueryString?: string
+): SuggestionItem[] => {
+  if (!results || results.length === 0) {
+    return [];
+  }
+
+  const suggestions: SuggestionItem[] = [];
+
+  // Helper to map a Geoapify item to our Suggestion type
+  const mapItemToSuggestion = (item: any): SuggestionItem => ({
+    id: item.properties.place_id || `sug-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    name: item.properties.name || item.properties.address_line1 || item.properties.city || 'Unknown Location',
+    formattedName: item.properties.formatted,
+    country: item.properties.country,
+    country_code: item.properties.country_code,
+    state: item.properties.state,
+    city: item.properties.city, // item.properties.city might be the primary city name
+    postcode: item.properties.postcode,
+    latitude: item.properties.lat,
+    longitude: item.properties.lon,
+    result_type: item.properties.result_type, // e.g., city, amenity, street
+    category: item.properties.category, // For more detailed type, e.g., tourism.sights
+    full: item,
+    isHeader: false,
+  });
+
+  if (isCountrySpecificQuery && countryQueryString) {
+    const cities = results.filter(item =>
+      item.properties.result_type === "city" ||
+      item.properties.result_type === "town"
+    );
+
+    const attractions = results.filter(item =>
+      item.properties.category?.toLowerCase().includes("tourism") ||
+      item.properties.category?.toLowerCase().includes("entertainment") ||
+      item.properties.category?.toLowerCase().includes("leisure") ||
+      // Include amenities that are not already listed as cities
+      (item.properties.result_type === "amenity" && !cities.some(c => c.properties.place_id === item.properties.place_id))
+    );
+
+    if (cities.length > 0) {
+      suggestions.push(createHeaderSuggestion(`header-cities-${countryQueryString}`, `Cities in ${countryQueryString}`));
+      suggestions.push(...cities.map(mapItemToSuggestion));
+    }
+
+    if (attractions.length > 0) {
+      suggestions.push(createHeaderSuggestion(`header-attractions-${countryQueryString}`, `Attractions in ${countryQueryString}`));
+      suggestions.push(...attractions.map(mapItemToSuggestion));
+    }
+
+    // Fallback: If no cities or attractions were categorized but results exist, show them all generally.
+    if (suggestions.length === 0 && results.length > 0) {
+      suggestions.push(...results.map(mapItemToSuggestion));
+    }
+  } else {
+    // For general searches (not a specific country query, or when a country is pre-selected from dropdown)
+    // simply map all results without specific 'Cities in X' headers.
+    // We could still have generic 'Cities' or 'Attractions' headers if desired, 
+    // or just a flat list as done here.
+    suggestions.push(...results.map(mapItemToSuggestion));
+  }
+
+  return suggestions;
+};
+
 const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
   isOpen,
   doHandleClose,
@@ -438,42 +546,56 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
     try {
       setError(null);
       if (!currentQuery.trim()) {
-        setSuggestions(selectedCountry ? [] : getPopularDestinations());
-        if (selectedCountry && onStatusChange) { // Use renamed prop
-          onStatusChange({ emotion: 'happy', message: `What are you looking for in ${selectedCountry.name}?` });
-        } else if (onStatusChange) { // Use renamed prop
-          onStatusChange({ emotion: 'happy', message: 'Where to next? Search for a country, city, or attraction!' });
-        }
+        setSuggestions(getPopularDestinations());
+        setIsLoading(false);
         return;
       }
-
-      setIsLoading(true);
-      if (onStatusChange) onStatusChange({ emotion: 'thinking', message: 'Fetching suggestions...' }); // Use renamed prop
-
-      const response = await fetch(apiUrl);
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Search request failed' }));
-        throw new Error(errorData.message || `Search failed with status: ${response.status}`);
-      }
-      const data = await response.json();
-      const organizedResults = selectedCountry
-        ? organizeDestinationsInCountry(data) 
-        : organizeCountryResults(data);
+      if (onStatusChange) onStatusChange({
+        emotion: 'thinking',
+        message: `Let me find places like "${currentQuery}" for you...`
+      });
       
-      setSuggestions(organizedResults.length > 0 ? organizedResults : [{ isHeader: true, text: 'No results found.' }]);
-      if (organizedResults.length === 0 && onStatusChange) { // Use renamed prop
-        onStatusChange({ emotion: 'sad', message: `Sorry, I couldn't find anything for "${currentQuery}". Try a different search?` });
-      }
-
-    } catch (err: any) {
-      console.error("Error fetching suggestions:", err);
-      setError(err.message || "Failed to fetch suggestions.");
+      const debounce = setTimeout(() => {
+        fetch(apiUrl)
+          .then(response => response.json())
+          .then(data => {
+            const processed = organizeAndMapResults(
+              data.results || [],
+              !!potentialCountryCodeFromQuery, // isCountrySpecificQuery
+              potentialCountryCodeFromQuery ? currentQuery : undefined // countryQueryString, pass currentQuery as country name
+            );
+            
+            if (processed.length === 0 && (data.results && data.results.length > 0)) {
+              // This case means organizeAndMapResults decided to return empty based on its logic,
+              // but API had results. This shouldn't happen with the new fallback in organizeAndMapResults.
+              // However, if it did, or if API results were truly empty for a specific query:
+              setError("No specific results found. Showing popular destinations.");
+              setSuggestions(getPopularDestinations(currentQuery));
+            } else if (processed.length === 0 && (!data.results || data.results.length === 0)) {
+              setError("No results found for your search.");
+              setSuggestions(getPopularDestinations(currentQuery)); // Or just an empty array: setSuggestions([])
+            } else {
+              setSuggestions(processed);
+            }
+          })
+          .catch((error: any) => {
+            console.error("Error fetching suggestions:", error);
+            setError(error.message || "Failed to fetch suggestions.");
+            setSuggestions(getPopularDestinations()); // Fallback to popular destinations on error
+            if (onStatusChange) onStatusChange({ emotion: 'sad', message: `Oops! Something went wrong while searching. ${error.message}` }); // Use renamed prop
+          })
+          .finally(() => setIsLoading(false));
+      }, 500);
+      return () => clearTimeout(debounce);
+    } catch (error: any) {
+      console.error("Error fetching suggestions:", error);
+      setError(error.message || "Failed to fetch suggestions.");
       setSuggestions(getPopularDestinations()); // Fallback to popular destinations on error
-      if (onStatusChange) onStatusChange({ emotion: 'sad', message: `Oops! Something went wrong while searching. ${err.message}` }); // Use renamed prop
+      if (onStatusChange) onStatusChange({ emotion: 'sad', message: `Oops! Something went wrong while searching. ${error.message}` }); // Use renamed prop
     } finally {
       setIsLoading(false);
     }
-  }, [selectedCountry, onStatusChange, organizeCountryResults, organizeDestinationsInCountry]); 
+  }, [selectedCountry, onStatusChange, organizeAndMapResults]); 
 
   // Reset focused index when suggestions change
   useEffect(() => {
