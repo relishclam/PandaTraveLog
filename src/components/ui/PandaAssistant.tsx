@@ -6,8 +6,7 @@ import Image from 'next/image';
 import { motion, AnimatePresence, HTMLMotionProps } from 'framer-motion';
 import { IoClose, IoExpand, IoContract } from 'react-icons/io5';
 import { getEmotionImagePath, getLogoIconPath, getFallbackLogoPath } from '@/utils/imagePaths';
-
-type Emotion = 'happy' | 'thinking' | 'excited' | 'confused' | 'sad';
+import { Emotion } from '@/contexts/PandaAssistantContext';
 
 type ResponseButton = {
   text: string;

@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { PandaAssistant } from '@/components/ui/PandaAssistant';
-import { PandaModal } from '@/components/ui/PandaModal';
 import { useAuth } from '@/hooks/auth';
 import axios from 'axios';
 import { 
@@ -13,6 +12,7 @@ import {
   TripDetails
 } from '@/services/openrouter-service';
 import Image from 'next/image';
+import { usePandaAssistant } from '@/contexts/PandaAssistantContext';
 
 // Activity type icons
 const activityTypeIcons: Record<string, string> = {
@@ -93,6 +93,7 @@ export default function ItineraryPage() {
   const tripId = params.tripId as string;
   const isNewTrip = searchParams.get('new') === 'true';
   const { user } = useAuth(); // Get user info including country
+  const { showPandaModal, hidePandaModal } = usePandaAssistant();
 
   // Get client-side trip data from URL state if available (for new trips)
   const clientTripData = typeof window !== 'undefined' ? 
@@ -540,7 +541,42 @@ export default function ItineraryPage() {
 
           <div className="mt-8 flex justify-center">
             <button
-              onClick={() => setShowConfirmModal(true)}
+              onClick={() => showPandaModal({
+                title: "Ready to Create Your Itinerary?",
+                message: "I'll create a personalized day-by-day itinerary based on your activity selections. This will include maps, daily schedules, and all the details you need for your trip!",
+                emotion: 'excited',
+                primaryAction: {
+                  text: "Yes, create my itinerary!",
+                  onClick: () => {
+                    generateFinalItinerary();
+                    hidePandaModal();
+                  },
+                  style: 'primary',
+                },
+                secondaryAction: {
+                  text: "I need to review my selections",
+                  onClick: () => {
+                    hidePandaModal();
+                  },
+                  style: 'secondary',
+                },
+                onClose: () => {
+                  console.log("Confirmation modal closed by user.");
+                },
+                content: (
+                  <div className="bg-white bg-opacity-70 rounded-lg p-3 shadow-inner">
+                    <p className="text-sm text-gray-700 mb-2">
+                      Your final itinerary will include:
+                    </p>
+                    <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                      <li>Day-by-day plans</li>
+                      <li>Maps and navigation</li>
+                      <li>Activity details</li>
+                      <li>And more panda-stic surprises!</li>
+                    </ul>
+                  </div>
+                )
+              })}
               className="px-6 py-3 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors text-lg font-medium"
             >
               Generate My Personalized Itinerary
@@ -568,52 +604,6 @@ export default function ItineraryPage() {
         position="bottom-right"
         size="lg"
       />
-
-      {/* Confirmation Modal */}
-      <PandaModal
-        isOpen={showConfirmModal}
-        onClose={() => setShowConfirmModal(false)}
-        title="Ready to Create Your Itinerary?"
-        message="I'll create a personalized day-by-day itinerary based on your activity selections. This will include maps, daily schedules, and all the details you need for your trip!"
-        emotion="excited"
-        primaryAction={{
-          text: "Yes, create my itinerary!",
-          onClick: () => {
-            setShowConfirmModal(false);
-            generateFinalItinerary();
-          }
-        }}
-        secondaryAction={{
-          text: "I need to review my selections",
-          onClick: () => {
-            setShowConfirmModal(false);
-          }
-        }}
-      >
-        <div className="bg-white bg-opacity-70 rounded-lg p-3 shadow-inner">
-          <p className="text-sm text-gray-700 mb-2">
-            Your final itinerary will include:
-          </p>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm text-gray-700">
-              <span className="text-orange-500">✓</span>
-              <span>Day-by-day schedule with times</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-gray-700">
-              <span className="text-orange-500">✓</span>
-              <span>Interactive maps for each location</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-gray-700">
-              <span className="text-orange-500">✓</span>
-              <span>Restaurant recommendations</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-gray-700">
-              <span className="text-orange-500">✓</span>
-              <span>Travel tips and local insights</span>
-            </div>
-          </div>
-        </div>
-      </PandaModal>
     </div>
   );
 }

@@ -2,7 +2,24 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-type Emotion = 'happy' | 'thinking' | 'excited' | 'confused' | 'sad';
+export type Emotion = 'happy' | 'thinking' | 'excited' | 'confused' | 'sad' | 'love' | 'surprised' | 'curious';
+
+export type ModalAction = {
+  text: string;
+  onClick: () => void;
+  style?: 'primary' | 'secondary' | 'danger';
+};
+
+export type PandaModalConfig = {
+  isOpen: boolean;
+  title?: string;
+  message: string;
+  emotion?: Emotion;
+  primaryAction?: ModalAction;
+  secondaryAction?: ModalAction;
+  onClose?: () => void; // Callback for when the modal is dismissed/closed
+  content?: React.ReactNode; // Added to support custom React content in modal
+};
 
 type PandaAssistantState = {
   mainAssistant: {
@@ -15,6 +32,7 @@ type PandaAssistantState = {
     message: string | null;
     emotion: Emotion;
   };
+  modal: PandaModalConfig; // Added modal state
 };
 
 type PandaAssistantContextType = {
@@ -24,6 +42,8 @@ type PandaAssistantContextType = {
   showFloatingAssistant: (message?: string, emotion?: Emotion) => void;
   hideFloatingAssistant: () => void;
   hideAllAssistants: () => void;
+  showPandaModal: (config: Omit<PandaModalConfig, 'isOpen'>) => void; // Function to show a modal
+  hidePandaModal: () => void; // Function to hide the modal
 };
 
 const initialState: PandaAssistantState = {
@@ -36,6 +56,13 @@ const initialState: PandaAssistantState = {
     visible: false,
     message: null,
     emotion: 'happy',
+  },
+  modal: { // Initial modal state
+    isOpen: false,
+    message: '',
+    emotion: 'happy', // Default emotion for modal if not specified
+    content: null, // Initialize content as null
+    // title, primaryAction, secondaryAction, onClose will be undefined initially
   },
 };
 
@@ -50,9 +77,17 @@ export const PandaAssistantProvider: React.FC<{ children: ReactNode }> = ({ chil
       const savedState = localStorage.getItem('pandaAssistantContextState');
       if (savedState) {
         try {
-          setState(JSON.parse(savedState));
+          const parsedState = JSON.parse(savedState);
+          // Ensure modal state is initialized if not present in savedState
+          setState({
+            ...initialState, // Start with defaults
+            ...parsedState,  // Override with saved values
+            // Ensure modal is always defined, merging with initial if not fully present
+            modal: { ...initialState.modal, ...(parsedState.modal || {}) }
+          });
         } catch (error) {
           console.error('Failed to parse saved panda assistant state', error);
+          setState(initialState); // Fallback to initial state on error
         }
       }
     }
@@ -121,6 +156,30 @@ export const PandaAssistantProvider: React.FC<{ children: ReactNode }> = ({ chil
     }));
   };
 
+  const showPandaModal = (config: Omit<PandaModalConfig, 'isOpen'>) => {
+    setState(prev => ({
+      ...prev,
+      modal: {
+        ...config,
+        isOpen: true,
+        emotion: config.emotion || prev.modal.emotion || 'happy', // Use provided, existing, or default emotion
+      }
+    }));
+  };
+
+  const hidePandaModal = () => {
+    const currentOnClose = state.modal.onClose;
+
+    setState(prev => ({
+      ...prev,
+      modal: { ...initialState.modal } // Reset to initial (closed) modal state
+    }));
+
+    if (currentOnClose) {
+      currentOnClose();
+    }
+  };
+
   return (
     <PandaAssistantContext.Provider
       value={{
@@ -130,6 +189,8 @@ export const PandaAssistantProvider: React.FC<{ children: ReactNode }> = ({ chil
         showFloatingAssistant,
         hideFloatingAssistant,
         hideAllAssistants,
+        showPandaModal,   // Expose new modal function
+        hidePandaModal    // Expose new modal function
       }}
     >
       {children}

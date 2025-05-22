@@ -5,9 +5,9 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { PandaAssistant } from '@/components/ui/PandaAssistant';
-import { PandaModal } from '@/components/ui/PandaModal';
 import DestinationSearchWrapper from '@/components/maps/DestinationSearchWrapper';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePandaAssistant } from '@/contexts/PandaAssistantContext';
 
 // Simple button component
 const Button = ({ 
@@ -135,6 +135,7 @@ export default function NewTripPage() {
   
   // Use auth context (modify if needed for your specific auth implementation)
   const { user, isLoading: authLoading } = useAuth();
+  const { showPandaModal, hidePandaModal } = usePandaAssistant();
   
   // Check for emergency auth in sessionStorage
   const [hasEmergencyAuth, setHasEmergencyAuth] = useState(false);
@@ -249,8 +250,52 @@ export default function NewTripPage() {
 
     setDestinations(prev => [...prev, place]);
     setPandaEmotion('excited');
-    setPandaMessage(`Great! ${destination.name} added to your trip. You can add more destinations or continue to trip details.`);
-    setShowMultiDestModal(true);
+    const newPandaMessage = `Great! ${destination.name} added to your trip. You can add more destinations or continue to trip details.`;
+    setPandaMessage(newPandaMessage);
+    // setShowMultiDestModal(true); // Replace with showPandaModal
+
+    const modalTitle = "Plan Your Adventure";
+    const modalMessage = destinations.length > 0 ? // Check destinations.length + 1 effectively, as we just added one
+      `Fantastic! You've selected ${[...destinations, place].map(d => d.mainText).join(' and ')}. Would you like to add more destinations to your adventure?` :
+      `Great choice! ${place.mainText} sounds amazing! Do you want to add more destinations to your trip?`;
+
+    showPandaModal({
+      title: modalTitle,
+      message: modalMessage,
+      emotion: 'excited',
+      primaryAction: {
+        text: "Yes, add more destinations",
+        onClick: () => {
+          console.log("User chose to add more destinations");
+          // setShowMultiDestModal(false); // Not needed
+          setPandaMessage("Awesome! Search for another destination.");
+          setPandaEmotion('happy');
+          hidePandaModal();
+        },
+        style: 'primary'
+      },
+      secondaryAction: {
+        text: "No, continue to trip details",
+        onClick: () => {
+          console.log("User chose to continue to trip details");
+          // setShowMultiDestModal(false); // Not needed
+          setPandaMessage("Perfect! Let's get into the details of your trip.");
+          setPandaEmotion('excited');
+          // Navigate to trip details page or next step
+          // For now, just hiding modal and logging
+          // router.push(`/trips/${tripId}/details`); // Example navigation
+          setStep(2); // Correctly advance to the next step
+          hidePandaModal();
+        },
+        style: 'secondary'
+      },
+      onClose: () => {
+        console.log("Multi-destination modal closed by user");
+        // setShowMultiDestModal(false); // Reset local state if it were still used
+        // Decide if closing without choice should do something specific
+        // For example, revert Panda message or emotion if needed.
+      }
+    });
   };
 
   // Remove a destination
@@ -660,48 +705,6 @@ export default function NewTripPage() {
         size="lg"
         showMessage={hasInteracted}
       />
-      
-      {/* Multi-destination Modal */}
-      <PandaModal
-        isOpen={showMultiDestModal}
-        onClose={() => {
-          console.log("Modal closed by user");
-          setShowMultiDestModal(false);
-          // Don't automatically go to step 2 when closing
-        }}
-        title="Plan Your Adventure"
-        message={destinations.length > 1 ? 
-          `Fantastic! You've selected ${destinations.map(d => d.mainText).join(' and ')}. Would you like to add more destinations to your adventure?` : 
-          `Great choice! ${primaryDestination?.mainText} sounds amazing! Do you want to add more destinations to your trip?`}
-        emotion="excited"
-        primaryAction={{
-          text: "Yes, add more destinations",
-          onClick: () => {
-            console.log("User chose to add more destinations");
-            setShowMultiDestModal(false);
-            setPandaMessage(`Great! You can add more destinations now. ${primaryDestination?.mainText} is your primary destination.`);
-          }
-        }}
-        secondaryAction={{
-          text: "No, continue with this destination",
-          onClick: () => {
-            console.log(`User chose to continue with ${destinations.length} destination${destinations.length !== 1 ? 's' : ''}`);
-            setShowMultiDestModal(false);
-            setStep(2);
-            setPandaMessage(`Perfect! Let's set up your trip to ${primaryDestination?.mainText}.`);
-          }
-        }}
-      >
-        <div className="bg-white bg-opacity-70 rounded-lg p-3 shadow-inner">
-          <p className="text-sm text-gray-700 mb-2">
-            Multi-destination trips let you plan a complete adventure with stops in different locations.
-          </p>
-          <div className="flex items-center gap-2 text-sm font-medium text-orange-500">
-            <span>✨</span>
-            <span>Add as many destinations as you like</span>
-          </div>
-        </div>
-      </PandaModal>
     </div>
   );
 }

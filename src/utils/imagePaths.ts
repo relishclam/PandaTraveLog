@@ -1,5 +1,7 @@
 'use client';
 
+import { Emotion } from '@/contexts/PandaAssistantContext';
+
 /**
  * Utility functions for handling image paths
  */
@@ -18,6 +20,9 @@ export const IMAGE_PATHS = {
     EXCITED: '/images/po/emotions/excited.png',
     CONFUSED: '/images/po/emotions/confused.png',
     SAD: '/images/po/emotions/sad.png',
+    LOVE: '/images/po/emotions/love.png',
+    SURPRISED: '/images/po/emotions/surprised.png',
+    CURIOUS: '/images/po/emotions/curious.png',
     FALLBACK: '/images/po/emotions/fallback-logo.png',
   },
 };
@@ -27,8 +32,9 @@ export const IMAGE_PATHS = {
  * @param emotion The emotion to get the image for
  * @returns The path to the image
  */
-export function getEmotionImagePath(emotion: 'happy' | 'thinking' | 'excited' | 'confused' | 'sad'): string {
-  switch(emotion) {
+export function getEmotionImagePath(emotion?: Emotion): string {
+  const currentEmotion = emotion || 'happy';
+  switch(currentEmotion) {
     case 'thinking':
       return IMAGE_PATHS.EMOTIONS.THINKING;
     case 'excited':
@@ -37,6 +43,12 @@ export function getEmotionImagePath(emotion: 'happy' | 'thinking' | 'excited' | 
       return IMAGE_PATHS.EMOTIONS.CONFUSED;
     case 'sad':
       return IMAGE_PATHS.EMOTIONS.SAD;
+    case 'love':
+      return IMAGE_PATHS.EMOTIONS.LOVE;
+    case 'surprised':
+      return IMAGE_PATHS.EMOTIONS.SURPRISED;
+    case 'curious':
+      return IMAGE_PATHS.EMOTIONS.CURIOUS;
     case 'happy':
     default:
       return IMAGE_PATHS.EMOTIONS.HAPPY;
