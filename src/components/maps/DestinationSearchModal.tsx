@@ -230,7 +230,7 @@ const createHeaderSuggestion = (id: string, text: string): SuggestionItem => ({
   isHeader: true,
   name: '', // Default for required fields
   formattedName: '',
-  full: null,
+  full: undefined, // FIX: Changed from null to undefined
   // Add other required fields from Suggestion with default/null values if necessary
   country: undefined,
   country_code: undefined,
