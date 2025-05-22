@@ -30,6 +30,7 @@ type Destination = {
   coordinates: [number, number];
 };
 
+// Type for standard GeoJSON-like features (used by fetchCitiesInCountry, fetchPOIsInBBox, etc.)
 type GeoapifyFeature = {
   properties: {
     place_id: string;
@@ -41,12 +42,33 @@ type GeoapifyFeature = {
     name?: string;
     formatted: string;
     result_type?: string;
-    category?: string[];
+    category?: string[]; 
+    address_line1?: string;
+    address_line2?: string;
   };
   geometry: {
-    coordinates: [number, number];
+    coordinates: [number, number]; // Typically [lon, lat]
   };
   bbox?: number[];
+};
+
+// Type for Geoapify Autocomplete API results (flatter structure)
+type GeoapifyAutocompleteResult = {
+  place_id: string;
+  country?: string;
+  country_code?: string;
+  city?: string;
+  state?: string;
+  district?: string;
+  name?: string; 
+  formatted: string; 
+  result_type?: string;
+  lon: number;
+  lat: number;
+  category?: string[];
+  bbox?: number[];
+  address_line1?: string;
+  address_line2?: string;
 };
 
 type SuggestionItem = {
@@ -55,7 +77,7 @@ type SuggestionItem = {
   name?: string;
   formattedName?: string;
   type?: string;
-  full?: GeoapifyFeature;
+  full?: GeoapifyAutocompleteResult; // CRITICAL: Ensure this uses AutocompleteResult
 };
 
 interface DestinationSearchModalProps {
@@ -77,7 +99,8 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
 }) => {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
-  const [selectedCountry, setSelectedCountry] = useState<GeoapifyFeature | null>(null);
+  // Ensure selectedCountry also uses the correct type for autocomplete results
+  const [selectedCountry, setSelectedCountry] = useState<GeoapifyAutocompleteResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   // Emotion and messaging state removed - now handled by global assistant
   const [selectedDestinations, setSelectedDestinations] = useState<Destination[]>(existingSelections || []);
@@ -150,8 +173,8 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
           limit: '10',
         });
         // Only add filter if a country is selected
-        if (selectedCountry?.properties?.country_code) {
-          params.append('filter', `countrycode:${selectedCountry.properties.country_code}`);
+        if (selectedCountry?.country_code) {
+          params.append('filter', `countrycode:${selectedCountry.country_code}`);
         }
         
         const response = await fetch(
@@ -265,11 +288,11 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
     
     // Add to selected destinations list
     const newDestination: Destination = {
-      place_id: item.full.properties.place_id || '',
+      place_id: item.full.place_id || '', 
       name: item.name,
       formattedName: item.formattedName || item.name,
-      country: item.full.properties.country || '',
-      coordinates: item.full.geometry.coordinates
+      country: item.full.country || '', 
+      coordinates: [item.full.lon, item.full.lat] 
     };
     
     setSelectedDestinations(prev => [...prev, newDestination]);
@@ -284,158 +307,157 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
     setQuery('');
     // Reset focus to input for continuous input
     inputRef.current?.focus();
-  }, []);
+  }, [onStatusChange]); 
   
   // Handle item selection
-  // Enhanced selection handler: triggers secondary queries for countries/cities
-const handleItemSelect = useCallback(async (item: SuggestionItem) => {
-  if (item.isHeader) return;
+  const handleItemSelect = useCallback(async (item: SuggestionItem) => {
+    if (item.isHeader) return;
 
-  // Helper to fetch cities in a country
-  const fetchCitiesInCountry = async (countryCode: string) => {
-    const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
-    if (!apiKey) return [];
-    const params = new URLSearchParams({
-      type: 'city',
-      filter: `countrycode:${countryCode}`,
-      format: 'json',
-      apiKey,
-      limit: '20',
-    });
-    const response = await fetch(`https://api.geoapify.com/v1/geocode/search?${params.toString()}`);
-    if (!response.ok) return [];
-    const data = await response.json();
-    return data.features || [];
-  };
+    // Helper to fetch cities in a country
+    const fetchCitiesInCountry = async (countryCode: string) => {
+      const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
+      if (!apiKey) return [];
+      const params = new URLSearchParams({
+        type: 'city',
+        filter: `countrycode:${countryCode}`,
+        format: 'json',
+        apiKey,
+        limit: '20',
+      });
+      const response = await fetch(`https://api.geoapify.com/v1/geocode/search?${params.toString()}`);
+      if (!response.ok) return [];
+      const data = await response.json();
+      return data.features || [];
+    };
 
-  // Helper to fetch POIs in a bounding box
-  const fetchPOIsInBBox = async (bbox: number[]) => {
-    const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
-    if (!apiKey) return [];
-    const bboxParam = bbox.join(',');
-    const params = new URLSearchParams({
-      categories: 'tourism,sights,entertainment',
-      filter: `rect:${bboxParam}`,
-      limit: '20',
-      apiKey,
-    });
-    const response = await fetch(`https://api.geoapify.com/v2/places?${params.toString()}`);
-    if (!response.ok) return [];
-    const data = await response.json();
-    return data.features || [];
-  };
+    // Helper to fetch POIs in a bounding box
+    const fetchPOIsInBBox = async (bbox: number[]) => {
+      const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
+      if (!apiKey) return [];
+      const bboxParam = bbox.join(',');
+      const params = new URLSearchParams({
+        categories: 'tourism,sights,entertainment',
+        filter: `rect:${bboxParam}`,
+        limit: '20',
+        apiKey,
+      });
+      const response = await fetch(`https://api.geoapify.com/v2/places?${params.toString()}`);
+      if (!response.ok) return [];
+      const data = await response.json();
+      return data.features || [];
+    };
 
-  // Helper to fetch nearby cities by circle
-  const fetchNearbyCities = async (lon: number, lat: number, radius: number = 30000) => {
-    const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
-    if (!apiKey) return [];
-    const params = new URLSearchParams({
-      type: 'city',
-      filter: `circle:${lon},${lat},${radius}`,
-      format: 'json',
-      apiKey,
-      limit: '10',
-    });
-    const response = await fetch(`https://api.geoapify.com/v1/geocode/search?${params.toString()}`);
-    if (!response.ok) return [];
-    const data = await response.json();
-    return data.features || [];
-  };
+    // Helper to fetch nearby cities by circle
+    const fetchNearbyCities = async (lon: number, lat: number, radius: number = 30000) => {
+      const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
+      if (!apiKey) return [];
+      const params = new URLSearchParams({
+        type: 'city',
+        filter: `circle:${lon},${lat},${radius}`,
+        format: 'json',
+        apiKey,
+        limit: '10',
+      });
+      const response = await fetch(`https://api.geoapify.com/v1/geocode/search?${params.toString()}`);
+      if (!response.ok) return [];
+      const data = await response.json();
+      return data.features || [];
+    };
 
-  if (item.type === 'country' && item.full) {
-    setSelectedCountry(item.full);
-    // Update global assistant when country selected
-    onStatusChange?.({ 
-      emotion: 'excited', 
-      message: `Great choice! Let's explore ${item.name || 'this country'}! Fetching cities and attractions...`
-    });
-    setQuery('');
-    if (inputRef.current) inputRef.current.focus();
+    if (item.type === 'country' && item.full) {
+      setSelectedCountry(item.full);
+      // Update global assistant when country selected
+      onStatusChange?.({ 
+        emotion: 'excited', 
+        message: `Great choice! Let's explore ${item.name || 'this country'}! Fetching cities and attractions...`
+      });
+      setQuery('');
+      if (inputRef.current) inputRef.current.focus();
 
-    // --- Enhancement: Fetch cities and POIs in country ---
-    const countryCode = item.full.properties.country_code;
-    const bbox = item.full.bbox || undefined;
-    let cities: any[] = [];
-    let pois: any[] = [];
-    if (countryCode) {
-      cities = await fetchCitiesInCountry(countryCode);
+      // --- Enhancement: Fetch cities and POIs in country ---
+      const countryCode = item.full.country_code; // Corrected: direct access
+      const bbox = item.full.bbox || undefined;
+      let cities: any[] = [];
+      let pois: any[] = [];
+      if (countryCode) {
+        cities = await fetchCitiesInCountry(countryCode);
+      }
+      if (bbox) {
+        pois = await fetchPOIsInBBox(bbox);
+      }
+      // Optionally, update suggestions or UI with these results
+      // setSuggestions([...]);
+      // setPoMessage(...);
+    } else if (item.type === 'city' && item.full) {
+      // Update global assistant when city selected
+      onStatusChange?.({ 
+        emotion: 'excited', 
+        message: `Exploring ${item.name}! Fetching places of interest and nearby cities...`
+      });
+      setQuery('');
+      if (inputRef.current) inputRef.current.focus();
+
+      // --- Enhancement: Fetch POIs in city and nearby cities ---
+      const coords = item.full.lon !== undefined && item.full.lat !== undefined ? [item.full.lon, item.full.lat] : undefined;
+      const bbox = item.full.bbox || undefined;
+      let pois: any[] = [];
+      let nearbyCities: any[] = [];
+      if (bbox) {
+        pois = await fetchPOIsInBBox(bbox);
+      }
+      if (coords) {
+        nearbyCities = await fetchNearbyCities(coords[0], coords[1]);
+      }
+      // Optionally, update suggestions or UI with these results
+      // setSuggestions([...]);
+      // setPoMessage(...);
+    } else if (multiSelect) {
+      handleDestinationAdd(item);
+    } else if (item.full && item.name) {
+      // Close the modal and pass the selection to parent
+      // Update global assistant instead via onStatusChange
+      onSelect({
+        place_id: item.full.place_id || '', 
+        name: item.name,
+        formattedName: item.formattedName || item.name,
+        country: item.full.country || '', 
+        coordinates: [item.full.lon, item.full.lat] 
+      });
+      onClose();
     }
-    if (bbox) {
-      pois = await fetchPOIsInBBox(bbox);
-    }
-    // Optionally, update suggestions or UI with these results
-    // setSuggestions([...]);
-    // setPoMessage(...);
-  } else if (item.type === 'city' && item.full) {
-    // Update global assistant when city selected
-    onStatusChange?.({ 
-      emotion: 'excited', 
-      message: `Exploring ${item.name}! Fetching places of interest and nearby cities...`
-    });
-    setQuery('');
-    if (inputRef.current) inputRef.current.focus();
-
-    // --- Enhancement: Fetch POIs in city and nearby cities ---
-    const coords = item.full.geometry.coordinates;
-    const bbox = item.full.bbox || undefined;
-    let pois: any[] = [];
-    let nearbyCities: any[] = [];
-    if (bbox) {
-      pois = await fetchPOIsInBBox(bbox);
-    }
-    if (coords) {
-      nearbyCities = await fetchNearbyCities(coords[0], coords[1]);
-    }
-    // Optionally, update suggestions or UI with these results
-    // setSuggestions([...]);
-    // setPoMessage(...);
-  } else if (multiSelect) {
-    handleDestinationAdd(item);
-  } else if (item.full && item.name) {
-    // Close the modal and pass the selection to parent
-    // Update global assistant instead via onStatusChange
-    onSelect({
-      place_id: item.full.properties.place_id || '',
-      name: item.name,
-      formattedName: item.formattedName || item.name,
-      country: item.full.properties.country || '',
-      coordinates: item.full.geometry.coordinates
-    });
-    onClose();
-  }
-}, [multiSelect, onSelect, onClose, handleDestinationAdd]);
+  }, [multiSelect, onSelect, onClose, handleDestinationAdd, onStatusChange]); 
   
   // Organize country results
-  const organizeCountryResults = useCallback((geoapifyResults: { features?: GeoapifyFeature[] }): SuggestionItem[] => {
-    const features = geoapifyResults.features || [];
+  const organizeCountryResults = useCallback((geoapifyResults: { results?: GeoapifyAutocompleteResult[] }): SuggestionItem[] => {
+    const features = geoapifyResults.results || []; // features are GeoapifyAutocompleteResult
     
     const countries: SuggestionItem[] = [];
     const majorCities: SuggestionItem[] = [];
     const regions: SuggestionItem[] = [];
     
     features.forEach((feature) => {
-      const properties = feature.properties;
+      const properties = feature;
       
-      if (properties.country_code && properties.result_type === "country") {
+      if (feature.country_code && feature.result_type === "country") {
         countries.push({
-          name: properties.country,
-          formattedName: properties.formatted,
+          name: feature.country,
+          formattedName: feature.formatted,
           type: "country",
           full: feature
         });
       } 
-      else if (properties.city && properties.country) {
+      else if (feature.city && feature.country) {
         majorCities.push({
-          name: properties.city,
-          formattedName: `${properties.city}, ${properties.country}`,
+          name: feature.city,
+          formattedName: `${feature.city}, ${feature.country}`,
           type: "city",
           full: feature
         });
       }
-      else if (properties.state && properties.country) {
+      else if (feature.state && feature.country) {
         regions.push({
-          name: properties.state,
-          formattedName: `${properties.state}, ${properties.country}`,
+          name: feature.state,
+          formattedName: `${feature.state}, ${feature.country}`,
           type: "region",
           full: feature
         });
@@ -453,36 +475,36 @@ const handleItemSelect = useCallback(async (item: SuggestionItem) => {
   }, []);
   
   // Organize destinations within a country
-  const organizeDestinationsInCountry = useCallback((geoapifyResults: { features?: GeoapifyFeature[] }): SuggestionItem[] => {
-    const features = geoapifyResults.features || [];
+  const organizeDestinationsInCountry = useCallback((geoapifyResults: { results?: GeoapifyAutocompleteResult[] }): SuggestionItem[] => {
+    const features = geoapifyResults.results || []; // features are GeoapifyAutocompleteResult
     
     const cities: SuggestionItem[] = [];
     const attractions: SuggestionItem[] = [];
     const districts: SuggestionItem[] = [];
     
     features.forEach((feature) => {
-      const properties = feature.properties;
+      const properties = feature;
       
-      if (properties.city) {
+      if (feature.city) {
         cities.push({
-          name: properties.city,
-          formattedName: properties.formatted,
+          name: feature.city,
+          formattedName: feature.formatted,
           type: "city",
           full: feature
         });
       } 
-      else if (properties.category && properties.category.includes('tourism')) {
+      else if (feature.category && feature.category.includes('tourism')) {
         attractions.push({
-          name: properties.name || properties.formatted,
-          formattedName: properties.formatted,
+          name: feature.name || feature.formatted,
+          formattedName: feature.formatted,
           type: "attraction",
           full: feature
         });
       }
-      else if (properties.district) {
+      else if (feature.district) {
         districts.push({
-          name: properties.district,
-          formattedName: properties.formatted,
+          name: feature.district,
+          formattedName: feature.formatted,
           type: "district",
           full: feature
         });
@@ -715,7 +737,7 @@ const handleItemSelect = useCallback(async (item: SuggestionItem) => {
                 </div>
                 
                 {/* Selected country pill */}
-                {selectedCountry && selectedCountry.properties.country && (
+                {selectedCountry && selectedCountry.country && (
                   <div className="mx-4 mt-4">
                     <MotionDiv 
                       className="flex items-center p-2 bg-backpack-orange/10 rounded-full"
@@ -727,16 +749,16 @@ const handleItemSelect = useCallback(async (item: SuggestionItem) => {
                         className="flex items-center justify-center w-8 h-8 bg-backpack-orange text-white rounded-full mr-2"
                         aria-hidden="true"
                       >
-                        {selectedCountry.properties.country_code && 
+                        {selectedCountry.country_code && 
                           String.fromCodePoint(
-                            ...selectedCountry.properties.country_code
+                            ...selectedCountry.country_code
                               .toUpperCase()
                               .split('')
                               .map(c => 127397 + c.charCodeAt(0))
                           )
                         }
                       </div>
-                      <span className="flex-1 font-medium">{selectedCountry.properties.country}</span>
+                      <span className="flex-1 font-medium">{selectedCountry.country}</span>
                       <button 
                         className="p-1 hover:bg-backpack-orange/20 rounded-full transition-colors"
                         onClick={() => {
@@ -747,7 +769,7 @@ const handleItemSelect = useCallback(async (item: SuggestionItem) => {
                             message: "Let's search for a different destination!"
                           });
                         }}
-                        aria-label={`Unselect ${selectedCountry.properties.country}`}
+                        aria-label={`Unselect ${selectedCountry.country}`}
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -776,8 +798,8 @@ const handleItemSelect = useCallback(async (item: SuggestionItem) => {
                       ref={inputRef}
                       type="text"
                       className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-full text-lg focus:ring-2 focus:ring-backpack-orange focus:border-transparent transition-all"
-                      placeholder={selectedCountry && selectedCountry.properties.country
-                        ? `Find places in ${selectedCountry.properties.country}...` 
+                      placeholder={selectedCountry && selectedCountry.country
+                        ? `Find places in ${selectedCountry.country}...` 
                         : "Where would you like to go?"}
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
