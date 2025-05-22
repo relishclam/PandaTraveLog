@@ -25,8 +25,8 @@ export default function Home() {
         <Image
           src="/images/po/emotions/happy.png"
           alt="Meet PO the Travel Panda"
-          width={252}
-          height={252}
+          width={227}
+          height={227}
           className="object-contain drop-shadow-lg"
           priority
         />
