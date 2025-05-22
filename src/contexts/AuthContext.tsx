@@ -136,16 +136,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data?.user) {
         console.log("✅ AuthContext: Sign in successful");
         
-        // EMERGENCY FIX: Use the most direct approach possible
-        console.log("🔄 AuthContext: Using emergency direct navigation");
+        // Update user state first to ensure UI updates properly
+        await updateUserState(data.user);
         
-        // Store authentication success in sessionStorage
-        sessionStorage.setItem('auth_success', 'true');
-        sessionStorage.setItem('user_email', email);
-        
-        // Force a complete page reload with a timestamp to bust cache
-        const timestamp = new Date().getTime();
-        window.location.href = `/trips?t=${timestamp}`;
+        // Use Next.js router for navigation instead of emergency navigation
+        console.log("🔄 AuthContext: Redirecting to trips page");
+        router.push('/trips');
         
         return;
       }
@@ -186,20 +182,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updated_at: new Date().toISOString(),
       });
       
-      // EMERGENCY FIX: Use the most direct approach possible
-      console.log("✅ AuthContext: User has active session after signup");
-      
-      // Store authentication success in sessionStorage
-      sessionStorage.setItem('auth_success', 'true');
-      sessionStorage.setItem('user_email', email);
-      sessionStorage.setItem('user_name', name);
-      
-      // Force a complete page reload with a timestamp to bust cache
-      const timestamp = new Date().getTime();
-      setTimeout(() => {
-        console.log("🔄 AuthContext: Using emergency direct navigation after signup");
-        window.location.href = `/trips?t=${timestamp}`;
-      }, 500);
+      // Update user state first
+      if (data.session) {
+        await updateUserState(data.user);
+        
+        // Use proper router navigation
+        console.log("✅ AuthContext: User has active session after signup, redirecting");
+        setTimeout(() => {
+          router.push('/trips');
+        }, 500); // Small delay to ensure database operations complete
+      } else {
+        console.log("⚠️ AuthContext: No active session after signup, redirect to login");
+        setTimeout(() => {
+          router.push('/login?verified=false');
+        }, 500);
+      }
       
       // Return the user ID for phone verification
       return { id: data.user.id };
@@ -300,19 +297,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await supabase.auth.signOut();
       console.log("✅ AuthContext: Signed out successfully");
       
-      // EMERGENCY FIX: Clear all session storage and use timestamp to bust cache
-      sessionStorage.clear();
-      localStorage.clear();
+      // Set user to null to update UI immediately
+      setUser(null);
       
-      const timestamp = new Date().getTime();
-      window.location.href = `/?t=${timestamp}`;
+      // Use router to navigate to home page
+      router.push('/');
     } catch (error) {
       console.error('❌ AuthContext: Error signing out:', error);
       
-      // Even if sign out fails, force navigation to home
-      sessionStorage.clear();
-      localStorage.clear();
-      window.location.href = '/';
+      // Even if sign out fails, clear user state and redirect
+      setUser(null);
+      router.push('/');
     } finally {
       setIsLoading(false);
     }
