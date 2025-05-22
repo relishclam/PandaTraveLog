@@ -399,9 +399,7 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
 
     if (selectedCountry && selectedCountry.country_code) {
       apiUrl += `&filter=countrycode:${selectedCountry.country_code}&type=city,locality,amenity`;
-    } else {
-      apiUrl += `&type=city`; 
-    }
+    } 
 
     try {
       setError(null);
