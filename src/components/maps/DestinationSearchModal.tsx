@@ -400,7 +400,7 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
     if (selectedCountry && selectedCountry.country_code) {
       apiUrl += `&filter=countrycode:${selectedCountry.country_code}&type=city,locality,amenity`;
     } else {
-      apiUrl += `&type=country,state,city`; 
+      apiUrl += `&type=city`; 
     }
 
     try {
