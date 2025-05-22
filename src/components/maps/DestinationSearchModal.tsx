@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import FocusTrap from 'focus-trap-react'; // You may need to install this package
@@ -82,43 +82,370 @@ type SuggestionItem = {
 
 interface DestinationSearchModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  doHandleClose: () => void;
   onSelect: (destination: Destination | Destination[]) => void;
   multiSelect?: boolean;
   existingSelections?: Destination[];
-  onStatusChange?: (status: { emotion: 'happy' | 'thinking' | 'excited' | 'sad'; message: string }) => void;
+  onStatusChange?: (status: { 
+    emotion: 'happy' | 'thinking' | 'excited' | 'sad'; 
+    message: string; 
+  }) => void; 
 }
 
-const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  onSelect,
+interface SuggestionItemComponentProps {
+  item: SuggestionItem;
+  onSelectItem: (item: SuggestionItem) => void; 
+  isFocused: boolean;
+  isSelected: boolean;
+  multiSelect?: boolean; 
+  id: string; 
+}
+
+// Utility function to get icons (moved outside)
+const getIcon = (type?: string) => {
+  switch (type) {
+    case 'country': return '🌍'; // Globe for countries
+    case 'city': return '🏙️'; // Cityscape for cities
+    case 'state': return '🏞️'; // National park for states/regions
+    case 'administrative': return '🏛️'; // Classical building for administrative areas
+    case 'tourism': return '🏖️'; // Beach for tourism
+    case 'natural': return '🌲'; // Tree for natural features
+    case 'airport': return '✈️'; // Airplane for airports
+    default: return '📍'; // Default pin
+  }
+};
+
+// Function to get popular destinations (moved outside)
+const getPopularDestinations = (): SuggestionItem[] => [
+  { isHeader: true, text: 'Popular Destinations' },
+  { name: 'Paris', formattedName: 'Paris, France', type: 'city', full: { place_id: 'paris', name: 'Paris', formatted: 'Paris, France', country: 'France', lon: 2.3522, lat: 48.8566, result_type: 'city' } as GeoapifyAutocompleteResult },
+  { name: 'Tokyo', formattedName: 'Tokyo, Japan', type: 'city', full: { place_id: 'tokyo', name: 'Tokyo', formatted: 'Tokyo, Japan', country: 'Japan', lon: 139.6917, lat: 35.6895, result_type: 'city' } as GeoapifyAutocompleteResult },
+  { name: 'Rome', formattedName: 'Rome, Italy', type: 'city', full: { place_id: 'rome', name: 'Rome', formatted: 'Rome, Italy', country: 'Italy', lon: 12.4964, lat: 41.9028, result_type: 'city' } as GeoapifyAutocompleteResult },
+  { name: 'New York', formattedName: 'New York, USA', type: 'city', full: { place_id: 'newyork', name: 'New York', formatted: 'New York, USA', country: 'USA', lon: -74.0060, lat: 40.7128, result_type: 'city' } as GeoapifyAutocompleteResult },
+];
+
+// Suggestion Item Component (Memoized and moved outside)
+const SuggestionItemComponent: React.FC<SuggestionItemComponentProps> = memo(({
+  item,
+  onSelectItem, 
+  isFocused,
+  isSelected,
+  multiSelect,
+  id
+}) => {
+  if (item.isHeader) {
+    return (
+      <div 
+        className="px-4 py-2 text-sm font-semibold text-gray-500 bg-gray-50 rounded-md"
+        role="separator"
+        id={id}
+      >
+        {item.text}
+      </div>
+    );
+  }
+  
+  return (
+    <div
+      className={`p-3 bg-white rounded-lg border ${isFocused ? 'ring-2 ring-offset-1 ring-blue-500' : ''} ${isSelected ? 'border-green-500 bg-bamboo-light ring-2 ring-green-500' : 'border-gray-200'} hover:bg-bamboo-light hover:border-green-500 cursor-pointer transition-colors`}
+      onClick={() => onSelectItem(item)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelectItem(item);
+        }
+      }}
+      role="option"
+      aria-selected={isSelected}
+      tabIndex={0} // Make it focusable
+      id={id}
+    >
+      <motion.div // Using framer-motion.div alias
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2, ease: "easeOut" }} // Apply transition to motion.div
+      >
+        <div className="flex items-center">
+          <div 
+            className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-lg mr-3"
+            aria-hidden="true"
+          >
+            {getIcon(item.type)}
+          </div>
+          <div className="flex-grow min-w-0">
+            <p className={`font-semibold text-gray-800 ${isFocused ? 'text-blue-600' : ''}`}>{item.name}</p>
+            {item.formattedName && item.formattedName !== item.name && (
+              <p className={`text-sm text-gray-500 ${isFocused ? 'text-blue-500' : ''}`}>{item.formattedName}</p>
+            )}
+          </div>
+          {multiSelect && !isSelected && item.full && item.type !== 'country' && (
+            <button 
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                onSelectItem(item); 
+              }}
+              className="ml-2 px-3 py-1 text-xs font-medium text-white bg-green-500 rounded-full hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 transition-colors duration-150"
+              aria-label={`Add ${item.name} to selections`}
+            >
+              Add
+            </button>
+          )}
+          {isSelected && multiSelect && (
+            <span className="ml-2 text-green-600 font-semibold" aria-label="Selected">
+              ✓ Added
+            </span>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+});
+SuggestionItemComponent.displayName = 'SuggestionItemComponent';
+
+const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
+  isOpen,
+  doHandleClose,
+  onSelect, 
   multiSelect = false,
   existingSelections = [],
-  onStatusChange
+  onStatusChange // Renamed from handlePandaStatusUpdate
 }) => {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
-  // Ensure selectedCountry also uses the correct type for autocomplete results
   const [selectedCountry, setSelectedCountry] = useState<GeoapifyAutocompleteResult | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  // Emotion and messaging state removed - now handled by global assistant
-  const [selectedDestinations, setSelectedDestinations] = useState<Destination[]>(existingSelections || []);
-  const [imageError, setImageError] = useState(false);
-  const [focusedIndex, setFocusedIndex] = useState(-1);
   const [error, setError] = useState<string | null>(null);
-  
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedDestinations, setSelectedDestinations] = useState<Destination[]>(existingSelections || []); // Updated initialization
+  const [focusedIndex, setFocusedIndex] = useState<number>(-1); 
   const inputRef = useRef<HTMLInputElement>(null);
-  const suggestionRefs = useRef<Array<HTMLDivElement | null>>([]);
-  
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Helper to get non-header items, memoized if suggestions don't change often
+  // This is used for aria-activedescendant and potentially for mapping focusedIndex
+  const nonHeaderItems = React.useMemo(() => suggestions.filter(s => !s.isHeader), [suggestions]);
+
+  // Organize country results
+  const organizeCountryResults = useCallback((geoapifyResults: { results?: GeoapifyAutocompleteResult[] }): SuggestionItem[] => {
+    const features = geoapifyResults.results || []; // features are GeoapifyAutocompleteResult
+    const processedPlaceIds = new Set<string>();
+    
+    const countries: SuggestionItem[] = [];
+    const majorCities: SuggestionItem[] = [];
+    const regions: SuggestionItem[] = [];
+    
+    features.forEach((feature) => {
+      if (!feature.place_id || processedPlaceIds.has(feature.place_id)) {
+        return; // Skip if no place_id or already processed
+      }
+      
+      if (feature.country_code && feature.result_type === "country") {
+        countries.push({
+          name: feature.country,
+          formattedName: feature.formatted,
+          type: "country",
+          full: feature
+        });
+        processedPlaceIds.add(feature.place_id);
+      } else if (feature.city && feature.country) {
+        majorCities.push({
+          name: feature.city,
+          formattedName: `${feature.city}, ${feature.country}`,
+          type: "city",
+          full: feature
+        });
+        processedPlaceIds.add(feature.place_id);
+      } else if (feature.state && feature.country) {
+        regions.push({
+          name: feature.state,
+          formattedName: `${feature.state}, ${feature.country}`,
+          type: "region",
+          full: feature
+        });
+        processedPlaceIds.add(feature.place_id);
+      }
+    });
+    
+    return [
+      ...(countries.length ? [{ isHeader: true, text: "Countries" }] : []),
+      ...countries,
+      ...(majorCities.length ? [{ isHeader: true, text: "Popular Cities" }] : []),
+      ...majorCities,
+      ...(regions.length ? [{ isHeader: true, text: "Regions" }] : []),
+      ...regions
+    ];
+  }, []);
+
+  // Organize destinations within a country
+  const organizeDestinationsInCountry = useCallback((geoapifyResults: { results?: GeoapifyAutocompleteResult[] }): SuggestionItem[] => {
+    const features = geoapifyResults.results || []; // features are GeoapifyAutocompleteResult
+    const processedPlaceIds = new Set<string>();
+    
+    const cities: SuggestionItem[] = [];
+    const attractions: SuggestionItem[] = [];
+    const districts: SuggestionItem[] = [];
+    
+    features.forEach((feature) => {
+      if (!feature.place_id || processedPlaceIds.has(feature.place_id)) {
+        return; // Skip if no place_id or already processed
+      }
+      
+      if (feature.city) {
+        cities.push({
+          name: feature.city,
+          formattedName: feature.formatted,
+          type: "city",
+          full: feature
+        });
+        processedPlaceIds.add(feature.place_id);
+      } else if (feature.category && feature.category.includes('tourism')) {
+        attractions.push({
+          name: feature.name || feature.formatted,
+          formattedName: feature.formatted,
+          type: "attraction",
+          full: feature
+        });
+        processedPlaceIds.add(feature.place_id);
+      } else if (feature.district) {
+        districts.push({
+          name: feature.district,
+          formattedName: feature.formatted,
+          type: "district",
+          full: feature
+        });
+        processedPlaceIds.add(feature.place_id);
+      }
+    });
+    
+    return [
+      ...(cities.length ? [{ isHeader: true, text: "Cities" }] : []),
+      ...cities,
+      ...(attractions.length ? [{ isHeader: true, text: "Attractions" }] : []),
+      ...attractions,
+      ...(districts.length ? [{ isHeader: true, text: "Districts" }] : []),
+      ...districts
+    ];
+  }, []);
+
+  // Handle item selection
+  const handleItemSelect = useCallback(async (item: SuggestionItem) => {
+    if (item.isHeader || !item.full) return;
+
+    if (item.type === 'country' && item.full) {
+      setSelectedCountry(item.full);
+      setQuery(''); 
+      setSuggestions([]); 
+      if (onStatusChange) onStatusChange({ emotion: 'thinking', message: `Looking for places in ${item.full.name || item.full.formatted}...` });
+      if (inputRef.current) inputRef.current.focus();
+    } else if (item.full) { 
+      if (onStatusChange) onStatusChange({ emotion: 'excited', message: `Great choice! Adding ${item.full.name || item.full.formatted}.` });
+      
+      const newDestination: Destination = {
+        place_id: item.full.place_id,
+        name: item.full.city || item.full.name || item.full.formatted, 
+        formattedName: item.full.formatted,
+        country: item.full.country || (selectedCountry?.name || ''),
+        coordinates: [item.full.lon, item.full.lat]
+      };
+
+      if (multiSelect) {
+        const isAlreadySelected = selectedDestinations.some(d => d.place_id === newDestination.place_id);
+        let updatedSelections;
+        if (isAlreadySelected) {
+          updatedSelections = selectedDestinations.filter(d => d.place_id !== newDestination.place_id);
+        } else {
+          updatedSelections = [...selectedDestinations, newDestination];
+        }
+        setSelectedDestinations(updatedSelections);
+        if (onSelect) {
+          // For multiSelect, onSelect might expect an array or be called for each item
+          // Assuming onSelect is designed to handle single additions/removals or the full list
+          (onSelect as (dest: Destination | Destination[]) => void)(newDestination); // Or pass updatedSelections
+        }
+      } else {
+        if (onSelect) {
+          onSelect(newDestination);
+        }
+        doHandleClose(); 
+      }
+    }
+  }, [
+    multiSelect, 
+    onSelect, 
+    doHandleClose, 
+    selectedDestinations, 
+    setSelectedDestinations, 
+    onStatusChange, 
+    setSelectedCountry, 
+    setQuery, 
+    setSuggestions, 
+    selectedCountry
+  ]); 
+
+  const fetchSuggestions = useCallback(async (currentQuery: string) => {
+    const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
+    if (!apiKey) {
+      console.error("Geoapify API key is not set.");
+      setSuggestions(getPopularDestinations());
+      setError("API key not configured. Displaying popular destinations.");
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+
+    let apiUrl = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(currentQuery)}&format=json&apiKey=${apiKey}&limit=10`;
+
+    if (selectedCountry && selectedCountry.country_code) {
+      apiUrl += `&filter=countrycode:${selectedCountry.country_code}&type=city,administrative,tourism,natural,airport`;
+    } else {
+      apiUrl += `&type=country,state,city,administrative,tourism`; 
+    }
+
+    try {
+      setError(null);
+      if (!currentQuery.trim()) {
+        setSuggestions(selectedCountry ? [] : getPopularDestinations());
+        if (selectedCountry && onStatusChange) { // Use renamed prop
+          onStatusChange({ emotion: 'happy', message: `What are you looking for in ${selectedCountry.name}?` });
+        } else if (onStatusChange) { // Use renamed prop
+          onStatusChange({ emotion: 'happy', message: 'Where to next? Search for a country, city, or attraction!' });
+        }
+        return;
+      }
+
+      setIsLoading(true);
+      if (onStatusChange) onStatusChange({ emotion: 'thinking', message: 'Fetching suggestions...' }); // Use renamed prop
+
+      const response = await fetch(apiUrl);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Search request failed' }));
+        throw new Error(errorData.message || `Search failed with status: ${response.status}`);
+      }
+      const data = await response.json();
+      const organizedResults = selectedCountry
+        ? organizeDestinationsInCountry(data) 
+        : organizeCountryResults(data);
+      
+      setSuggestions(organizedResults.length > 0 ? organizedResults : [{ isHeader: true, text: 'No results found.' }]);
+      if (organizedResults.length === 0 && onStatusChange) { // Use renamed prop
+        onStatusChange({ emotion: 'sad', message: `Sorry, I couldn't find anything for "${currentQuery}". Try a different search?` });
+      }
+
+    } catch (err: any) {
+      console.error("Error fetching suggestions:", err);
+      setError(err.message || "Failed to fetch suggestions.");
+      setSuggestions(getPopularDestinations()); // Fallback to popular destinations on error
+      if (onStatusChange) onStatusChange({ emotion: 'sad', message: `Oops! Something went wrong while searching. ${err.message}` }); // Use renamed prop
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedCountry, onStatusChange, organizeCountryResults, organizeDestinationsInCountry]); 
+
   // Reset focused index when suggestions change
   useEffect(() => {
     setFocusedIndex(-1);
-    // Resize the array to match suggestions length
-    suggestionRefs.current = suggestionRefs.current.slice(0, suggestions.length);
-    suggestionRefs.current = [...Array(suggestions.length)].map((_, i) => 
-      suggestionRefs.current[i] || null
-    );
   }, [suggestions]);
   
   // Focus input when modal opens
@@ -143,411 +470,86 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
   
   // Handle search input with debouncing
   useEffect(() => {
-    if (!query || query.length < 2) {
-      setSuggestions([]);
+    if (!query.trim() && !selectedCountry) {
+      setSuggestions(getPopularDestinations());
+      setError(null);
       return;
     }
-    
-    // Update global assistant via callback
-    onStatusChange?.({ 
-      emotion: 'thinking', 
+    if (onStatusChange) onStatusChange({
+      emotion: 'thinking',
       message: `Let me find places like "${query}" for you...`
     });
     
-    const fetchSuggestions = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
-        
-        if (!apiKey) {
-          console.error("Missing Geoapify API key");
-          throw new Error("API key is not configured");
-        }
-        
-        // Build request URL
-        const params = new URLSearchParams({
-          text: query,
-          format: 'json',
-          apiKey,
-          limit: '10',
-        });
-        // Only add filter if a country is selected
-        if (selectedCountry?.country_code) {
-          params.append('filter', `countrycode:${selectedCountry.country_code}`);
-        }
-        
-        const response = await fetch(
-          `https://api.geoapify.com/v1/geocode/autocomplete?${params.toString()}`
-        );
-        
-        if (!response.ok) {
-          throw new Error(`Search failed with status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.results && data.results.length > 0) {
-          const organizedResults = selectedCountry 
-            ? organizeDestinationsInCountry(data)
-            : organizeCountryResults(data);
-          
-          console.log('Search results found:', data.results.length);
-          console.log('Organized results:', organizedResults);
-          setSuggestions(organizedResults);
-          // Update global assistant with results
-          onStatusChange?.({ 
-            emotion: 'excited', 
-            message: `I found ${data.results.length} great places for you!`
-          });
-        } else {
-          setSuggestions([]);
-          // Update global assistant with no results
-          onStatusChange?.({ 
-            emotion: 'sad', 
-            message: `I couldn't find any places matching "${query}". Try a different search?`
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching suggestions:", error);
-        setSuggestions([]);
-        setError(error instanceof Error ? error.message : "An unknown error occurred");
-        onStatusChange?.({ 
-          emotion: 'sad', 
-          message: "Oh no! I had trouble searching for places. Let's try again!"
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    const debounce = setTimeout(fetchSuggestions, 500);
+    const debounce = setTimeout(() => fetchSuggestions(query), 500);
     return () => clearTimeout(debounce);
-  }, [query, selectedCountry]);
+  }, [query, selectedCountry, fetchSuggestions, onStatusChange]); 
   
   // Handle keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    // Ignore if there are no suggestions
-    if (suggestions.length === 0) return;
-    
-    const nonHeaderItems = suggestions.filter(item => !item.isHeader);
-    
+    const currentNonHeaderItems = suggestions.filter(item => !item.isHeader);
+    if (currentNonHeaderItems.length === 0 && suggestions.length > 0 && suggestions[0].isHeader && suggestions[0].text === 'No results found.') {
+      // If only "No results found" header is present, don't navigate
+      if (e.key === 'Escape') doHandleClose();
+      return;
+    }
+
+    let newFocusedIndex = focusedIndex;
+
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setFocusedIndex(prev => {
-        const newIndex = Math.min(prev + 1, nonHeaderItems.length - 1);
-        // Find the item index in the original array
-        const actualIndex = suggestions.findIndex(item => 
-          !item.isHeader && item === nonHeaderItems[newIndex]
-        );
-        
+      let nextIndex = focusedIndex + 1;
+      while (nextIndex < suggestions.length && suggestions[nextIndex].isHeader) {
+        nextIndex++;
+      }
+      if (nextIndex < suggestions.length) {
+        setFocusedIndex(nextIndex);
         // Scroll into view
-        if (suggestionRefs.current[actualIndex]) {
-          suggestionRefs.current[actualIndex]?.scrollIntoView({ 
+        if (listRef.current) {
+          const itemElement = listRef.current.children[nextIndex] as HTMLElement;
+          itemElement?.scrollIntoView({ 
             behavior: 'smooth',
             block: 'nearest'
           });
         }
-        
-        return newIndex;
-      });
+      }
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setFocusedIndex(prev => {
-        const newIndex = Math.max(prev - 1, 0);
-        // Find the item index in the original array
-        const actualIndex = suggestions.findIndex(item => 
-          !item.isHeader && item === nonHeaderItems[newIndex]
-        );
-        
+      let prevIndex = focusedIndex - 1;
+      while (prevIndex >= 0 && suggestions[prevIndex].isHeader) {
+        prevIndex--;
+      }
+      if (prevIndex >= 0) {
+        setFocusedIndex(prevIndex);
         // Scroll into view
-        if (suggestionRefs.current[actualIndex]) {
-          suggestionRefs.current[actualIndex]?.scrollIntoView({ 
+        if (listRef.current) {
+          const itemElement = listRef.current.children[prevIndex] as HTMLElement;
+          itemElement?.scrollIntoView({ 
             behavior: 'smooth',
             block: 'nearest'
           });
         }
-        
-        return newIndex;
-      });
-    } else if (e.key === 'Enter' && focusedIndex >= 0) {
+      }
+    } else if (e.key === 'Enter' && focusedIndex >= 0 && focusedIndex < suggestions.length) {
       e.preventDefault();
-      const nonHeaderItems = suggestions.filter(item => !item.isHeader);
-      if (focusedIndex < nonHeaderItems.length) {
-        handleItemSelect(nonHeaderItems[focusedIndex]);
+      const selectedItem = suggestions[focusedIndex];
+      if (selectedItem && !selectedItem.isHeader) {
+        handleItemSelect(selectedItem);
       }
     } else if (e.key === 'Escape') {
-      e.preventDefault();
-      onClose();
+      doHandleClose();
     }
-  }, [suggestions, focusedIndex, onClose]);
+  }, [suggestions, focusedIndex, doHandleClose, handleItemSelect]); 
   
-  // Handle destination addition
-  const handleDestinationAdd = useCallback((item: SuggestionItem) => {
-    if (!item.full || !item.name) return;
-    
-    // Add to selected destinations list
-    const newDestination: Destination = {
-      place_id: item.full.place_id || '', 
-      name: item.name,
-      formattedName: item.formattedName || item.name,
-      country: item.full.country || '', 
-      coordinates: [item.full.lon, item.full.lat] 
-    };
-    
-    setSelectedDestinations(prev => [...prev, newDestination]);
-    
-    // Update global assistant when destination added
-    onStatusChange?.({ 
-      emotion: 'excited', 
-      message: `${item.name} added! Select more destinations or click "Done" when finished.`
-    });
-    
-    // Clear input to encourage more selections
-    setQuery('');
-    // Reset focus to input for continuous input
-    inputRef.current?.focus();
-  }, [onStatusChange]); 
-  
-  // Handle item selection
-  const handleItemSelect = useCallback(async (item: SuggestionItem) => {
-    if (item.isHeader) return;
-
-    // Helper to fetch cities in a country
-    const fetchCitiesInCountry = async (countryCode: string) => {
-      const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
-      if (!apiKey) return [];
-      const params = new URLSearchParams({
-        type: 'city',
-        filter: `countrycode:${countryCode}`,
-        format: 'json',
-        apiKey,
-        limit: '20',
-      });
-      const response = await fetch(`https://api.geoapify.com/v1/geocode/search?${params.toString()}`);
-      if (!response.ok) return [];
-      const data = await response.json();
-      return data.features || [];
-    };
-
-    // Helper to fetch POIs in a bounding box
-    const fetchPOIsInBBox = async (bbox: number[]) => {
-      const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
-      if (!apiKey) return [];
-      const bboxParam = bbox.join(',');
-      const params = new URLSearchParams({
-        categories: 'tourism,sights,entertainment',
-        filter: `rect:${bboxParam}`,
-        limit: '20',
-        apiKey,
-      });
-      const response = await fetch(`https://api.geoapify.com/v2/places?${params.toString()}`);
-      if (!response.ok) return [];
-      const data = await response.json();
-      return data.features || [];
-    };
-
-    // Helper to fetch nearby cities by circle
-    const fetchNearbyCities = async (lon: number, lat: number, radius: number = 30000) => {
-      const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
-      if (!apiKey) return [];
-      const params = new URLSearchParams({
-        type: 'city',
-        filter: `circle:${lon},${lat},${radius}`,
-        format: 'json',
-        apiKey,
-        limit: '10',
-      });
-      const response = await fetch(`https://api.geoapify.com/v1/geocode/search?${params.toString()}`);
-      if (!response.ok) return [];
-      const data = await response.json();
-      return data.features || [];
-    };
-
-    if (item.type === 'country' && item.full) {
-      setSelectedCountry(item.full);
-      // Update global assistant when country selected
-      onStatusChange?.({ 
-        emotion: 'excited', 
-        message: `Great choice! Let's explore ${item.name || 'this country'}! Fetching cities and attractions...`
-      });
-      setQuery('');
-      if (inputRef.current) inputRef.current.focus();
-
-      // --- Enhancement: Fetch cities and POIs in country ---
-      const countryCode = item.full.country_code; // Corrected: direct access
-      const bbox = item.full.bbox || undefined;
-      let cities: any[] = [];
-      let pois: any[] = [];
-      if (countryCode) {
-        cities = await fetchCitiesInCountry(countryCode);
-      }
-      if (bbox) {
-        pois = await fetchPOIsInBBox(bbox);
-      }
-      // Optionally, update suggestions or UI with these results
-      // setSuggestions([...]);
-      // setPoMessage(...);
-    } else if (item.type === 'city' && item.full) {
-      // Update global assistant when city selected
-      onStatusChange?.({ 
-        emotion: 'excited', 
-        message: `Exploring ${item.name}! Fetching places of interest and nearby cities...`
-      });
-      setQuery('');
-      if (inputRef.current) inputRef.current.focus();
-
-      // --- Enhancement: Fetch POIs in city and nearby cities ---
-      const coords = item.full.lon !== undefined && item.full.lat !== undefined ? [item.full.lon, item.full.lat] : undefined;
-      const bbox = item.full.bbox || undefined;
-      let pois: any[] = [];
-      let nearbyCities: any[] = [];
-      if (bbox) {
-        pois = await fetchPOIsInBBox(bbox);
-      }
-      if (coords) {
-        nearbyCities = await fetchNearbyCities(coords[0], coords[1]);
-      }
-      // Optionally, update suggestions or UI with these results
-      // setSuggestions([...]);
-      // setPoMessage(...);
-    } else if (multiSelect) {
-      handleDestinationAdd(item);
-    } else if (item.full && item.name) {
-      // Close the modal and pass the selection to parent
-      // Update global assistant instead via onStatusChange
-      onSelect({
-        place_id: item.full.place_id || '', 
-        name: item.name,
-        formattedName: item.formattedName || item.name,
-        country: item.full.country || '', 
-        coordinates: [item.full.lon, item.full.lat] 
-      });
-      onClose();
-    }
-  }, [multiSelect, onSelect, onClose, handleDestinationAdd, onStatusChange]); 
-  
-  // Organize country results
-  const organizeCountryResults = useCallback((geoapifyResults: { results?: GeoapifyAutocompleteResult[] }): SuggestionItem[] => {
-    const features = geoapifyResults.results || []; // features are GeoapifyAutocompleteResult
-    
-    const countries: SuggestionItem[] = [];
-    const majorCities: SuggestionItem[] = [];
-    const regions: SuggestionItem[] = [];
-    
-    features.forEach((feature) => {
-      const properties = feature;
-      
-      if (feature.country_code && feature.result_type === "country") {
-        countries.push({
-          name: feature.country,
-          formattedName: feature.formatted,
-          type: "country",
-          full: feature
-        });
-      } 
-      else if (feature.city && feature.country) {
-        majorCities.push({
-          name: feature.city,
-          formattedName: `${feature.city}, ${feature.country}`,
-          type: "city",
-          full: feature
-        });
-      }
-      else if (feature.state && feature.country) {
-        regions.push({
-          name: feature.state,
-          formattedName: `${feature.state}, ${feature.country}`,
-          type: "region",
-          full: feature
-        });
-      }
-    });
-    
-    return [
-      ...(countries.length ? [{ isHeader: true, text: "Countries" }] : []),
-      ...countries,
-      ...(majorCities.length ? [{ isHeader: true, text: "Popular Cities" }] : []),
-      ...majorCities,
-      ...(regions.length ? [{ isHeader: true, text: "Regions" }] : []),
-      ...regions
-    ];
-  }, []);
-  
-  // Organize destinations within a country
-  const organizeDestinationsInCountry = useCallback((geoapifyResults: { results?: GeoapifyAutocompleteResult[] }): SuggestionItem[] => {
-    const features = geoapifyResults.results || []; // features are GeoapifyAutocompleteResult
-    
-    const cities: SuggestionItem[] = [];
-    const attractions: SuggestionItem[] = [];
-    const districts: SuggestionItem[] = [];
-    
-    features.forEach((feature) => {
-      const properties = feature;
-      
-      if (feature.city) {
-        cities.push({
-          name: feature.city,
-          formattedName: feature.formatted,
-          type: "city",
-          full: feature
-        });
-      } 
-      else if (feature.category && feature.category.includes('tourism')) {
-        attractions.push({
-          name: feature.name || feature.formatted,
-          formattedName: feature.formatted,
-          type: "attraction",
-          full: feature
-        });
-      }
-      else if (feature.district) {
-        districts.push({
-          name: feature.district,
-          formattedName: feature.formatted,
-          type: "district",
-          full: feature
-        });
-      }
-    });
-    
-    return [
-      ...(cities.length ? [{ isHeader: true, text: "Cities" }] : []),
-      ...cities,
-      ...(attractions.length ? [{ isHeader: true, text: "Attractions" }] : []),
-      ...attractions,
-      ...(districts.length ? [{ isHeader: true, text: "Districts" }] : []),
-      ...districts
-    ];
-  }, []);
-  
-  // Memoize expensive operations
-  const nonHeaderItems = useMemo(() => 
-    suggestions.filter(item => !item.isHeader), 
-  [suggestions]);
-  
-  // Get icon for result type
-  const getIcon = useCallback((type?: string) => {
-    switch(type) {
-      case 'country': return '🌍';
-      case 'city': return '🏙️';
-      case 'region': return '🗺️';
-      case 'attraction': return '🏛️';
-      case 'district': return '🏘️';
-      default: return '📍';
-    }
-  }, []);
-
-  // Render selected destinations
+  // Selected destinations display (Memoized)
   const renderSelectedDestinations = useCallback(() => (
     <div className="mx-4 mt-2 mb-4">
       <div className="text-sm font-medium text-gray-500 mb-2" id="selected-destinations">
         Selected Destinations:
       </div>
       <div className="flex flex-wrap gap-2" role="list" aria-labelledby="selected-destinations">
-        {selectedDestinations.map((dest, index) => (
+        {selectedDestinations.map((dest) => (
           <div 
-            key={`selected-${index}`} 
+            key={dest.place_id || `selected-${dest.name}`} 
             className="flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full"
             role="listitem"
           >
@@ -555,7 +557,7 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
             <button 
               className="ml-1 p-1 hover:bg-green-200 rounded-full transition-colors"
               onClick={() => {
-                setSelectedDestinations(prev => prev.filter((_, i) => i !== index));
+                setSelectedDestinations(prev => prev.filter(d => d.place_id !== dest.place_id)); // Filter by place_id
                 // Update global assistant when destination removed
                 onStatusChange?.({ 
                   emotion: 'thinking', 
@@ -574,127 +576,6 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
     </div>
   ), [selectedDestinations]);
 
-  // Create suggestion item component to improve performance with React.memo
-  const SuggestionItem = React.memo(({ 
-    item, 
-    index, 
-    isFocused,
-    onSelect 
-  }: { 
-    item: SuggestionItem; 
-    index: number;
-    isFocused: boolean;
-    onSelect: (item: SuggestionItem) => void;
-  }) => {
-    // Debug to verify item props
-    console.log('Rendering suggestion item:', item);
-    if (item.isHeader) {
-      return (
-        <div 
-          className="text-sm font-medium text-gray-500 pt-2 pb-1 border-b border-gray-200"
-          role="heading"
-          aria-level={3}
-        >
-          {item.text}
-        </div>
-      );
-    }
-    
-    // Find the actual index in the non-header items list
-    const nonHeaderIndex = nonHeaderItems.findIndex(nonHeaderItem => 
-      nonHeaderItem === item
-    );
-    
-    return (
-      <div
-        ref={(el: HTMLDivElement | null) => {
-          if (el) {
-            suggestionRefs.current[index] = el;
-          }
-        }}
-        className={`p-3 bg-white rounded-lg border ${
-          isFocused ? 'border-green-500 bg-bamboo-light ring-2 ring-green-500' : 'border-gray-200'
-        } hover:bg-bamboo-light hover:border-green-500 cursor-pointer transition-colors`}
-        onClick={() => onSelect(item)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onSelect(item);
-          }
-        }}
-        role="option"
-        aria-selected={isFocused}
-        tabIndex={isFocused ? 0 : -1}
-        id={`suggestion-${index}`}
-      >
-        <MotionDiv
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: Math.min(index * 0.05, 0.5) }}
-        >
-          <div className="flex items-center">
-            <div 
-              className="flex items-center justify-center w-10 h-10 bg-green-100 text-green-800 rounded-full mr-3 text-xl"
-              aria-hidden="true"
-            >
-              {getIcon(item.type)}
-            </div>
-            <div className="flex-1">
-              <div className="font-medium">{item.name}</div>
-              {item.type !== 'country' && item.formattedName && (
-                <div className="text-sm text-gray-600">{item.formattedName}</div>
-              )}
-            </div>
-            <div className="ml-2" aria-hidden="true">
-              <svg className="w-5 h-5 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-          </div>
-        </MotionDiv>
-      </div>
-    );
-  });
-  
-  // Add display name for React.memo component
-  SuggestionItem.displayName = 'SuggestionItem';
-
-  // Create popular destination item component
-  const PopularDestinationItem = React.memo(({ 
-    destination, 
-    onClick 
-  }: { 
-    destination: { name: string; icon: string }; 
-    onClick: (name: string) => void;
-  }) => (
-    <div
-      className="p-3 bg-white border border-gray-200 rounded-lg text-center cursor-pointer hover:bg-bamboo-light hover:border-green-500 transition-colors"
-      onClick={() => onClick(destination.name)}
-      role="button"
-      aria-label={`Search for ${destination.name}`}
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onClick(destination.name);
-        }
-      }}
-    >
-      <MotionDiv
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-      >
-        <div className="text-2xl mb-1" aria-hidden="true">{destination.icon}</div>
-        <div className="font-medium">{destination.name}</div>
-      </MotionDiv>
-    </div>
-  ));
-  
-  // Add display name for React.memo component
-  PopularDestinationItem.displayName = 'PopularDestinationItem';
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -705,7 +586,7 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={onClose}
+              onClick={doHandleClose}
             />
             <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
               <MotionDiv 
@@ -726,7 +607,7 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
                     <h2 className="text-2xl font-bold text-green-800" id="modal-title">Destination Search</h2>
                   </div>
                   <button 
-                    onClick={onClose}
+                    onClick={doHandleClose}
                     className="p-2 text-green-800 hover:text-green-600 transition-colors"
                     aria-label="Close destination search"
                   >
@@ -805,7 +686,16 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
                       onChange={(e) => setQuery(e.target.value)}
                       onKeyDown={handleKeyDown}
                       aria-controls="search-results"
-                      aria-activedescendant={focusedIndex >= 0 ? `suggestion-${nonHeaderItems.indexOf(suggestions[focusedIndex])}` : undefined}
+                      aria-activedescendant={
+                        focusedIndex >= 0 && 
+                        suggestions[focusedIndex] && 
+                        !suggestions[focusedIndex].isHeader && 
+                        suggestions[focusedIndex].full?.place_id 
+                          ? `suggestion-item-${suggestions[focusedIndex].full!.place_id}` 
+                          : focusedIndex >= 0 && suggestions[focusedIndex] && suggestions[focusedIndex].isHeader
+                          ? `suggestion-header-${suggestions[focusedIndex].text}`
+                          : undefined
+                      }
                       aria-expanded={suggestions.length > 0}
                       role="combobox"
                       aria-autocomplete="list"
@@ -840,28 +730,41 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
                 
                 {/* Results */}
                 <div 
-                  className="p-4 max-h-96 overflow-y-auto"
+                  className="mt-4 max-h-[calc(100vh-20rem)] overflow-y-auto pr-2 space-y-2 custom-scrollbar"
                   id="search-results"
                   role="listbox"
                   aria-label="Search results"
+                  ref={listRef}
                 >
                   {suggestions.length > 0 ? (
-                    <div className="space-y-4">
+                    <div className="space-y-2">
                       {suggestions.map((item, index) => {
-                        // Calculate focused state
-                        const isFocused = focusedIndex >= 0 && 
-                          nonHeaderItems[focusedIndex] === item;
-                        
+                        const itemId = item.isHeader 
+                          ? `suggestion-header-${item.text}` 
+                          : `suggestion-item-${item.full?.place_id || index}`; // Fallback to index if place_id is missing
                         return (
-                          <SuggestionItem 
-                            key={`item-${index}`}
+                          <SuggestionItemComponent
+                            key={itemId} // Use consistent key
+                            id={itemId} // Pass the generated ID
                             item={item}
-                            index={index}
-                            isFocused={isFocused}
-                            onSelect={handleItemSelect}
+                            onSelectItem={handleItemSelect}
+                            isFocused={focusedIndex === index} // focusedIndex directly maps to suggestions array index
+                            isSelected={item.full ? selectedDestinations.some(dest => dest.place_id === item.full?.place_id) : false}
+                            multiSelect={multiSelect}
                           />
                         );
                       })}
+                    </div>
+                  ) : isLoading ? (
+                    <div className="py-12 flex flex-col items-center justify-center">
+                      <div className="mb-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                      <p className="text-gray-500 text-center max-w-md">
+                        Searching for places...
+                      </p>
                     </div>
                   ) : query.length > 1 && !isLoading ? (
                     <div className="py-12 flex flex-col items-center justify-center">
@@ -874,7 +777,7 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
                         No matching places found. Try a different search term.
                       </p>
                     </div>
-                  ) : !query.length && suggestions.length === 0 ? (
+                  ) : !query.trim() && !selectedCountry ? (
                     <div className="py-6">
                       <p className="text-sm font-medium text-gray-500 mb-3">
                         Popular destinations:
@@ -884,68 +787,50 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
                         role="list"
                         aria-label="Popular destinations"
                       >
-                        {popularDestinations.map((dest) => (
-                          <PopularDestinationItem
-                            key={dest.name}
-                            destination={dest}
-                            onClick={setQuery}
-                          />
+                        {getPopularDestinations().slice(1).map((dest, index) => ( 
+                          <div 
+                            key={`popular-${index}`}
+                            className="flex flex-col items-center cursor-pointer p-2 hover:bg-gray-100 rounded-lg transition-colors duration-150"
+                            onClick={() => {
+                              if (dest.full) {
+                                // Create a temporary SuggestionItem to pass to handleItemSelect
+                                const suggestionItem: SuggestionItem = {
+                                  name: dest.name,
+                                  formattedName: dest.formattedName,
+                                  type: dest.type,
+                                  full: dest.full,
+                                  isHeader: false,
+                                };
+                                handleItemSelect(suggestionItem);
+                              }
+                            }}
+                          >
+                            <div className="w-10 h-10 bg-green-100 text-green-800 rounded-full flex items-center justify-center text-lg font-semibold mb-2">
+                              {dest.name ? dest.name.substring(0, 1) : '?'}
+                            </div>
+                            <span className="text-sm text-center">{dest.formattedName}</span>
+                          </div>
                         ))}
                       </div>
                     </div>
                   ) : null}
                 </div>
                 
-                {/* Footer */}
-                <div className="p-4 bg-bamboo-light/50 rounded-b-xl border-t border-green-200 flex justify-between items-center">
-                  <div className="text-sm text-green-800">
-                    {selectedCountry ? 'Search within country or go back to search all' : 'Search for a country, region, or city'}
-                  </div>
-                  
-                  {/* Show finish button only in multi-select mode */}
-                  {multiSelect && selectedDestinations.length > 0 && (
-                    <button 
-                      className="px-4 py-2 bg-backpack-orange text-white rounded-full hover:bg-backpack-orange/90 transition-colors"
-                      onClick={() => {
-                        onSelect(selectedDestinations);
-                        onClose();
-                      }}
-                      aria-label={`Done selecting ${selectedDestinations.length} destinations`}
-                    >
-                      Done ({selectedDestinations.length})
-                    </button>
-                  )}
-                  
-                  {/* Back button when inside a country */}
-                  {selectedCountry && !multiSelect && (
-                    <button 
-                      className="px-4 py-2 text-sm bg-white border border-green-500 rounded-full hover:bg-green-50 transition-colors"
-                      onClick={() => {
-                        setSelectedCountry(null);
-                        // Update global assistant when going back to all destinations
-                        onStatusChange?.({ 
-                          emotion: 'happy', 
-                          message: 'Where would you like to explore?'
-                        });
-                      }}
-                      aria-label="Back to all destinations"
-                    >
-                      Back to All Destinations
-                    </button>
-                  )}
-                </div>
-                
-                {/* For multi-select, add a prominent finish button at bottom */}
+                {/* Footer with Done button */} 
                 {multiSelect && selectedDestinations.length > 0 && (
-                  <div className="px-4 pb-4">
-                    <button 
-                      className="mt-4 w-full py-3 bg-backpack-orange text-white rounded-lg font-medium hover:bg-backpack-orange/90 transition-colors"
+                  <div className="mt-6 pt-4 border-t border-gray-200">
+                    <button
                       onClick={() => {
                         onSelect(selectedDestinations);
-                        onClose();
+                        doHandleClose();
                       }}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-opacity-75 flex items-center justify-center space-x-2"
+                      aria-label="Confirm selected destinations and close modal"
                     >
-                      Done - Create Itinerary with {selectedDestinations.length} {selectedDestinations.length === 1 ? 'Destination' : 'Destinations'}
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      <span>Done ({selectedDestinations.length} Selected)</span>
                     </button>
                   </div>
                 )}
@@ -957,15 +842,5 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
     </AnimatePresence>
   );
 };
-
-// Popular destinations for quick selection
-const popularDestinations = [
-  { name: 'Japan', icon: '🇯🇵' },
-  { name: 'Italy', icon: '🇮🇹' },
-  { name: 'Thailand', icon: '🇹🇭' },
-  { name: 'France', icon: '🇫🇷' },
-  { name: 'Australia', icon: '🇦🇺' },
-  { name: 'Singapore', icon: '🇸🇬' }
-];
 
 export default DestinationSearchModal;

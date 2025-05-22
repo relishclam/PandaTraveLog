@@ -18,7 +18,7 @@ interface DestinationSearchWrapperProps {
    * For single destination: use destinations[0]
    */
   onDestinationSelect: (destinations: Destination[]) => void;
-  selectedDestination?: Destination | null;
+  selectedDestination?: Destination | Destination[];
   label?: string;
   placeholder?: string;
   onStatusChange?: (status: { emotion: 'happy' | 'thinking' | 'excited' | 'sad'; message: string }) => void;
@@ -66,14 +66,28 @@ const DestinationSearchWrapper: React.FC<DestinationSearchWrapperProps> = ({
         
         <div className="flex-1 text-left">
           {selectedDestination ? (
-            <div className="font-medium">
-              {selectedDestination.name}
-              <span className="ml-1 text-sm text-gray-500">
-                {selectedDestination.country && selectedDestination.name !== selectedDestination.country 
-                  ? `· ${selectedDestination.country}` 
-                  : ''}
-              </span>
-            </div>
+            Array.isArray(selectedDestination) ? (
+              selectedDestination.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {selectedDestination.map((dest, index) => (
+                    <span key={dest.place_id || index} className="px-2 py-1 bg-green-100 text-green-700 text-sm rounded-full">
+                      {dest.name}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-gray-500">{placeholder}</div>
+              )
+            ) : (
+              <div className="font-medium">
+                {selectedDestination.name}
+                <span className="ml-1 text-sm text-gray-500">
+                  {selectedDestination.country && selectedDestination.name !== selectedDestination.country 
+                    ? `· ${selectedDestination.country}` 
+                    : ''}
+                </span>
+              </div>
+            )
           ) : (
             <div className="text-gray-500">{placeholder}</div>
           )}
@@ -83,7 +97,7 @@ const DestinationSearchWrapper: React.FC<DestinationSearchWrapperProps> = ({
       {/* The modal */}
       <DestinationSearchModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        doHandleClose={() => setIsModalOpen(false)}
         onSelect={handleDestinationSelect}
         multiSelect={true}
         onStatusChange={onStatusChange}
