@@ -395,11 +395,16 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
     setIsLoading(true);
     setError(null);
 
-    let apiUrl = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(currentQuery)}&format=json&apiKey=${apiKey}&limit=10`;
+    // Use the 'search' endpoint and add 'lang=en'
+    let apiUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&format=json&apiKey=${apiKey}&limit=10&lang=en`;
 
     if (selectedCountry && selectedCountry.country_code) {
-      apiUrl += `&filter=countrycode:${selectedCountry.country_code}&type=city,locality,amenity`;
-    } 
+      // When a country is selected, filter by country and search for cities and amenities
+      apiUrl += `&filter=countrycode:${selectedCountry.country_code}&type=city|amenity`;
+    } else {
+      // For general search, look for cities and amenities
+      apiUrl += `&type=city|amenity`;
+    }
 
     try {
       setError(null);
