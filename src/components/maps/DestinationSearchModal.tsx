@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
-import FocusTrap from 'focus-trap-react'; // You may need to install this package
+import { FocusTrap } from 'focus-trap-react'; // Fixed import
 
 // Define proper types for Framer Motion components
 type MotionDivProps = React.ComponentProps<'div'> & {
@@ -78,6 +78,17 @@ type SuggestionItem = {
   formattedName?: string;
   type?: string;
   full?: GeoapifyAutocompleteResult; // CRITICAL: Ensure this uses AutocompleteResult
+  // For backward compatibility with previous code
+  id?: string;
+  country?: string;
+  country_code?: string;
+  state?: string;
+  city?: string;
+  postcode?: string;
+  latitude?: number;
+  longitude?: number;
+  result_type?: string;
+  category?: string[];
 };
 
 interface DestinationSearchModalProps {
@@ -109,20 +120,63 @@ const getIcon = (type?: string) => {
     case 'state': return '🏞️'; // National park for states/regions
     case 'administrative': return '🏛️'; // Classical building for administrative areas
     case 'tourism': return '🏖️'; // Beach for tourism
+    case 'attraction': return '🏖️'; // Also use beach for attractions
     case 'natural': return '🌲'; // Tree for natural features
     case 'airport': return '✈️'; // Airplane for airports
     default: return '📍'; // Default pin
   }
 };
 
+// Expanded country code map
+const countryNameToCodeMap: Record<string, string> = {
+  // Official names
+  "malaysia": "my",
+  "thailand": "th",
+  "singapore": "sg",
+  "japan": "jp",
+  "united states": "us",
+  "united states of america": "us",
+  "united kingdom": "gb",
+  "great britain": "gb",
+  "france": "fr",
+  "germany": "de",
+  "canada": "ca",
+  "australia": "au",
+  "china": "cn",
+  "india": "in",
+  "brazil": "br",
+  "south africa": "za",
+  
+  // Common aliases
+  "usa": "us",
+  "america": "us",
+  "uk": "gb",
+  "england": "gb",
+  "uae": "ae",
+  "emirates": "ae",
+  // Add more as needed
+};
+
+// Function to get country code from country name
+function getCountryCode(countryName: string): string | null {
+  return countryNameToCodeMap[countryName.toLowerCase()] || null;
+}
+
 // Function to get popular destinations (moved outside)
-const getPopularDestinations = (): SuggestionItem[] => [
-  { isHeader: true, text: 'Popular Destinations' },
-  { name: 'Paris', formattedName: 'Paris, France', type: 'city', full: { place_id: 'paris', name: 'Paris', formatted: 'Paris, France', country: 'France', lon: 2.3522, lat: 48.8566, result_type: 'city' } as GeoapifyAutocompleteResult },
-  { name: 'Tokyo', formattedName: 'Tokyo, Japan', type: 'city', full: { place_id: 'tokyo', name: 'Tokyo', formatted: 'Tokyo, Japan', country: 'Japan', lon: 139.6917, lat: 35.6895, result_type: 'city' } as GeoapifyAutocompleteResult },
-  { name: 'Rome', formattedName: 'Rome, Italy', type: 'city', full: { place_id: 'rome', name: 'Rome', formatted: 'Rome, Italy', country: 'Italy', lon: 12.4964, lat: 41.9028, result_type: 'city' } as GeoapifyAutocompleteResult },
-  { name: 'New York', formattedName: 'New York, USA', type: 'city', full: { place_id: 'newyork', name: 'New York', formatted: 'New York, USA', country: 'USA', lon: -74.0060, lat: 40.7128, result_type: 'city' } as GeoapifyAutocompleteResult },
-];
+const getPopularDestinations = (query?: string): SuggestionItem[] => {
+  // Base popular destinations
+  const popularDestinations: SuggestionItem[] = [
+    { isHeader: true, text: 'Popular Destinations' },
+    { name: 'Paris', formattedName: 'Paris, France', type: 'city', full: { place_id: 'paris', name: 'Paris', formatted: 'Paris, France', country: 'France', lon: 2.3522, lat: 48.8566, result_type: 'city' } as GeoapifyAutocompleteResult },
+    { name: 'Tokyo', formattedName: 'Tokyo, Japan', type: 'city', full: { place_id: 'tokyo', name: 'Tokyo', formatted: 'Tokyo, Japan', country: 'Japan', lon: 139.6917, lat: 35.6895, result_type: 'city' } as GeoapifyAutocompleteResult },
+    { name: 'Rome', formattedName: 'Rome, Italy', type: 'city', full: { place_id: 'rome', name: 'Rome', formatted: 'Rome, Italy', country: 'Italy', lon: 12.4964, lat: 41.9028, result_type: 'city' } as GeoapifyAutocompleteResult },
+    { name: 'New York', formattedName: 'New York, USA', type: 'city', full: { place_id: 'newyork', name: 'New York', formatted: 'New York, USA', country: 'USA', lon: -74.0060, lat: 40.7128, result_type: 'city' } as GeoapifyAutocompleteResult },
+    { name: 'Kuala Lumpur', formattedName: 'Kuala Lumpur, Malaysia', type: 'city', full: { place_id: 'kualalumpur', name: 'Kuala Lumpur', formatted: 'Kuala Lumpur, Malaysia', country: 'Malaysia', lon: 101.6869, lat: 3.1390, result_type: 'city' } as GeoapifyAutocompleteResult },
+    { name: 'Bangkok', formattedName: 'Bangkok, Thailand', type: 'city', full: { place_id: 'bangkok', name: 'Bangkok', formatted: 'Bangkok, Thailand', country: 'Thailand', lon: 100.5018, lat: 13.7563, result_type: 'city' } as GeoapifyAutocompleteResult },
+  ];
+  
+  return popularDestinations;
+};
 
 // Suggestion Item Component (Memoized and moved outside)
 const SuggestionItemComponent: React.FC<SuggestionItemComponentProps> = memo(({
@@ -204,25 +258,6 @@ const SuggestionItemComponent: React.FC<SuggestionItemComponentProps> = memo(({
 });
 SuggestionItemComponent.displayName = 'SuggestionItemComponent';
 
-const popularDestinationsData = {
-  countries: [
-    { name: "Malaysia", country_code: "MY", type: "country" },
-    { name: "Thailand", country_code: "TH", type: "country" },
-    { name: "Singapore", country_code: "SG", type: "country" },
-    { name: "Japan", country_code: "JP", type: "country" },
-    // Add more countries if needed for direct matching in getPopularDestinations
-  ],
-  cities: [
-    { name: "Kuala Lumpur", formattedName: "Kuala Lumpur, Malaysia", country: "Malaysia", country_code: "MY", city: "Kuala Lumpur", type: "city" },
-    { name: "Bangkok", formattedName: "Bangkok, Thailand", country: "Thailand", country_code: "TH", city: "Bangkok", type: "city" },
-    { name: "Singapore", formattedName: "Singapore, Singapore", country: "Singapore", country_code: "SG", city: "Singapore", type: "city" },
-    { name: "Tokyo", formattedName: "Tokyo, Japan", country: "Japan", country_code: "JP", city: "Tokyo", type: "city" },
-    { name: "Paris", formattedName: "Paris, France", country: "France", country_code: "FR", city: "Paris", type: "city" },
-    { name: "Rome", formattedName: "Rome, Italy", country: "Italy", country_code: "IT", city: "Rome", type: "city" },
-    { name: "New York", formattedName: "New York, USA", country: "United States", country_code: "US", city: "New York", type: "city" },
-  ]
-};
-
 // Helper to generate a default Suggestion object for headers
 const createHeaderSuggestion = (id: string, text: string): SuggestionItem => ({
   id,
@@ -230,20 +265,9 @@ const createHeaderSuggestion = (id: string, text: string): SuggestionItem => ({
   isHeader: true,
   name: '', // Default for required fields
   formattedName: '',
-  full: undefined, // FIX: Changed from null to undefined
-  // Add other required fields from Suggestion with default/null values if necessary
-  country: undefined,
-  country_code: undefined,
-  state: undefined,
-  city: undefined,
-  postcode: undefined,
-  latitude: undefined,
-  longitude: undefined,
-  result_type: undefined,
-  category: undefined,
 });
 
-// Replaces the old processSuggestions function
+// Improved result organization function
 const organizeAndMapResults = (
   results: any[], // Expected to be GeoapifyFeature[] from API
   isCountrySpecificQuery: boolean,
@@ -257,55 +281,93 @@ const organizeAndMapResults = (
 
   // Helper to map a Geoapify item to our Suggestion type
   const mapItemToSuggestion = (item: any): SuggestionItem => ({
-    id: item.properties.place_id || `sug-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    name: item.properties.name || item.properties.address_line1 || item.properties.city || 'Unknown Location',
-    formattedName: item.properties.formatted,
-    country: item.properties.country,
-    country_code: item.properties.country_code,
-    state: item.properties.state,
-    city: item.properties.city, // item.properties.city might be the primary city name
-    postcode: item.properties.postcode,
-    latitude: item.properties.lat,
-    longitude: item.properties.lon,
-    result_type: item.properties.result_type, // e.g., city, amenity, street
-    category: item.properties.category, // For more detailed type, e.g., tourism.sights
-    full: item,
+    id: item.properties?.place_id || `sug-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    name: item.properties?.name || item.properties?.city || item.properties?.address_line1 || 'Unknown Location',
+    formattedName: item.properties?.formatted,
+    country: item.properties?.country,
+    country_code: item.properties?.country_code,
+    state: item.properties?.state,
+    city: item.properties?.city,
+    type: determineItemType(item.properties),
+    full: {
+      ...item.properties,
+      place_id: item.properties?.place_id,
+      lon: item.geometry?.coordinates[0],
+      lat: item.geometry?.coordinates[1]
+    },
     isHeader: false,
   });
 
+  // Helper to determine the item type based on properties
+  function determineItemType(properties: any): string {
+    if (!properties) return 'unknown';
+    
+    if (properties.result_type === 'country') return 'country';
+    if (properties.result_type === 'city' || properties.result_type === 'town') return 'city';
+    
+    if (properties.category) {
+      const category = Array.isArray(properties.category) 
+        ? properties.category.join(',').toLowerCase() 
+        : properties.category.toString().toLowerCase();
+        
+      if (category.includes('tourism')) return 'attraction';
+      if (category.includes('entertainment')) return 'attraction';
+      if (category.includes('leisure')) return 'attraction';
+    }
+    
+    if (properties.result_type === 'amenity') return 'attraction';
+    if (properties.result_type === 'state') return 'state';
+    
+    return properties.result_type || 'location';
+  }
+
+  // For country-specific queries, organize results into categories
   if (isCountrySpecificQuery && countryQueryString) {
-    const cities = results.filter(item =>
-      item.properties.result_type === "city" ||
-      item.properties.result_type === "town"
+    const cities = results.filter(item => 
+      item.properties?.result_type === "city" ||
+      item.properties?.result_type === "town"
     );
 
-    const attractions = results.filter(item =>
-      item.properties.category?.toLowerCase().includes("tourism") ||
-      item.properties.category?.toLowerCase().includes("entertainment") ||
-      item.properties.category?.toLowerCase().includes("leisure") ||
+    const attractions = results.filter(item => {
+      // Check for tourism/entertainment in category
+      if (item.properties?.category) {
+        const category = Array.isArray(item.properties.category) 
+          ? item.properties.category.join(',').toLowerCase() 
+          : item.properties.category.toString().toLowerCase();
+          
+        if (category.includes('tourism') || 
+            category.includes('entertainment') || 
+            category.includes('leisure')) {
+          return true;
+        }
+      }
+      
       // Include amenities that are not already listed as cities
-      (item.properties.result_type === "amenity" && !cities.some(c => c.properties.place_id === item.properties.place_id))
-    );
+      if (item.properties?.result_type === "amenity") {
+        return !cities.some(c => c.properties?.place_id === item.properties?.place_id);
+      }
+      
+      return false;
+    });
 
+    // Add Cities section
     if (cities.length > 0) {
       suggestions.push(createHeaderSuggestion(`header-cities-${countryQueryString}`, `Cities in ${countryQueryString}`));
       suggestions.push(...cities.map(mapItemToSuggestion));
     }
 
+    // Add Attractions section
     if (attractions.length > 0) {
       suggestions.push(createHeaderSuggestion(`header-attractions-${countryQueryString}`, `Attractions in ${countryQueryString}`));
       suggestions.push(...attractions.map(mapItemToSuggestion));
     }
 
-    // Fallback: If no cities or attractions were categorized but results exist, show them all generally.
+    // Fallback: If no cities or attractions were categorized but results exist, show them all
     if (suggestions.length === 0 && results.length > 0) {
       suggestions.push(...results.map(mapItemToSuggestion));
     }
   } else {
-    // For general searches (not a specific country query, or when a country is pre-selected from dropdown)
-    // simply map all results without specific 'Cities in X' headers.
-    // We could still have generic 'Cities' or 'Attractions' headers if desired, 
-    // or just a flat list as done here.
+    // For non-country searches, just map all results without specific headers
     suggestions.push(...results.map(mapItemToSuggestion));
   }
 
@@ -330,136 +392,9 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Helper data and functions for country code biasing
-  const countryNameToCodeMap: { [key: string]: string } = {
-    "malaysia": "my",
-    "thailand": "th",
-    "singapore": "sg",
-    "japan": "jp",
-    "united states": "us",
-    "usa": "us",
-    "united kingdom": "gb",
-    "uk": "gb",
-    "france": "fr",
-    "germany": "de",
-    "canada": "ca",
-    "australia": "au",
-    "china": "cn",
-    "india": "in",
-    "brazil": "br",
-    "south africa": "za",
-    // User can expand this map
-  };
-
-  function getCountryCode(countryName: string): string | null {
-    return countryNameToCodeMap[countryName.toLowerCase()] || null;
-  }
-
   // Helper to get non-header items, memoized if suggestions don't change often
   // This is used for aria-activedescendant and potentially for mapping focusedIndex
   const nonHeaderItems = React.useMemo(() => suggestions.filter(s => !s.isHeader), [suggestions]);
-
-  // Organize country results
-  const organizeCountryResults = useCallback((geoapifyResults: { results?: GeoapifyAutocompleteResult[] }): SuggestionItem[] => {
-    const features = geoapifyResults.results || []; // features are GeoapifyAutocompleteResult
-    const processedPlaceIds = new Set<string>();
-    
-    const countries: SuggestionItem[] = [];
-    const majorCities: SuggestionItem[] = [];
-    const regions: SuggestionItem[] = [];
-    
-    features.forEach((feature) => {
-      if (!feature.place_id || processedPlaceIds.has(feature.place_id)) {
-        return; // Skip if no place_id or already processed
-      }
-      
-      if (feature.country_code && feature.result_type === "country") {
-        countries.push({
-          name: feature.country,
-          formattedName: feature.formatted,
-          type: "country",
-          full: feature
-        });
-        processedPlaceIds.add(feature.place_id);
-      } else if (feature.city && feature.country) {
-        majorCities.push({
-          name: feature.city,
-          formattedName: `${feature.city}, ${feature.country}`,
-          type: "city",
-          full: feature
-        });
-        processedPlaceIds.add(feature.place_id);
-      } else if (feature.state && feature.country) {
-        regions.push({
-          name: feature.state,
-          formattedName: `${feature.state}, ${feature.country}`,
-          type: "region",
-          full: feature
-        });
-        processedPlaceIds.add(feature.place_id);
-      }
-    });
-    
-    return [
-      ...(countries.length ? [{ isHeader: true, text: "Countries" }] : []),
-      ...countries,
-      ...(majorCities.length ? [{ isHeader: true, text: "Popular Cities" }] : []),
-      ...majorCities,
-      ...(regions.length ? [{ isHeader: true, text: "Regions" }] : []),
-      ...regions
-    ];
-  }, []);
-
-  // Organize destinations within a country
-  const organizeDestinationsInCountry = useCallback((geoapifyResults: { results?: GeoapifyAutocompleteResult[] }): SuggestionItem[] => {
-    const features = geoapifyResults.results || []; // features are GeoapifyAutocompleteResult
-    const processedPlaceIds = new Set<string>();
-    
-    const cities: SuggestionItem[] = [];
-    const attractions: SuggestionItem[] = [];
-    const districts: SuggestionItem[] = [];
-    
-    features.forEach((feature) => {
-      if (!feature.place_id || processedPlaceIds.has(feature.place_id)) {
-        return; // Skip if no place_id or already processed
-      }
-      
-      if (feature.city) {
-        cities.push({
-          name: feature.city,
-          formattedName: feature.formatted,
-          type: "city",
-          full: feature
-        });
-        processedPlaceIds.add(feature.place_id);
-      } else if (feature.category && feature.category.includes('tourism')) {
-        attractions.push({
-          name: feature.name || feature.formatted,
-          formattedName: feature.formatted,
-          type: "attraction",
-          full: feature
-        });
-        processedPlaceIds.add(feature.place_id);
-      } else if (feature.district) {
-        districts.push({
-          name: feature.district,
-          formattedName: feature.formatted,
-          type: "district",
-          full: feature
-        });
-        processedPlaceIds.add(feature.place_id);
-      }
-    });
-    
-    return [
-      ...(cities.length ? [{ isHeader: true, text: "Cities" }] : []),
-      ...cities,
-      ...(attractions.length ? [{ isHeader: true, text: "Attractions" }] : []),
-      ...attractions,
-      ...(districts.length ? [{ isHeader: true, text: "Districts" }] : []),
-      ...districts
-    ];
-  }, []);
 
   // Handle item selection
   const handleItemSelect = useCallback(async (item: SuggestionItem) => {
@@ -494,7 +429,7 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
         if (onSelect) {
           // For multiSelect, onSelect might expect an array or be called for each item
           // Assuming onSelect is designed to handle single additions/removals or the full list
-          (onSelect as (dest: Destination | Destination[]) => void)(newDestination); // Or pass updatedSelections
+          (onSelect as (dest: Destination | Destination[]) => void)(updatedSelections); // Changed to updatedSelections for multiselect
         }
       } else {
         if (onSelect) {
@@ -516,6 +451,7 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
     selectedCountry
   ]); 
 
+  // FIXED: Updated and improved fetchSuggestions function
   const fetchSuggestions = useCallback(async (currentQuery: string) => {
     const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
     if (!apiKey) {
@@ -528,74 +464,62 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
     setIsLoading(true);
     setError(null);
 
+    // Build base URL
     let apiUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&format=json&apiKey=${apiKey}&limit=10&lang=en`;
 
+    // Check if query is a country name
     const potentialCountryCodeFromQuery = getCountryCode(currentQuery);
+    const isCountrySearch = !!potentialCountryCodeFromQuery;
 
+    // Apply appropriate filters
     if (selectedCountry && selectedCountry.country_code) {
-      // If a country is ALREADY selected from the dropdown, strictly filter by it.
+      // If a country is ALREADY selected from dropdown, strictly filter by it
       apiUrl += `&filter=countrycode:${selectedCountry.country_code}`;
     } else if (potentialCountryCodeFromQuery) {
-      // If NO country is selected, BUT the search query ITSELF is a country name, strictly filter by it.
+      // If the query itself is a country name, strictly filter by it
       apiUrl += `&filter=countrycode:${potentialCountryCodeFromQuery}`;
-    } else {
-      // No country selected, and query is not a country name (e.g., city, POI) - perform a global search.
-      // No additional country-specific parameters needed here.
     }
-
+    
     try {
-      setError(null);
       if (!currentQuery.trim()) {
         setSuggestions(getPopularDestinations());
         setIsLoading(false);
         return;
       }
+      
       if (onStatusChange) onStatusChange({
         emotion: 'thinking',
         message: `Let me find places like "${currentQuery}" for you...`
       });
       
-      const debounce = setTimeout(() => {
-        fetch(apiUrl)
-          .then(response => response.json())
-          .then(data => {
-            const processed = organizeAndMapResults(
-              data.results || [],
-              !!potentialCountryCodeFromQuery, // isCountrySpecificQuery
-              potentialCountryCodeFromQuery ? currentQuery : undefined // countryQueryString, pass currentQuery as country name
-            );
-            
-            if (processed.length === 0 && (data.results && data.results.length > 0)) {
-              // This case means organizeAndMapResults decided to return empty based on its logic,
-              // but API had results. This shouldn't happen with the new fallback in organizeAndMapResults.
-              // However, if it did, or if API results were truly empty for a specific query:
-              setError("No specific results found. Showing popular destinations.");
-              setSuggestions(getPopularDestinations(currentQuery));
-            } else if (processed.length === 0 && (!data.results || data.results.length === 0)) {
-              setError("No results found for your search.");
-              setSuggestions(getPopularDestinations(currentQuery)); // Or just an empty array: setSuggestions([])
-            } else {
-              setSuggestions(processed);
-            }
-          })
-          .catch((error: any) => {
-            console.error("Error fetching suggestions:", error);
-            setError(error.message || "Failed to fetch suggestions.");
-            setSuggestions(getPopularDestinations()); // Fallback to popular destinations on error
-            if (onStatusChange) onStatusChange({ emotion: 'sad', message: `Oops! Something went wrong while searching. ${error.message}` }); // Use renamed prop
-          })
-          .finally(() => setIsLoading(false));
-      }, 500);
-      return () => clearTimeout(debounce);
+      const response = await fetch(apiUrl);
+      const data = await response.json();
+      
+      // Process and organize results
+      const processed = organizeAndMapResults(
+        data.results || [],
+        isCountrySearch, 
+        isCountrySearch ? currentQuery : undefined
+      );
+      
+      if (processed.length === 0) {
+        setError("No results found for your search.");
+        setSuggestions(getPopularDestinations(currentQuery));
+      } else {
+        setSuggestions(processed);
+      }
     } catch (error: any) {
       console.error("Error fetching suggestions:", error);
       setError(error.message || "Failed to fetch suggestions.");
       setSuggestions(getPopularDestinations()); // Fallback to popular destinations on error
-      if (onStatusChange) onStatusChange({ emotion: 'sad', message: `Oops! Something went wrong while searching. ${error.message}` }); // Use renamed prop
+      if (onStatusChange) onStatusChange({ 
+        emotion: 'sad', 
+        message: `Oops! Something went wrong while searching. ${error.message}` 
+      });
     } finally {
       setIsLoading(false);
     }
-  }, [selectedCountry, onStatusChange, organizeAndMapResults]); 
+  }, [selectedCountry, onStatusChange]); 
 
   // Reset focused index when suggestions change
   useEffect(() => {
@@ -728,7 +652,7 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
         ))}
       </div>
     </div>
-  ), [selectedDestinations]);
+  ), [selectedDestinations, onStatusChange]);
 
   return (
     <AnimatePresence>

@@ -26,6 +26,7 @@
     "autoprefixer": "^10.4.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.0.0",
+    "countries": "^1.0.2",
     "date-fns": "^4.1.0",
     "focus-trap-react": "^11.0.3",
     "framer-motion": "^10.18.0",
