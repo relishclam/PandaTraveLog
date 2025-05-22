@@ -222,6 +222,31 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
+  // Helper data and functions for country code biasing
+  const countryNameToCodeMap: { [key: string]: string } = {
+    "malaysia": "my",
+    "thailand": "th",
+    "singapore": "sg",
+    "japan": "jp",
+    "united states": "us",
+    "usa": "us",
+    "united kingdom": "gb",
+    "uk": "gb",
+    "france": "fr",
+    "germany": "de",
+    "canada": "ca",
+    "australia": "au",
+    "china": "cn",
+    "india": "in",
+    "brazil": "br",
+    "south africa": "za",
+    // User can expand this map
+  };
+
+  function getCountryCode(countryName: string): string | null {
+    return countryNameToCodeMap[countryName.toLowerCase()] || null;
+  }
+
   // Helper to get non-header items, memoized if suggestions don't change often
   // This is used for aria-activedescendant and potentially for mapping focusedIndex
   const nonHeaderItems = React.useMemo(() => suggestions.filter(s => !s.isHeader), [suggestions]);
@@ -387,7 +412,7 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
     const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
     if (!apiKey) {
       console.error("Geoapify API key is not set.");
-      setSuggestions(getPopularDestinations());
+      setSuggestions(getPopularDestinations()); // Fallback to popular destinations
       setError("API key not configured. Displaying popular destinations.");
       setIsLoading(false);
       return;
@@ -395,15 +420,18 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
     setIsLoading(true);
     setError(null);
 
-    // Use the 'search' endpoint and add 'lang=en'
+    // Use the 'search' endpoint, add 'lang=en', and remove the problematic 'type' parameter.
     let apiUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&format=json&apiKey=${apiKey}&limit=10&lang=en`;
 
     if (selectedCountry && selectedCountry.country_code) {
-      // When a country is selected, filter by country and search for cities and amenities
-      apiUrl += `&filter=countrycode:${selectedCountry.country_code}&type=city|amenity`;
+      // When a country is selected, filter by that country
+      apiUrl += `&filter=countrycode:${selectedCountry.country_code}`;
     } else {
-      // For general search, look for cities and amenities
-      apiUrl += `&type=city|amenity`;
+      // If no country is selected, check if the query itself is a country name to bias results
+      const potentialCountryCode = getCountryCode(currentQuery);
+      if (potentialCountryCode) {
+        apiUrl += `&bias=countrycode:${potentialCountryCode}`;
+      }
     }
 
     try {
