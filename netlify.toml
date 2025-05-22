@@ -1,5 +1,5 @@
 [build]
-  command = "# Build step is handled by GitHub Action"
+  command = "npm run build"
   publish = ".next"
 
 [build.environment]
