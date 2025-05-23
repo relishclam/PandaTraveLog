@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Image from 'next/image';
 import { FocusTrap } from 'focus-trap-react';
 
 type MotionDivProps = React.ComponentProps<'div'> & {
@@ -33,7 +32,6 @@ type Destination = {
   type?: string;
 };
 
-// Extract properties to a separate interface
 interface GeoapifyFeatureProperties {
   place_id: string;
   country?: string;
@@ -44,8 +42,8 @@ interface GeoapifyFeatureProperties {
   name?: string;
   formatted: string;
   result_type?: string;
-  categories?: string[]; // Plural for feature properties
-  category?: string;     // Singular sometimes present
+  categories?: string[];
+  category?: string;
   address_line1?: string;
   address_line2?: string;
   lon?: number;
@@ -57,7 +55,6 @@ interface GeoapifyFeatureProperties {
   rank?: any;
 }
 
-// Feature from /v2/places
 type GeoapifyFeature = {
   type: string;
   properties: GeoapifyFeatureProperties;
@@ -72,7 +69,6 @@ type GeoapifyFeature = {
   };
 };
 
-// Result from /v1/geocode/search
 interface GeoapifyGeocodeResult {
   datasource?: {
     sourcename?: string;
@@ -105,10 +101,8 @@ interface GeoapifyGeocodeResult {
   };
 }
 
-// Replace the interface that extends both types with a direct property list
 interface GeoapifyFullResult {
-  // Essential properties
-  place_id?: string; // Made optional for header items
+  place_id: string;
   name?: string;
   formatted?: string;
   country?: string;
@@ -117,8 +111,6 @@ interface GeoapifyFullResult {
   lon?: number;
   lat?: number;
   result_type?: string;
-  
-  // Other commonly used properties
   state?: string;
   district?: string;
   address_line1?: string;
@@ -127,102 +119,38 @@ interface GeoapifyFullResult {
   category?: string;
   population?: number;
   timezone?: string;
-  bbox?: [number, number, number, number];
-  
-  // Allow additional properties
-  [key: string]: any;
-}
-
-type GeoapifyApiResponse = {
-  // API response can include error information
-  error?: {
-    message?: string;
-    code?: string | number;
-    details?: any;
-  };
-  // Results array for successful responses
-  results: Array<{
-    datasource?: {
-      sourcename?: string;
-      attribution?: string;
-      license?: string;
-      url?: string;
-    };
-    country?: string;
-    country_code?: string;
-    name?: string;
-    city?: string;
-    state?: string;
-    district?: string;
-    formatted?: string;
-    address_line1?: string;
-    address_line2?: string;
-    categories?: string[];
-    place_id: string;
-    lon: number;
-    lat: number;
-    result_type?: string;
-    rank?: {
-      importance?: number;
-      popularity?: number;
-      confidence?: number;
-      match_type?: string;
-    };
-    bbox?: {
-      lon1: number;
-      lat1: number;
-      lon2: number;
-      lat2: number;
-    };
-  }>;
-  query?: {
-    text?: string;
-    parsed?: any;
-  }
-};
-
-type GeoapifyAutocompleteResult = {
-  place_id: string;
-  country?: string;
-  country_code?: string;
-  city?: string;
-  state?: string;
-  district?: string;
-  name?: string;
-  formatted: string;
-  result_type?: string;
-  lon: number;
-  lat: number;
-  category?: string[];
   bbox?: {
     lon1: number;
     lat1: number;
     lon2: number;
     lat2: number;
-  };
-  address_line1?: string;
-  address_line2?: string;
-};
+  } | [number, number, number, number];
+}
 
-// Update the SuggestionItem to use the new GeoapifyFullResult interface
-type SuggestionItem = {
-  isHeader?: boolean;
-  text?: string;
-  name: string;  // Make required to match how it's used in code
-  formattedName: string;  // Make required to match how it's used in code
-  type?: string;
-  full: GeoapifyFullResult;  // Change from GeoapifyAutocompleteResult to GeoapifyFullResult
-  id: string;  // Make required to match how it's used in code
-  country?: string;
-  country_code?: string;
-  state?: string;
-  city?: string;
-  postcode?: string;
-  latitude?: number;
-  longitude?: number;
-  result_type?: string;
-  category?: string[];
-};
+type SuggestionItem = 
+  | {
+      isHeader: true;
+      text: string;
+      id: string;
+      name: '';
+      formattedName: '';
+    }
+  | {
+      isHeader?: false;
+      id: string;
+      name: string;
+      formattedName: string;
+      full: GeoapifyFullResult;
+      type?: string;
+      country?: string;
+      country_code?: string;
+      city?: string;
+      latitude?: number;
+      longitude?: number;
+      result_type?: string;
+      category?: string[];
+    };
+
 interface DestinationSearchModalProps {
   isOpen: boolean;
   doHandleClose: () => void;
@@ -244,9 +172,8 @@ type SuggestionItemComponentProps = {
   isSelected: boolean;
   multiSelect?: boolean;
   id: string;
-}
+};
 
-// Enhanced suggestion item component
 const SuggestionItemComponent: React.FC<SuggestionItemComponentProps> = memo(({ 
   item,
   onSelectItem,
@@ -376,19 +303,17 @@ const countryNameToCodeMap: Record<string, string> = {
   "emirates": "ae",
 };
 
-function getCountryCode(countryName: string): string | null {
+const getCountryCode = (countryName: string): string | null => {
   return countryNameToCodeMap[countryName.toLowerCase()] || null;
-}
+};
 
-// Enhanced popular destinations with more metadata
 const getPopularDestinations = (): SuggestionItem[] => [
   { 
     id: 'popular-header',
     isHeader: true, 
     text: '\u2728 Popular Destinations',
     name: '',
-    formattedName: '',
-    full: { place_id: 'popular-header' } as GeoapifyFullResult 
+    formattedName: ''
   },
   { 
     id: 'paris',
@@ -407,85 +332,100 @@ const getPopularDestinations = (): SuggestionItem[] => [
       timezone: 'Europe/Paris'
     } 
   },
-  // ... other popular destinations can be added here
+  { 
+    id: 'tokyo',
+    name: 'Tokyo', 
+    formattedName: 'Tokyo, Japan', 
+    type: 'city', 
+    full: { 
+      place_id: 'tokyo', 
+      name: 'Tokyo', 
+      formatted: 'Tokyo, Japan', 
+      country: 'Japan', 
+      country_code: 'jp',
+      lon: 139.6917, 
+      lat: 35.6895,
+      population: 13960000,
+      timezone: 'Asia/Tokyo'
+    } 
+  },
+  { 
+    id: 'new-york',
+    name: 'New York', 
+    formattedName: 'New York, USA', 
+    type: 'city', 
+    full: { 
+      place_id: 'new-york', 
+      name: 'New York', 
+      formatted: 'New York, USA', 
+      country: 'United States', 
+      country_code: 'us',
+      lon: -74.0060, 
+      lat: 40.7128,
+      population: 8419000,
+      timezone: 'America/New_York'
+    } 
+  }
 ];
-
-// ...
-
-
 
 const createHeaderSuggestion = (id: string, text: string): SuggestionItem => ({
   id,
   text,
   isHeader: true,
-  name: '', 
-  formattedName: '', 
-  full: { place_id: id } as GeoapifyFullResult
+  name: '',
+  formattedName: ''
 });
 
-// ...
-
-const placeToSuggestion = (place: GeoapifyFeature | GeoapifyGeocodeResult, defaultType: string = 'location'): SuggestionItem => {
-  let props: GeoapifyFeatureProperties | GeoapifyGeocodeResult;
-  let lon: number | undefined;
-  let lat: number | undefined;
-  let categoryArray: string[] | undefined;
-
-  if ('properties' in place) { // GeoapifyFeature from /v2/places
-    props = place.properties;
-    lon = place.geometry.coordinates[0] as number;
-    lat = place.geometry.coordinates[1] as number;
-    categoryArray = (props as GeoapifyFeatureProperties).categories; // Add type assertion
-  } else { // GeoapifyGeocodeResult from /v1/geocode/search
-    props = place;
-    lon = place.lon;
-    lat = place.lat;
-    // Convert single category to array if present
-    categoryArray = props.category ? [props.category] : undefined;
-  }
-
-  const name = props.name || props.city || props.address_line1 || 'Unknown Location';
+// First, ensure this is placed before any code that uses placeToSuggestion
+const placeToSuggestion = (place: GeoapifyFeature | GeoapifyGeocodeResult): SuggestionItem => {
+  const props = 'properties' in place ? place.properties : place;
+  const coordinates = 'geometry' in place ? place.geometry.coordinates : [place.lon ?? 0, place.lat ?? 0];
+  const placeId = props.place_id || `temp-${Date.now()}`;
   
-  // Check if any category is tourism-related
-  const isTourismRelated = categoryArray?.some(c => 
-        ['tourism', 'entertainment', 'leisure', 'catering', 'accommodation', 'attraction']
-          .some(keyword => c.toLowerCase().includes(keyword))
-      ) || false;
+  // Safely get categories array
+  const categoryArray = ('categories' in props ? props.categories : undefined) || 
+                       (props.category ? [props.category] : undefined);
   
-  const type = props.result_type || (isTourismRelated ? 'attraction' : defaultType);
+  // Type-safe tourism check
+  const isTourismRelated = categoryArray?.some((c: string) => 
+    ['tourism', 'entertainment', 'leisure', 'catering', 'accommodation', 'attraction']
+      .some(keyword => c.toLowerCase().includes(keyword))) || false;
+  
+  const type = props.result_type || (isTourismRelated ? 'attraction' : 'location');
 
-  // Construct a GeoapifyFullResult compatible object for 'full'
+  // Create the full result object with proper typing
   const fullResult: GeoapifyFullResult = {
-    ...(props as any), // Cast to any to allow spread of union type
-    lon: lon,
-    lat: lat,
-    categories: categoryArray, // Ensure categories is present
-    category: props.category, // Keep original category if present
-    place_id: props.place_id, // Ensure required fields are present
+    ...props,
+    place_id: placeId,
+    lon: coordinates[0],
+    lat: coordinates[1],
+    categories: categoryArray,
+    category: props.category
   };
 
   return {
-    id: props.place_id,
-    name: name,
-    formattedName: props.formatted || props.address_line2 || name,
-    type: type,
+    id: placeId,
+    name: props.name || props.city || props.address_line1 || 'Location',
+    formattedName: props.formatted || `${props.city || ''}${props.city && props.country ? ', ' : ''}${props.country || ''}`,
+    type,
     full: fullResult,
     country: props.country,
     country_code: props.country_code,
     city: props.city,
-    latitude: lat,
-    longitude: lon,
+    latitude: coordinates[1],
+    longitude: coordinates[0],
     result_type: props.result_type,
-    category: categoryArray, // Use the derived categoryArray
+    category: categoryArray
   };
 };
 
-const organizeCountryResults = (countryResults: any[], places: any[]): SuggestionItem[] => {
+// Then update the organize functions to use proper typing
+const organizeCountryResults = (countryResults: GeoapifyGeocodeResult[], places: GeoapifyFeature[]): SuggestionItem[] => {
   const suggestions: SuggestionItem[] = [];
   
   if (countryResults.length === 0) return suggestions;
 
-  suggestions.push(createHeaderSuggestion('country-header', countryResults[0].country));
+  suggestions.push(createHeaderSuggestion('country-header', countryResults[0].country || 'Country'));
 
   const cities = places.filter(p => 
     p.properties?.result_type === 'city' || 
@@ -496,39 +436,43 @@ const organizeCountryResults = (countryResults: any[], places: any[]): Suggestio
     p.properties?.categories?.some((c: string) => 
       c.includes('tourism') || 
       c.includes('entertainment') ||
-      c.includes('attraction')
-  ));
+      c.includes('attraction'))
+  );
 
   if (cities.length > 0) {
     suggestions.push(createHeaderSuggestion('cities-header', 'Major Cities'));
-    suggestions.push(...cities.map((result: GeoapifyGeocodeResult) => placeToSuggestion(result)));
+    suggestions.push(...cities.map(placeToSuggestion));
   }
 
   if (attractions.length > 0) {
     suggestions.push(createHeaderSuggestion('attractions-header', 'Popular Attractions'));
-    suggestions.push(...attractions.map((result: GeoapifyGeocodeResult) => placeToSuggestion(result)));
+    suggestions.push(...attractions.map(placeToSuggestion));
   }
 
   return suggestions;
 };
 
-const organizeCityResults = (city: any, attractionsRes: any, citiesRes: any): SuggestionItem[] => {
+const organizeCityResults = (
+  city: GeoapifyGeocodeResult, 
+  attractionsRes: { features?: GeoapifyFeature[] }, 
+  citiesRes: { results?: GeoapifyGeocodeResult[] }
+): SuggestionItem[] => {
   const suggestions: SuggestionItem[] = [];
   
-  suggestions.push(createHeaderSuggestion('city-header', `Places in ${city.city || city.name}`));
+  suggestions.push(createHeaderSuggestion('city-header', `Places in ${city.city || city.name || 'City'}`));
 
   const attractions = attractionsRes?.features || [];
   if (attractions.length > 0) {
-    suggestions.push(...attractions.map((result: GeoapifyGeocodeResult) => placeToSuggestion(result)));
+    suggestions.push(...attractions.map(placeToSuggestion));
   }
 
-  const nearbyCities = citiesRes?.results?.filter((c: any) => 
+  const nearbyCities = citiesRes?.results?.filter((c: GeoapifyGeocodeResult) => 
     c.place_id !== city.place_id
   ) || [];
   
   if (nearbyCities.length > 0) {
     suggestions.push(createHeaderSuggestion('nearby-header', 'Nearby Cities'));
-    suggestions.push(...nearbyCities.map((result: GeoapifyGeocodeResult) => placeToSuggestion(result)));
+    suggestions.push(...nearbyCities.map(placeToSuggestion));
   }
 
   return suggestions;
@@ -549,12 +493,146 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [selectedDestinations, setSelectedDestinations] = useState<Destination[]>(existingSelections || []);
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
+  
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const fetchSuggestions = useCallback(async (currentQuery: string) => {
+    const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
+    if (!apiKey) {
+      console.error("Geoapify API key is not set.");
+      setSuggestions(getPopularDestinations());
+      setError("API key not configured. Displaying popular destinations.");
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      if (!currentQuery.trim()) {
+        setSuggestions(getPopularDestinations());
+        setIsLoading(false);
+        return;
+      }
+
+      if (onStatusChange) onStatusChange({
+        emotion: 'thinking',
+        message: `Let me find places like "${currentQuery}" for you...`
+      });
+
+      const potentialCountryCode = getCountryCode(currentQuery);
+      const isCountrySearch = !!potentialCountryCode;
+
+      if (isCountrySearch) {
+        const countryUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&filter=countrycode:${potentialCountryCode}&apiKey=${apiKey}`;
+        const countryResponse = await fetch(countryUrl);
+        const countryData = await countryResponse.json();
+
+        if (countryData?.results?.length > 0) {
+          const country = countryData.results[0];
+          
+          const placesUrl = `https://api.geoapify.com/v2/places?` +
+            `categories=accommodation,tourism,entertainment,catering&` +
+            `filter=rect:${country.bbox.lon1},${country.bbox.lat1},${country.bbox.lon2},${country.bbox.lat2}&` +
+            `limit=20&apiKey=${apiKey}`;
+          
+          const placesResponse = await fetch(placesUrl);
+          const placesData = await placesResponse.json();
+          const organized = organizeCountryResults(countryData.results, placesData.features);
+          setSuggestions(organized);
+        } else {
+          setError("No results found for this country.");
+          setSuggestions(getPopularDestinations());
+        }
+      } else {
+        const cityUrl = `https://api.geoapify.com/v1/geocode/search?` +
+          `text=${encodeURIComponent(currentQuery)}&` +
+          `apiKey=${apiKey}&limit=10&lang=en`;
+          
+        const response = await fetch(cityUrl);
+        const data = await response.json();
+
+        if (data?.results?.length > 0) {
+          const mainResult = data.results[0];
+          
+          if (mainResult.result_type === 'city') {
+            const attractionsUrl = `https://api.geoapify.com/v2/places?` +
+              `categories=tourism,entertainment&` +
+              `filter=circle:${mainResult.lon},${mainResult.lat},10000&` +
+              `limit=15&apiKey=${apiKey}`;
+              
+            const attractionsResponse = await fetch(attractionsUrl);
+            const attractionsData = await attractionsResponse.json();
+            
+            const citiesUrl = `https://api.geoapify.com/v1/geocode/search?` +
+              `type=city&` +
+              `filter=circle:${mainResult.lon},${mainResult.lat},50000&` +
+              `limit=5&apiKey=${apiKey}`;
+              
+            const citiesResponse = await fetch(citiesUrl);
+            const citiesData = await citiesResponse.json();
+            
+            const organized = organizeCityResults(
+              mainResult,
+              attractionsData,
+              citiesData
+            );
+            setSuggestions(organized);
+          } else {
+            setSuggestions(data.results.map((result: GeoapifyGeocodeResult) => placeToSuggestion(result)));
+          }
+        } else {
+          setError("No results found for your search.");
+          setSuggestions(getPopularDestinations());
+        }
+      }
+    } catch (error: any) {
+      console.error("Error fetching suggestions:", error);
+      setError(error.message || "Failed to fetch suggestions.");
+      setSuggestions(getPopularDestinations());
+      if (onStatusChange) onStatusChange({
+        emotion: 'sad',
+        message: `Oops! Something went wrong while searching. ${error.message}`
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [onStatusChange]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isOpen) {
+        fetchSuggestions(query);
+      }
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [query, isOpen, fetchSuggestions]);
+  
+  useEffect(() => {
+    if (isOpen) {
+      setQuery('');
+      setSuggestions([]);
+      setError(null);
+      setSelectedCountry(null);
+      
+      if (inputRef.current) {
+        setTimeout(() => {
+          inputRef.current?.focus();
+        }, 100);
+      }
+      
+      if (!query.trim()) {
+        setSuggestions(getPopularDestinations());
+      }
+    }
+  }, [isOpen]);
 
   const nonHeaderItems = React.useMemo(() => suggestions.filter(s => !s.isHeader), [suggestions]);
 
-  // Render the list of selected destinations (for multi-select mode)
   const renderSelectedDestinations = () => {
     return (
       <div className="mx-4 mt-2">
@@ -585,25 +663,20 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
     );
   };
 
-  // Handle keyboard navigation in the suggestion list
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (suggestions.length === 0) return;
     
-    // Filter out header items for navigation purposes
     const selectableItems = suggestions.filter(item => !item.isHeader);
     const selectableIndices = suggestions.map((item, index) => !item.isHeader ? index : -1).filter(index => index !== -1);
     
-    // Find current focused item index in the selectable items
     const currentSelectableIndex = selectableIndices.indexOf(focusedIndex);
     
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
         if (focusedIndex < 0 || focusedIndex >= suggestions.length - 1) {
-          // If nothing is focused or we're at the end, focus the first selectable item
           setFocusedIndex(selectableIndices[0] || 0);
         } else {
-          // Focus the next selectable item
           const nextIndex = selectableIndices[currentSelectableIndex + 1];
           if (nextIndex !== undefined) setFocusedIndex(nextIndex);
         }
@@ -612,10 +685,8 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
       case 'ArrowUp':
         e.preventDefault();
         if (focusedIndex <= 0) {
-          // If nothing is focused or we're at the beginning, focus the last selectable item
           setFocusedIndex(selectableIndices[selectableIndices.length - 1] || 0);
         } else {
-          // Focus the previous selectable item
           const prevIndex = selectableIndices[currentSelectableIndex - 1];
           if (prevIndex !== undefined) setFocusedIndex(prevIndex);
         }
@@ -636,7 +707,7 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
   };
 
   const handleItemSelect = useCallback(async (item: SuggestionItem) => {
-    if (item.isHeader || !item.full) return;
+    if (item.isHeader || !('full' in item)) return;
 
     if (item.type === 'country' && item.full) {
       setSelectedCountry(item.full);
@@ -654,19 +725,19 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
       });
 
       const newDestination: Destination = {
-        place_id: item.full.place_id || `temp-${Date.now()}`, // Ensure a value is always provided
-        name: item.full.city || item.full.name || item.full.formatted || 'Unknown Location', // Add fallback
-        formattedName: item.full.formatted || 'Unknown Location', // Add fallback
+        place_id: item.full.place_id,
+        name: item.full.city || item.full.name || item.full.formatted || 'Unknown Location',
+        formattedName: item.full.formatted || 'Unknown Location',
         country: item.full.country || (selectedCountry?.name || ''),
         coordinates: [
-          item.full.lon ?? 0, // Use nullish coalescing
-          item.full.lat ?? 0  // Use nullish coalescing
+          item.full.lon ?? 0,
+          item.full.lat ?? 0
         ],
         type: item.type
       };
 
       if (multiSelect) {
-        const isAlreadySelected = selectedDestinations.some(d => d.place_id === newDestination.place_id);
+        const isAlreadySelected = selectedDestinations.some(dest => dest.place_id === newDestination.place_id);
         const updatedSelections = isAlreadySelected
           ? selectedDestinations.filter(d => d.place_id !== newDestination.place_id)
           : [...selectedDestinations, newDestination];
@@ -683,160 +754,6 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
       }
     }
   }, [multiSelect, onSelect, doHandleClose, selectedDestinations, onStatusChange, selectedCountry]);
-
-  const fetchSuggestions = useCallback(async (currentQuery: string) => {
-    const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
-    if (!apiKey) {
-      console.error("Geoapify API key is not set.");
-      setSuggestions(getPopularDestinations());
-      setError("API key not configured. Displaying popular destinations.");
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      if (!currentQuery.trim()) {
-        setSuggestions(getPopularDestinations());
-        setIsLoading(false);
-        return;
-      }
-
-      if (onStatusChange) onStatusChange({
-        emotion: 'thinking',
-        message: `Let me find places like "${currentQuery}" for you...`
-      });
-
-      // Enhanced debugging - Log API key info but keep it secure
-      console.log(`🔑 Using Geoapify API key (masked): ${apiKey ? '****' + apiKey.slice(-4) : 'undefined'}`);
-      console.log(`🔑 API key length: ${apiKey ? apiKey.length : 0} characters`);
-      
-      // Check if query is a country name
-      const potentialCountryCode = getCountryCode(currentQuery);
-      const isCountrySearch = !!potentialCountryCode;
-      console.log(`🔍 Search query: "${currentQuery}" - Detected as country search: ${isCountrySearch}`);
-
-      if (isCountrySearch) {
-        // Country search flow
-        const countryUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&filter=countrycode:${potentialCountryCode}&apiKey=${apiKey}`;
-        console.log(`🌍 Country search URL: ${countryUrl.replace(apiKey, '****')}`);
-        
-        const countryResponse = await fetch(countryUrl);
-        console.log(`🌍 Country search response status: ${countryResponse.status}`);
-        const countryData = await countryResponse.json();
-        console.log(`🌍 Country search results count: ${countryData?.results?.length || 0}`);
-        if (countryData?.error) {
-          console.error('Country search API error:', countryData.error);
-        }
-
-        if (countryData?.results?.length > 0) {
-          const country = countryData.results[0];
-          
-          // Get places within country's bounding box
-          const placesUrl = `https://api.geoapify.com/v2/places?` +
-            `categories=accommodation,tourism,entertainment,catering&` +
-            `filter=rect:${country.bbox.lon1},${country.bbox.lat1},${country.bbox.lon2},${country.bbox.lat2}&` +
-            `limit=20&apiKey=${apiKey}`;
-          
-          console.log(`🌍 Country places URL: ${placesUrl.replace(apiKey, '****')}`);
-          const placesResponse = await fetch(placesUrl);
-          console.log(`🌍 Country places response status: ${placesResponse.status}`);
-          
-          const placesData = await placesResponse.json();
-          console.log(`🌍 Country places results count: ${placesData?.features?.length || 0}`);
-          if (placesData?.error) {
-            console.error('Country places API error:', placesData.error);
-          }
-          const organized = organizeCountryResults(countryData.results, placesData.features);
-          setSuggestions(organized);
-        } else {
-          setError("No results found for this country.");
-          setSuggestions(getPopularDestinations());
-        }
-      } else {
-        // City/place search flow
-        const cityUrl = `https://api.geoapify.com/v1/geocode/search?` +
-          `text=${encodeURIComponent(currentQuery)}&` +
-          `apiKey=${apiKey}&limit=10&lang=en`;
-          
-        console.log(`🏠 City search URL: ${cityUrl.replace(apiKey, '****')}`);
-        const response = await fetch(cityUrl);
-        console.log(`🏠 City search response status: ${response.status}`);
-        
-        const data = await response.json() as GeoapifyApiResponse;
-        console.log(`🏠 City search results count: ${data?.results?.length || 0}`);
-        if (data?.error) {
-          console.error('City search API error:', data.error);
-        }
-        
-        if (data?.results?.length > 0) {
-          const mainResult = data.results[0];
-          
-          if (mainResult.result_type === 'city') {
-            // Get attractions in this city
-            const attractionsUrl = `https://api.geoapify.com/v2/places?` +
-              `categories=tourism,entertainment&` +
-              `filter=circle:${mainResult.lon},${mainResult.lat},10000&` + // 10km radius
-              `limit=15&apiKey=${apiKey}`;
-              
-            console.log(`🎪 Attractions URL: ${attractionsUrl.replace(apiKey, '****')}`);
-            const attractionsResponse = await fetch(attractionsUrl);
-            console.log(`🎪 Attractions response status: ${attractionsResponse.status}`);
-            // Use type assertion to include potential error property
-            const attractionsData = await attractionsResponse.json() as { features?: any[], error?: any };
-            console.log(`🎪 Attractions results count: ${attractionsData?.features?.length || 0}`);
-            if (attractionsData?.error) {
-              console.error('Attractions API error:', attractionsData.error);
-            }
-            
-            // Get nearby cities
-            const citiesUrl = `https://api.geoapify.com/v1/geocode/search?` +
-              `type=city&` +
-              `filter=circle:${mainResult.lon},${mainResult.lat},50000&` + // 50km radius
-              `limit=5&apiKey=${apiKey}`;
-              
-            console.log(`🏙️ Nearby cities URL: ${citiesUrl.replace(apiKey, '****')}`);
-            const citiesResponse = await fetch(citiesUrl);
-            console.log(`🏙️ Nearby cities response status: ${citiesResponse.status}`);
-            const citiesData = await citiesResponse.json();
-            console.log(`🏙️ Nearby cities results count: ${citiesData?.results?.length || 0}`);
-            if (citiesData?.error) {
-              console.error('Nearby cities API error:', citiesData.error);
-            }
-            
-            const organized = organizeCityResults(
-              mainResult,
-              attractionsData,
-              citiesData
-            );
-            setSuggestions(organized);
-          } else {
-            // Generic place search
-            setSuggestions(data.results.map(result => placeToSuggestion(result)));
-          }
-        } else {
-          setError("No results found for your search.");
-          setSuggestions(getPopularDestinations());
-        }
-      }
-    } catch (error: any) {
-      console.error("Error fetching suggestions:", error);
-      setError(error.message || "Failed to fetch suggestions.");
-      setSuggestions(getPopularDestinations());
-      if (onStatusChange) onStatusChange({
-        emotion: 'sad',
-        message: `Oops! Something went wrong while searching. ${error.message}`
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [selectedCountry, onStatusChange]);
-
-  // ... rest of your useEffect hooks and render method remain the same ...
-  // [Previous useEffect hooks and render method remain unchanged]
-  // [Include all the existing useEffect hooks and the full render method from your original code]
 
   return (
     <AnimatePresence>
@@ -939,10 +856,9 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
                       aria-controls="search-results"
                       aria-activedescendant={
                         focusedIndex >= 0 && 
-                        suggestions[focusedIndex] && 
                         !suggestions[focusedIndex].isHeader && 
                         suggestions[focusedIndex].full?.place_id 
-                          ? `suggestion-item-${suggestions[focusedIndex].full!.place_id}` 
+                          ? `suggestion-item-${suggestions[focusedIndex].full.place_id}` 
                           : undefined
                       }
                       aria-expanded={suggestions.length > 0}
@@ -994,7 +910,7 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
                             item={item}
                             onSelectItem={handleItemSelect}
                             isFocused={focusedIndex === index}
-                            isSelected={item.full ? selectedDestinations.some(dest => dest.place_id === item.full?.place_id) : false}
+                            isSelected={!item.isHeader && selectedDestinations.some(dest => dest.place_id === item.full?.place_id)}
                             multiSelect={multiSelect}
                           />
                         );
@@ -1037,14 +953,13 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
                             key={`popular-${index}`}
                             className="flex flex-col items-center cursor-pointer p-2 hover:bg-gray-100 rounded-lg transition-colors duration-150"
                             onClick={() => {
-                              if (dest.full) {
+                              if (!dest.isHeader && dest.full) {
                                 handleItemSelect({
-                                  id: dest.id || `popular-item-${index}`,
+                                  id: dest.id,
                                   name: dest.name,
                                   formattedName: dest.formattedName,
                                   type: dest.type,
-                                  full: dest.full,
-                                  isHeader: false,
+                                  full: dest.full
                                 });
                               }
                             }}
