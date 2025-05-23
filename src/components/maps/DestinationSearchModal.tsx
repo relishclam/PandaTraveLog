@@ -857,8 +857,7 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
             console.log(`🏙️ Nearby cities URL: ${citiesUrl.replace(apiKey, '****')}`);
             const citiesResponse = await fetch(citiesUrl);
             console.log(`🏙️ Nearby cities response status: ${citiesResponse.status}`);
-            // Use type assertion to include potential error property
-            const citiesData = await citiesResponse.json() as { results?: any[], error?: any };
+            const citiesData = await citiesResponse.json();
             console.log(`🏙️ Nearby cities results count: ${citiesData?.results?.length || 0}`);
             if (citiesData?.error) {
               console.error('Nearby cities API error:', citiesData.error);
@@ -892,9 +891,28 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
     }
   }, [selectedCountry, onStatusChange]);
 
-  // ... rest of your useEffect hooks and render method remain the same ...
-  // [Previous useEffect hooks and render method remain unchanged]
-  // [Include all the existing useEffect hooks and the full render method from your original code]
+  // Add useEffect to trigger search when query changes
+  useEffect(() => {
+    if (query.trim().length >= 2) {
+      const timer = setTimeout(() => {
+        fetchSuggestions(query);
+      }, 500); // Debounce search for better UX
+      
+      return () => clearTimeout(timer);
+    } else if (query.trim() === '') {
+      // Show popular destinations when search is cleared
+      setSuggestions(getPopularDestinations());
+    }
+  }, [query, fetchSuggestions]);
+  
+  // When modal opens, focus the input and reset state
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus();
+      setSuggestions(getPopularDestinations());
+      setError(null);
+    }
+  }, [isOpen]);
 
   return (
     <AnimatePresence>
