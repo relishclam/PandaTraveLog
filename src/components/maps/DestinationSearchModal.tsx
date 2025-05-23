@@ -127,6 +127,13 @@ interface GeoapifyFullResult {
 }
 
 type GeoapifyApiResponse = {
+  // API response can include error information
+  error?: {
+    message?: string;
+    code?: string | number;
+    details?: any;
+  };
+  // Results array for successful responses
   results: Array<{
     datasource?: {
       sourcename?: string;
@@ -759,29 +766,46 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
         message: `Let me find places like "${currentQuery}" for you...`
       });
 
+      // Enhanced debugging - Log API key info but keep it secure
+      console.log(`🔑 Using Geoapify API key (masked): ${apiKey ? '****' + apiKey.slice(-4) : 'undefined'}`);
+      console.log(`🔑 API key length: ${apiKey ? apiKey.length : 0} characters`);
+      
       // Check if query is a country name
       const potentialCountryCode = getCountryCode(currentQuery);
       const isCountrySearch = !!potentialCountryCode;
+      console.log(`🔍 Search query: "${currentQuery}" - Detected as country search: ${isCountrySearch}`);
 
       if (isCountrySearch) {
         // Country search flow
-        const countryResponse = await fetch(
-          `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&filter=countrycode:${potentialCountryCode}&apiKey=${apiKey}`
-        );
+        const countryUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&filter=countrycode:${potentialCountryCode}&apiKey=${apiKey}`;
+        console.log(`🌍 Country search URL: ${countryUrl.replace(apiKey, '****')}`);
+        
+        const countryResponse = await fetch(countryUrl);
+        console.log(`🌍 Country search response status: ${countryResponse.status}`);
         const countryData = await countryResponse.json();
+        console.log(`🌍 Country search results count: ${countryData?.results?.length || 0}`);
+        if (countryData?.error) {
+          console.error('Country search API error:', countryData.error);
+        }
 
         if (countryData?.results?.length > 0) {
           const country = countryData.results[0];
           
           // Get places within country's bounding box
-          const placesResponse = await fetch(
-            `https://api.geoapify.com/v2/places?` +
+          const placesUrl = `https://api.geoapify.com/v2/places?` +
             `categories=accommodation,tourism,entertainment,catering&` +
             `filter=rect:${country.bbox.lon1},${country.bbox.lat1},${country.bbox.lon2},${country.bbox.lat2}&` +
-            `limit=20&apiKey=${apiKey}`
-          );
+            `limit=20&apiKey=${apiKey}`;
+          
+          console.log(`🌍 Country places URL: ${placesUrl.replace(apiKey, '****')}`);
+          const placesResponse = await fetch(placesUrl);
+          console.log(`🌍 Country places response status: ${placesResponse.status}`);
           
           const placesData = await placesResponse.json();
+          console.log(`🌍 Country places results count: ${placesData?.features?.length || 0}`);
+          if (placesData?.error) {
+            console.error('Country places API error:', placesData.error);
+          }
           const organized = organizeCountryResults(countryData.results, placesData.features);
           setSuggestions(organized);
         } else {
@@ -790,38 +814,60 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
         }
       } else {
         // City/place search flow
-        const response = await fetch(
-          `https://api.geoapify.com/v1/geocode/search?` +
+        const cityUrl = `https://api.geoapify.com/v1/geocode/search?` +
           `text=${encodeURIComponent(currentQuery)}&` +
-          `apiKey=${apiKey}&limit=10&lang=en`
-        );
+          `apiKey=${apiKey}&limit=10&lang=en`;
+          
+        console.log(`🏠 City search URL: ${cityUrl.replace(apiKey, '****')}`);
+        const response = await fetch(cityUrl);
+        console.log(`🏠 City search response status: ${response.status}`);
         
         const data = await response.json() as GeoapifyApiResponse;
+        console.log(`🏠 City search results count: ${data?.results?.length || 0}`);
+        if (data?.error) {
+          console.error('City search API error:', data.error);
+        }
         
         if (data?.results?.length > 0) {
           const mainResult = data.results[0];
           
           if (mainResult.result_type === 'city') {
             // Get attractions in this city
-            const attractionsResponse = await fetch(
-              `https://api.geoapify.com/v2/places?` +
+            const attractionsUrl = `https://api.geoapify.com/v2/places?` +
               `categories=tourism,entertainment&` +
               `filter=circle:${mainResult.lon},${mainResult.lat},10000&` + // 10km radius
-              `limit=15&apiKey=${apiKey}`
-            );
+              `limit=15&apiKey=${apiKey}`;
+              
+            console.log(`🎪 Attractions URL: ${attractionsUrl.replace(apiKey, '****')}`);
+            const attractionsResponse = await fetch(attractionsUrl);
+            console.log(`🎪 Attractions response status: ${attractionsResponse.status}`);
+            // Use type assertion to include potential error property
+            const attractionsData = await attractionsResponse.json() as { features?: any[], error?: any };
+            console.log(`🎪 Attractions results count: ${attractionsData?.features?.length || 0}`);
+            if (attractionsData?.error) {
+              console.error('Attractions API error:', attractionsData.error);
+            }
             
             // Get nearby cities
-            const citiesResponse = await fetch(
-              `https://api.geoapify.com/v1/geocode/search?` +
+            const citiesUrl = `https://api.geoapify.com/v1/geocode/search?` +
               `type=city&` +
               `filter=circle:${mainResult.lon},${mainResult.lat},50000&` + // 50km radius
-              `limit=5&apiKey=${apiKey}`
-            );
+              `limit=5&apiKey=${apiKey}`;
+              
+            console.log(`🏙️ Nearby cities URL: ${citiesUrl.replace(apiKey, '****')}`);
+            const citiesResponse = await fetch(citiesUrl);
+            console.log(`🏙️ Nearby cities response status: ${citiesResponse.status}`);
+            // Use type assertion to include potential error property
+            const citiesData = await citiesResponse.json() as { results?: any[], error?: any };
+            console.log(`🏙️ Nearby cities results count: ${citiesData?.results?.length || 0}`);
+            if (citiesData?.error) {
+              console.error('Nearby cities API error:', citiesData.error);
+            }
             
             const organized = organizeCityResults(
               mainResult,
-              await attractionsResponse.json(),
-              await citiesResponse.json()
+              attractionsData,
+              citiesData
             );
             setSuggestions(organized);
           } else {
