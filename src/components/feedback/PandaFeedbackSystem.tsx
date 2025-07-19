@@ -157,9 +157,11 @@ const PandaFeedbackSystem: React.FC<PandaFeedbackSystemProps> = ({
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.7, opacity: 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="relative w-full max-w-2xl mx-4 bg-white rounded-xl shadow-xl"
-          onClick={(e: React.MouseEvent) => e.stopPropagation()}
         >
+          <div 
+            className="relative w-full max-w-2xl mx-4 bg-white rounded-xl shadow-xl"
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+          >
           {/* Header with Panda Assistant */}
           <div className="flex items-center p-6 bg-gradient-to-r from-green-500 to-emerald-600 rounded-t-xl">
             <div className="flex items-center space-x-3">
@@ -312,6 +314,7 @@ const PandaFeedbackSystem: React.FC<PandaFeedbackSystemProps> = ({
               </button>
             </div>
           </form>
+          </div>
         </motion.div>
       </div>
     </AnimatePresence>
