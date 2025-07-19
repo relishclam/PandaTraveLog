@@ -627,34 +627,83 @@ const placeToSuggestion = (place: GeoapifyFeature | GeoapifyGeocodeResult): Sugg
   };
 };
 
+// Organize geographical search results in hierarchical order
+const organizeGeographicalResults = (
+  countries: GeoapifyFeature[], 
+  cities: GeoapifyFeature[], 
+  otherPlaces: GeoapifyFeature[], 
+  searchQuery: string
+): SuggestionItem[] => {
+  const suggestions: SuggestionItem[] = [];
+  
+  // Add countries first
+  if (countries.length > 0) {
+    suggestions.push(createHeaderSuggestion('countries-header', '🌍 Countries'));
+    suggestions.push(...countries.slice(0, 3).map(placeToSuggestion)); // Limit to top 3 countries
+  }
+  
+  // Add cities second
+  if (cities.length > 0) {
+    suggestions.push(createHeaderSuggestion('cities-header', '🏙️ Cities & Towns'));
+    suggestions.push(...cities.slice(0, 8).map(placeToSuggestion)); // Limit to top 8 cities
+  }
+  
+  // Add other geographical places (states, districts, etc.)
+  if (otherPlaces.length > 0) {
+    suggestions.push(createHeaderSuggestion('places-header', '📍 Places of Interest'));
+    // Filter out any business/commercial results and only show geographical places
+    const geographicalPlaces = otherPlaces.filter(place => {
+      const props = place.properties;
+      const resultType = props.result_type;
+      // Only include geographical result types, exclude commercial/business types
+      return resultType && [
+        'state', 'district', 'administrative', 'locality', 'suburb', 
+        'neighbourhood', 'island', 'natural_feature'
+      ].includes(resultType);
+    });
+    suggestions.push(...geographicalPlaces.slice(0, 5).map(placeToSuggestion));
+  }
+  
+  // If no results found, show popular destinations
+  if (suggestions.length === 0) {
+    return getPopularDestinations();
+  }
+  
+  return suggestions;
+};
+
 // Then update the organize functions to use proper typing
-const organizeCountryResults = (countryResults: GeoapifyGeocodeResult[], places: GeoapifyFeature[]): SuggestionItem[] => {
+const organizeCountryResults = (countryResults: GeoapifyFeature[], places: GeoapifyFeature[]): SuggestionItem[] => {
   const suggestions: SuggestionItem[] = [];
   
   if (countryResults.length === 0) return suggestions;
 
-  suggestions.push(createHeaderSuggestion('country-header', countryResults[0].country || 'Country'));
+  // Add the country itself first
+  suggestions.push(createHeaderSuggestion('country-header', `🌍 ${countryResults[0].properties.country || countryResults[0].properties.name || 'Country'}`));
+  suggestions.push(...countryResults.slice(0, 1).map(placeToSuggestion));
 
+  // Filter and organize cities
   const cities = places.filter(p => 
     p.properties?.result_type === 'city' || 
     p.properties?.result_type === 'town'
   );
 
-  const attractions = places.filter(p => 
-    p.properties?.categories?.some((c: string) => 
-      c.includes('tourism') || 
-      c.includes('entertainment') ||
-      c.includes('attraction'))
-  );
+  // Filter geographical places of interest (exclude commercial businesses)
+  const geographicalPlaces = places.filter(p => {
+    const resultType = p.properties?.result_type;
+    return resultType && [
+      'state', 'district', 'administrative', 'locality', 'island', 'natural_feature'
+    ].includes(resultType);
+  });
 
   if (cities.length > 0) {
-    suggestions.push(createHeaderSuggestion('cities-header', 'Major Cities'));
-    suggestions.push(...cities.map(placeToSuggestion));
+    suggestions.push(createHeaderSuggestion('cities-header', '🏙️ Major Cities'));
+    suggestions.push(...cities.slice(0, 8).map(placeToSuggestion));
   }
 
-  if (attractions.length > 0) {
-    suggestions.push(createHeaderSuggestion('attractions-header', 'Popular Attractions'));
-    suggestions.push(...attractions.map(placeToSuggestion));
+  if (geographicalPlaces.length > 0) {
+    suggestions.push(createHeaderSuggestion('places-header', '📍 Places of Interest'));
+    suggestions.push(...geographicalPlaces.slice(0, 5).map(placeToSuggestion));
   }
 
   return suggestions;
@@ -735,7 +784,8 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
       const isCountrySearch = !!potentialCountryCode;
 
       if (isCountrySearch) {
-        const countryUrl = `https://api.geoapify.com/v1/geocode/search?name=${encodeURIComponent(currentQuery)}&country=${potentialCountryCode}&format=json&apiKey=${apiKey}`;
+        // Search for the country first
+        const countryUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=country&limit=5&apiKey=${apiKey}`;
         const countryResponse = await fetch(countryUrl);
         
         if (!countryResponse.ok) {
@@ -745,17 +795,25 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
         
         const countryData = await countryResponse.json();
 
-        if (countryData?.results?.length > 0) {
-          const country = countryData.results[0];
+        if (countryData?.features?.length > 0) {
+          const country = countryData.features[0];
           
-          const placesUrl = `https://api.geoapify.com/v2/places?` +
-            `categories=accommodation,tourism,entertainment,catering&` +
-            `filter=rect:${country.bbox.lon1},${country.bbox.lat1},${country.bbox.lon2},${country.bbox.lat2}&` +
-            `limit=20&apiKey=${apiKey}`;
+          // Search for major cities and geographical places in the country
+          const citiesUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=city&limit=10&apiKey=${apiKey}`;
+          const placesUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=state,district&limit=10&apiKey=${apiKey}`;
           
-          const placesResponse = await fetch(placesUrl);
-          const placesData = await placesResponse.json();
-          const organized = organizeCountryResults(countryData.results, placesData.features);
+          const [citiesResponse, placesResponse] = await Promise.all([
+            fetch(citiesUrl),
+            fetch(placesUrl)
+          ]);
+          
+          const citiesData = citiesResponse.ok ? await citiesResponse.json() : { features: [] };
+          const placesData = placesResponse.ok ? await placesResponse.json() : { features: [] };
+          
+          const organized = organizeCountryResults(
+            countryData.features, 
+            [...(citiesData.features || []), ...(placesData.features || [])]
+          );
           setSuggestions(organized);
         } else {
           setError("No results found for this country.");
@@ -765,36 +823,31 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
         // Fallback strategy: Try both country and city search for unrecognized queries
         let searchSuccessful = false;
         
-        // First, try as a potential country search (without country code)
+        // First, try as a general geographical search (countries, cities, states)
         try {
-          const fallbackCountryUrl = `https://api.geoapify.com/v1/geocode/search?name=${encodeURIComponent(currentQuery)}&type=country&format=json&apiKey=${apiKey}&limit=5`;
-          const fallbackCountryResponse = await fetch(fallbackCountryUrl);
+          const geoSearchUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=country,city,state&limit=20&apiKey=${apiKey}`;
+          const geoResponse = await fetch(geoSearchUrl);
           
-          if (fallbackCountryResponse.ok) {
-            const fallbackCountryData = await fallbackCountryResponse.json();
+          if (geoResponse.ok) {
+            const geoData = await geoResponse.json();
             
-            if (fallbackCountryData?.results?.length > 0) {
-              const country = fallbackCountryData.results[0];
+            if (geoData?.features?.length > 0) {
+              console.log(`Found ${geoData.features.length} geographical results for "${currentQuery}"`);
               
-              // If we found a country, try to get places within it
-              if (country.result_type === 'country' && country.bbox) {
-                console.log(`Fallback: Found country ${country.name || currentQuery}, searching for places...`);
-                
-                const placesUrl = `https://api.geoapify.com/v2/places?` +
-                  `categories=accommodation,tourism,entertainment,catering&` +
-                  `filter=rect:${country.bbox.lon1},${country.bbox.lat1},${country.bbox.lon2},${country.bbox.lat2}&` +
-                  `limit=20&apiKey=${apiKey}`;
-                
-                const placesResponse = await fetch(placesUrl);
-                const placesData = await placesResponse.json();
-                const organized = organizeCountryResults(fallbackCountryData.results, placesData.features);
-                setSuggestions(organized);
-                searchSuccessful = true;
-              }
+              // Organize results by type: countries first, then cities, then other places
+              const countries = geoData.features.filter((f: any) => f.properties.result_type === 'country');
+              const cities = geoData.features.filter((f: any) => f.properties.result_type === 'city');
+              const otherPlaces = geoData.features.filter((f: any) => 
+                f.properties.result_type !== 'country' && f.properties.result_type !== 'city'
+              );
+              
+              const organized = organizeGeographicalResults(countries, cities, otherPlaces, currentQuery);
+              setSuggestions(organized);
+              searchSuccessful = true;
             }
           }
         } catch (fallbackError) {
-          console.log('Fallback country search failed, trying city search...', fallbackError);
+          console.log('Geographical search failed, trying specific city search...', fallbackError);
         }
         
         // If country search didn't work, try city search

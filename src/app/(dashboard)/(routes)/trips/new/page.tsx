@@ -57,7 +57,7 @@ const MapComponent = ({ center, markers, zoom }: {
     });
     
     // Add API key
-    url += `&apiKey=5a047258d51943729c19139c17b7ff1a`;
+    url += `&apiKey=${process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY}`;
     
     // Add dimensions
     url += `&width=600&height=400`;
@@ -419,62 +419,47 @@ export default function NewTripPage() {
       setPandaMessage("Trip saved! Now let's plan your itinerary!");
       
       // Navigate to the itinerary generation page with the new trip ID
-  // Pass the trip data directly to avoid needing to fetch from Supabase
-  try {
-    console.log("Navigating to the itinerary generation page with ID:", tripId);
-    
-    // Use the complete trip data we already have
-    const clientTripData = {
-      ...tripData,
-      // Ensure these fields match what the itinerary page expects
-      id: tripId,
-      trip_id: tripId
-    };
-    
-    console.log("Passing client-side trip data:", clientTripData);
-    
-    if (typeof window !== 'undefined') {
-      try {
-        // Store the full trip data in sessionStorage with the trip ID as key
-        sessionStorage.setItem(`trip-${tripId}`, JSON.stringify(tripData));
-        
-        // EMERGENCY AUTH: Ensure auth info is in sessionStorage
-        if (user?.email) {
-          sessionStorage.setItem('auth_success', 'true');
-          sessionStorage.setItem('user_email', user.email);
-          console.log('Emergency auth info stored in sessionStorage');
+    // Store trip data for the itinerary page to access
+    try {
+      console.log("Navigating to the itinerary generation page with ID:", tripId);
+      
+      // Store the full trip data in sessionStorage with the trip ID as key
+      if (typeof window !== 'undefined') {
+        try {
+          sessionStorage.setItem(`trip-${tripId}`, JSON.stringify(tripData));
+          
+          // Store auth info in sessionStorage if available
+          if (user?.email) {
+            sessionStorage.setItem('auth_success', 'true');
+            sessionStorage.setItem('user_email', user.email);
+            console.log('Auth info stored in sessionStorage');
+          }
+          
+          console.log('Trip data stored in sessionStorage');
+        } catch (err) {
+          console.error('Error storing trip data in sessionStorage:', err);
+          // Continue with navigation even if storage fails
         }
-        
-        console.log('Trip data stored in sessionStorage');
-      } catch (err) {
-        console.error('Error storing trip data in sessionStorage:', err);
-        // Continue with navigation even if storage fails
       }
-    }
-    
-    // Add a timestamp to bypass middleware auth checks
-    const timestamp = Date.now();
-    
-    // Navigate to the itinerary page with the trip data and timestamp
-    console.log('Using emergency navigation to itinerary page with timestamp');
-    
-    // IMPORTANT: Use window.location.href instead of router.push to force a full page reload
-    // This ensures we don't get caught in client-side navigation issues
-    window.location.href = `/trips/${tripId}/itinerary?new=true&t=${timestamp}`;
-  } catch (err: any) {
-    console.error("Error navigating:", err);
-    setError("Failed to navigate to trip. Please try again.");
-    setPandaEmotion("confused");
-    setPandaMessage("Oh no! I had trouble saving your trip. Let's try again.");
-    setIsLoading(false);
-  }
+      
+      // Use Next.js router for proper client-side navigation
+      console.log('Navigating to itinerary page using Next.js router');
+      router.push(`/trips/${tripId}/itinerary?new=true`);
+      
     } catch (err: any) {
-      console.error('Error creating trip:', err);
-      setError('Failed to create trip. Please try again.');
-      setPandaEmotion('confused');
-      setPandaMessage('Oh no! I had trouble saving your trip. Let\'s try again.');
+      console.error("Error navigating:", err);
+      setError("Failed to navigate to trip. Please try again.");
+      setPandaEmotion("confused");
+      setPandaMessage("Oh no! I had trouble saving your trip. Let's try again.");
       setIsLoading(false);
     }
+  } catch (err: any) {
+    console.error('Error creating trip:', err);
+    setError('Failed to create trip. Please try again.');
+    setPandaEmotion('confused');
+    setPandaMessage('Oh no! I had trouble saving your trip. Let\'s try again.');
+    setIsLoading(false);
+  }
   };
   
   return (
