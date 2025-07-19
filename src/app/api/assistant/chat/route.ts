@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     if (tripId && currentUserId) {
       const { data: trip } = await supabase
         .from('trips')
-        .select('name, destination, start_date, end_date, description, status')
+        .select('title, destination, start_date, end_date, description, status')
         .eq('id', tripId)
         .eq('user_id', currentUserId)
         .single();
@@ -51,13 +51,36 @@ export async function POST(request: NextRequest) {
     // Build context for AI
     const systemPrompt = buildSystemPrompt(userProfile, tripContext, context);
     
+    // Get OpenRouter API key (using same logic as existing services)
+    const effectiveApiKey = process.env.OPENROUTER_API_KEY || process.env.OPEN_ROUTER_API_KEY || process.env.NEXT_PUBLIC_OPEN_ROUTER_API_KEY;
+    
+    if (!effectiveApiKey) {
+      console.error('OpenRouter API key is missing for PO Assistant, using fallback responses');
+      // Provide fallback response instead of failing
+      const fallbackResponse = getFallbackResponse(message, context, tripContext);
+      return NextResponse.json({
+        message: fallbackResponse.message,
+        emotion: fallbackResponse.emotion,
+        suggestedActions: generateSuggestedActions(context, tripContext, fallbackResponse.message),
+        context: {
+          tripId,
+          userProfile: userProfile?.name,
+          tripName: tripContext?.title,
+          fallback: true
+        }
+      });
+    }
+    
+    console.log('Using OpenRouter API key for PO Assistant:', !!effectiveApiKey);
+    
     // Call OpenRouter API
     const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Authorization': `Bearer ${effectiveApiKey}`,
         'Content-Type': 'application/json',
         'X-Title': 'PandaTraveLog PO Assistant',
+        'HTTP-Referer': 'https://pandatravelog.netlify.app',
       },
       body: JSON.stringify({
         model: 'anthropic/claude-3.5-sonnet',
@@ -107,7 +130,7 @@ export async function POST(request: NextRequest) {
       context: {
         tripId,
         userProfile: userProfile?.name,
-        tripName: tripContext?.name
+        tripName: tripContext?.title
       }
     });
     
@@ -140,7 +163,7 @@ USER CONTEXT:
     prompt += `
     
 CURRENT TRIP:
-- Trip: ${tripContext.name}
+- Trip: ${tripContext.title}
 - Destination: ${tripContext.destination}
 - Dates: ${tripContext.start_date} to ${tripContext.end_date}
 - Status: ${tripContext.status}
@@ -225,4 +248,56 @@ function generateSuggestedActions(context: string, tripContext: any, message: st
   actions.push({ text: 'Ask PO Anything', action: 'open_chat' });
   
   return actions.slice(0, 3); // Limit to 3 suggestions
+}
+
+function getFallbackResponse(message: string, context: string, tripContext: any): {message: string, emotion: string} {
+  const lowerMessage = message.toLowerCase();
+  
+  // Context-based fallback responses
+  if (context === 'trip_creation') {
+    if (lowerMessage.includes('destination') || lowerMessage.includes('place')) {
+      return {
+        message: "🐼 I'd love to help you choose destinations! Consider what type of experience you want - beaches, cities, mountains, or cultural sites. What interests you most?",
+        emotion: 'excited'
+      };
+    }
+    if (lowerMessage.includes('date') || lowerMessage.includes('when')) {
+      return {
+        message: "🗓️ Great question! Consider factors like weather, local events, and your schedule. Peak seasons offer more activities but higher prices. What time of year works best for you?",
+        emotion: 'thinking'
+      };
+    }
+    return {
+      message: "🎯 I'm here to help with your trip planning! I can assist with destinations, dates, activities, and organizing your itinerary. What would you like to focus on first?",
+      emotion: 'happy'
+    };
+  }
+  
+  if (context === 'trip_diary') {
+    return {
+      message: "📝 I can help you organize your trip diary! Try adding daily activities, noting important details, or planning your schedule. What would you like to work on?",
+      emotion: 'curious'
+    };
+  }
+  
+  // General travel advice
+  if (lowerMessage.includes('help') || lowerMessage.includes('how')) {
+    return {
+      message: "🐼 I'm PO, your travel companion! I can help with trip planning, destination advice, itinerary organization, and using this app. What specific help do you need?",
+      emotion: 'happy'
+    };
+  }
+  
+  if (lowerMessage.includes('thailand') || lowerMessage.includes('japan') || lowerMessage.includes('europe')) {
+    return {
+      message: "🌍 Great destination choice! I'd recommend researching the best time to visit, must-see attractions, local customs, and transportation options. Would you like help planning your itinerary?",
+      emotion: 'excited'
+    };
+  }
+  
+  // Default helpful response
+  return {
+    message: "🐼 I'm here to help with your travel planning! Feel free to ask me about destinations, itineraries, travel tips, or how to use this app. What can I assist you with?",
+    emotion: 'happy'
+  };
 }

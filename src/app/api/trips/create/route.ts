@@ -63,12 +63,12 @@ export async function POST(request: NextRequest) {
     const tripRecord = {
       id: tripId,
       user_id: userId,
-      name: tripData.title, // Database expects 'name' field, not 'title'
+      title: tripData.title, // Deployed database uses 'title' field
       start_date: tripData.start_date,
       end_date: tripData.end_date,
       destination: tripData.destination,
-      description: tripData.description || `Manual entry trip with destinations: ${tripData.destination}`,
-      status: tripData.status || 'planned', // Database expects 'planned', not 'planning'
+      description: tripData.description || `Manual entry trip with ${tripData.destination}`,
+      status: tripData.status || 'planning', // Use 'planning' status
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
