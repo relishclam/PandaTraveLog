@@ -722,7 +722,7 @@ const organizeGeographicalResults = (
   // Add cities second
   if (cities.length > 0) {
     suggestions.push(createHeaderSuggestion('cities-header', '🏙️ Cities & Towns'));
-    suggestions.push(...cities.slice(0, 8).map(placeToSuggestion)); // Limit to top 8 cities
+    suggestions.push(...cities.slice(0, 12).map(placeToSuggestion)); // Show up to 12 cities
   }
   
   // Add other geographical places (states, districts, etc.)
@@ -775,12 +775,12 @@ const organizeCountryResults = (countryResults: GeoapifyFeature[], places: Geoap
 
   if (cities.length > 0) {
     suggestions.push(createHeaderSuggestion('cities-header', '🏙️ Major Cities'));
-    suggestions.push(...cities.slice(0, 8).map(placeToSuggestion));
+    suggestions.push(...cities.slice(0, 15).map(placeToSuggestion));
   }
 
   if (geographicalPlaces.length > 0) {
     suggestions.push(createHeaderSuggestion('places-header', '📍 Places of Interest'));
-    suggestions.push(...geographicalPlaces.slice(0, 5).map(placeToSuggestion));
+    suggestions.push(...geographicalPlaces.slice(0, 8).map(placeToSuggestion));
   }
 
   return suggestions;
@@ -1029,12 +1029,12 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
                 // Only proceed if we have a good match (score > 400)
                 if (bestCountryMatch.relevanceScore > 400) {
                   // Step 2: Search for major cities in the country (broader search)
-                  const majorCitiesUrl = `https://api.geoapify.com/v1/geocode/search?type=city&filter=countrycode:${countryCode}&limit=15&lang=en&apiKey=${apiKey}`;
+                  const majorCitiesUrl = `https://api.geoapify.com/v1/geocode/search?type=city&filter=countrycode:${countryCode}&limit=25&lang=en&apiKey=${apiKey}`;
                   const majorCitiesResponse = await fetch(majorCitiesUrl);
                   const majorCitiesData = majorCitiesResponse.ok ? await majorCitiesResponse.json() : { features: [] };
                   
                   // Step 3: Also search for cities matching the query within the country
-                  const queryCitiesUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=city&filter=countrycode:${countryCode}&limit=10&lang=en&apiKey=${apiKey}`;
+                  const queryCitiesUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=city&filter=countrycode:${countryCode}&limit=20&lang=en&apiKey=${apiKey}`;
                   const queryCitiesResponse = await fetch(queryCitiesUrl);
                   const queryCitiesData = queryCitiesResponse.ok ? await queryCitiesResponse.json() : { features: [] };
                   
@@ -1081,11 +1081,11 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
         if (!searchSuccessful) {
           try {
             // Search for cities worldwide (sorted by popularity)
-            const citySearchUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=city&limit=10&lang=en&apiKey=${apiKey}`;
+            const citySearchUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=city&limit=20&lang=en&apiKey=${apiKey}`;
             const cityResponse = await fetch(citySearchUrl);
             
             // Search for states/regions worldwide
-            const stateSearchUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=state&limit=5&lang=en&apiKey=${apiKey}`;
+            const stateSearchUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=state&limit=10&lang=en&apiKey=${apiKey}`;
             const stateResponse = await fetch(stateSearchUrl);
             
             const [cityData, stateData] = await Promise.all([
