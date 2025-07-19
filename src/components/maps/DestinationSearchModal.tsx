@@ -3,6 +3,83 @@
 import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FocusTrap } from 'focus-trap-react';
+import PandaFeedbackSystem from '../feedback/PandaFeedbackSystem';
+
+// Fuzzy matching function for country names
+const calculateFuzzyScore = (query: string, target: string): number => {
+  const q = query.toLowerCase().trim();
+  const t = target.toLowerCase().trim();
+  
+  // Handle common misspellings and variations
+  const commonMisspellings: { [key: string]: string[] } = {
+    'vietnam': ['vitnam', 'viet nam', 'vietnm', 'veitnam'],
+    'thailand': ['thiland', 'tailand', 'thialand'],
+    'philippines': ['philipines', 'phillipines', 'filipines'],
+    'cambodia': ['camboida', 'kambodia'],
+    'indonesia': ['indonisia', 'indoneisa'],
+    'malaysia': ['malasia', 'malayisa'],
+    'singapore': ['singapure', 'singapur'],
+    'myanmar': ['myanmr', 'burma'],
+    'laos': ['loas', 'laoss'],
+    'brunei': ['brunai', 'bruney']
+  };
+  
+  // Check if query matches any known misspellings
+  for (const [correct, misspellings] of Object.entries(commonMisspellings)) {
+    if (t.includes(correct) && misspellings.some(m => q.includes(m) || m.includes(q))) {
+      return 750; // High score for known misspellings
+    }
+  }
+  
+  // Calculate Levenshtein distance for fuzzy matching
+  const distance = levenshteinDistance(q, t);
+  const maxLength = Math.max(q.length, t.length);
+  const similarity = 1 - (distance / maxLength);
+  
+  // Convert similarity to score (0-500 range for fuzzy matches)
+  if (similarity > 0.8) return 500;
+  if (similarity > 0.6) return 350;
+  if (similarity > 0.4) return 250;
+  if (similarity > 0.2) return 150;
+  
+  return 0; // No match
+};
+
+// Simple Levenshtein distance calculation
+const levenshteinDistance = (str1: string, str2: string): number => {
+  const matrix = [];
+  
+  for (let i = 0; i <= str2.length; i++) {
+    matrix[i] = [i];
+  }
+  
+  for (let j = 0; j <= str1.length; j++) {
+    matrix[0][j] = j;
+  }
+  
+  for (let i = 1; i <= str2.length; i++) {
+    for (let j = 1; j <= str1.length; j++) {
+      if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          matrix[i][j - 1] + 1,     // insertion
+          matrix[i - 1][j] + 1      // deletion
+        );
+      }
+    }
+  }
+  
+  return matrix[str2.length][str1.length];
+};
+
+// Calculate similarity percentage between two strings
+const calculateSimilarity = (str1: string, str2: string): number => {
+  const distance = levenshteinDistance(str1, str2);
+  const maxLength = Math.max(str1.length, str2.length);
+  return maxLength === 0 ? 1 : 1 - (distance / maxLength);
+};
 
 type MotionDivProps = React.ComponentProps<'div'> & {
   initial?: any;
@@ -685,7 +762,7 @@ const organizeCountryResults = (countryResults: GeoapifyFeature[], places: Geoap
   // Filter and organize cities
   const cities = places.filter(p => 
     p.properties?.result_type === 'city' || 
-    p.properties?.result_type === 'town'
+    p.properties?.result_type === 'locality'
   );
 
   // Filter geographical places of interest (exclude commercial businesses)
@@ -706,6 +783,68 @@ const organizeCountryResults = (countryResults: GeoapifyFeature[], places: Geoap
     suggestions.push(...geographicalPlaces.slice(0, 5).map(placeToSuggestion));
   }
 
+  return suggestions;
+};
+
+// New function for organizing country with its cities (used after country selection)
+const organizeCountryWithCities = (
+  countryResults: GeoapifyFullResult[], 
+  cityFeatures: GeoapifyFeature[], 
+  countryName: string
+): SuggestionItem[] => {
+  const suggestions: SuggestionItem[] = [];
+  
+  // Add navigation hint
+  suggestions.push(createHeaderSuggestion('nav-hint', `🎯 Select cities in ${countryName} (or search for a different country)`));
+  
+  // Add option to re-select this country (for adding it as a destination)
+  if (countryResults.length > 0) {
+    suggestions.push(createHeaderSuggestion('country-option', `🌍 Add ${countryName} as destination`));
+    suggestions.push(...countryResults.map(country => {
+      // Convert GeoapifyFullResult to GeoapifyFeature format for placeToSuggestion
+      const feature: GeoapifyFeature = {
+        type: 'Feature',
+        properties: {
+          place_id: country.place_id,
+          name: country.name,
+          formatted: country.formatted || country.name || countryName,
+          country: country.country || countryName,
+          country_code: country.country_code,
+          result_type: 'country'
+        },
+        geometry: {
+          coordinates: [country.lon || 0, country.lat || 0]
+        }
+      };
+      return placeToSuggestion(feature);
+    }));
+  }
+  
+  // Prioritize major cities over regions/states
+  const majorCities = cityFeatures.filter(city => {
+    const props = city.properties;
+    const resultType = props.result_type;
+    return resultType === 'city' || resultType === 'locality';
+  });
+  
+  const regions = cityFeatures.filter(city => {
+    const props = city.properties;
+    const resultType = props.result_type;
+    return resultType === 'state' || resultType === 'district' || resultType === 'administrative';
+  });
+  
+  // Show cities first and prominently
+  if (majorCities.length > 0) {
+    suggestions.push(createHeaderSuggestion('major-cities', `🏙️ Major Cities in ${countryName}`));
+    suggestions.push(...majorCities.slice(0, 12).map(placeToSuggestion));
+  }
+  
+  // Show regions/states as secondary options
+  if (regions.length > 0) {
+    suggestions.push(createHeaderSuggestion('regions', `🏞️ Regions & States`));
+    suggestions.push(...regions.slice(0, 6).map(placeToSuggestion));
+  }
+  
   return suggestions;
 };
 
@@ -749,6 +888,8 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedDestinations, setSelectedDestinations] = useState<Destination[]>(existingSelections || []);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [lastSearchResults, setLastSearchResults] = useState<any[]>([]);
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
   
   const inputRef = useRef<HTMLInputElement>(null);
@@ -783,93 +924,153 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
       const potentialCountryCode = getCountryCode(currentQuery);
       const isCountrySearch = !!potentialCountryCode;
 
-      if (isCountrySearch) {
-        // Search for the country first
-        const countryUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=country&limit=5&apiKey=${apiKey}`;
-        const countryResponse = await fetch(countryUrl);
-        
-        if (!countryResponse.ok) {
-          console.error('Geoapify country search failed:', countryResponse.status, countryResponse.statusText);
-          throw new Error(`Geoapify API error: ${countryResponse.status}`);
-        }
-        
-        const countryData = await countryResponse.json();
-
-        if (countryData?.features?.length > 0) {
-          const country = countryData.features[0];
-          
-          // Search for major cities and geographical places in the country
-          const citiesUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=city&limit=10&apiKey=${apiKey}`;
-          const placesUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=state,district&limit=10&apiKey=${apiKey}`;
-          
-          const [citiesResponse, placesResponse] = await Promise.all([
-            fetch(citiesUrl),
-            fetch(placesUrl)
-          ]);
-          
-          const citiesData = citiesResponse.ok ? await citiesResponse.json() : { features: [] };
-          const placesData = placesResponse.ok ? await placesResponse.json() : { features: [] };
-          
-          const organized = organizeCountryResults(
-            countryData.features, 
-            [...(citiesData.features || []), ...(placesData.features || [])]
-          );
-          setSuggestions(organized);
-        } else {
-          setError("No results found for this country.");
-          setSuggestions(getPopularDestinations());
-        }
-      } else {
+      // ALWAYS use aggressive filtering - no more bypassing for "known" countries
+      // This prevents irrelevant countries like Cuba, Uganda from appearing for Vietnam searches
+      {
         // Fallback strategy: Try both country and city search for unrecognized queries
         let searchSuccessful = false;
         
-        // Step 1: Search for exact country matches first
+        // Step 1: Smart country search with fuzzy matching and filtering
         try {
-          const countrySearchUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=country&limit=5&lang=en&apiKey=${apiKey}`;
+          const countrySearchUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=country&limit=15&lang=en&apiKey=${apiKey}`;
           const countryResponse = await fetch(countrySearchUrl);
           
           if (countryResponse.ok) {
             const countryData = await countryResponse.json();
             
             if (countryData?.features?.length > 0) {
-              // Sort countries by relevance - exact matches first
-              const sortedCountries = countryData.features.sort((a: any, b: any) => {
-                const aName = (a.properties.country || a.properties.name || '').toLowerCase();
-                const bName = (b.properties.country || b.properties.name || '').toLowerCase();
-                const query = currentQuery.toLowerCase();
+              // AGGRESSIVE filtering and scoring for country matches
+              const query = currentQuery.toLowerCase().trim();
+              
+              // First, apply STRICT filtering - only keep countries that are actually relevant
+              const relevantCountries = countryData.features.filter((country: any) => {
+                const countryName = (country.properties.country || country.properties.name || '').toLowerCase();
                 
-                // Exact match gets highest priority
-                if (aName === query && bName !== query) return -1;
-                if (bName === query && aName !== query) return 1;
+                // STRICT relevance check - must meet at least one of these criteria:
+                // 1. Exact match
+                if (countryName === query) return true;
                 
-                // Starts with query gets second priority
-                if (aName.startsWith(query) && !bName.startsWith(query)) return -1;
-                if (bName.startsWith(query) && !aName.startsWith(query)) return 1;
+                // 2. Starts with query (minimum 3 characters)
+                if (query.length >= 3 && countryName.startsWith(query)) return true;
                 
-                return 0;
+                // 3. Known misspelling patterns
+                const misspellingMap: { [key: string]: string[] } = {
+                  'vietnam': ['vitnam', 'viet nam', 'vietnm', 'veitnam', 'vietnam'],
+                  'thailand': ['thiland', 'tailand', 'thialand', 'thailand'],
+                  'philippines': ['philipines', 'phillipines', 'filipines', 'philippines'],
+                  'cambodia': ['camboida', 'kambodia', 'cambodia'],
+                  'indonesia': ['indonisia', 'indoneisa', 'indonesia'],
+                  'malaysia': ['malasia', 'malayisa', 'malaysia'],
+                  'singapore': ['singapure', 'singapur', 'singapore'],
+                  'myanmar': ['myanmr', 'burma', 'myanmar'],
+                  'laos': ['loas', 'laoss', 'laos'],
+                  'brunei': ['brunai', 'bruney', 'brunei']
+                };
+                
+                for (const [correct, variations] of Object.entries(misspellingMap)) {
+                  if (countryName.includes(correct) && variations.some(v => v.includes(query) || query.includes(v))) {
+                    return true;
+                  }
+                }
+                
+                // 4. Very close fuzzy match (high similarity only)
+                const similarity = calculateSimilarity(query, countryName);
+                if (similarity > 0.8) return true;
+                
+                // REJECT everything else - no more irrelevant countries!
+                return false;
               });
               
-              const bestCountryMatch = sortedCountries[0];
-              const countryCode = bestCountryMatch.properties.country_code;
+              console.log(`Filtered countries for "${query}":`, relevantCountries.map((c: any) => c.properties.country || c.properties.name));
               
-              console.log(`Found country match: ${bestCountryMatch.properties.country || bestCountryMatch.properties.name} (${countryCode})`);
+              // Now score the relevant countries
+              const scoredCountries = relevantCountries.map((country: any) => {
+                const countryName = (country.properties.country || country.properties.name || '').toLowerCase();
+                let score = 0;
+                
+                // Exact match = highest score
+                if (countryName === query) {
+                  score = 1000;
+                } 
+                // Starts with query = high score
+                else if (countryName.startsWith(query)) {
+                  score = 800;
+                }
+                // Known misspelling = high score
+                else if (calculateFuzzyScore(query, countryName) > 700) {
+                  score = 750;
+                }
+                // High similarity = medium score
+                else {
+                  score = 500;
+                }
+                
+                // Boost score for popular countries
+                const popularCountries = ['vietnam', 'thailand', 'japan', 'france', 'italy', 'spain', 'germany', 'united states', 'canada', 'australia', 'united kingdom', 'india', 'china', 'brazil'];
+                if (popularCountries.includes(countryName)) {
+                  score += 200;
+                }
+                
+                return { ...country, relevanceScore: score };
+              })
+              .sort((a: any, b: any) => b.relevanceScore - a.relevanceScore); // Sort by relevance
               
-              // Step 2: Search for cities within this specific country using proper filter
-              const citiesInCountryUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=city&filter=countrycode:${countryCode}&limit=10&lang=en&apiKey=${apiKey}`;
-              const citiesResponse = await fetch(citiesInCountryUrl);
-              const citiesData = citiesResponse.ok ? await citiesResponse.json() : { features: [] };
+              console.log('Scored countries:', scoredCountries.map((c: any) => ({ 
+                name: c.properties.country || c.properties.name, 
+                score: c.relevanceScore 
+              })));
               
-              // Step 3: Search for major places/states within the country
-              const placesInCountryUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=state&filter=countrycode:${countryCode}&limit=5&lang=en&apiKey=${apiKey}`;
-              const placesResponse = await fetch(placesInCountryUrl);
-              const placesData = placesResponse.ok ? await placesResponse.json() : { features: [] };
-              
-              const organized = organizeCountryResults(
-                [bestCountryMatch], 
-                [...(citiesData.features || []), ...(placesData.features || [])]
-              );
-              setSuggestions(organized);
-              searchSuccessful = true;
+              if (scoredCountries.length > 0) {
+                const bestCountryMatch = scoredCountries[0];
+                const countryCode = bestCountryMatch.properties.country_code;
+                
+                console.log(`Best country match: ${bestCountryMatch.properties.country || bestCountryMatch.properties.name} (${countryCode}) - Score: ${bestCountryMatch.relevanceScore}`);
+                
+                // Only proceed if we have a good match (score > 400)
+                if (bestCountryMatch.relevanceScore > 400) {
+                  // Step 2: Search for major cities in the country (broader search)
+                  const majorCitiesUrl = `https://api.geoapify.com/v1/geocode/search?type=city&filter=countrycode:${countryCode}&limit=15&lang=en&apiKey=${apiKey}`;
+                  const majorCitiesResponse = await fetch(majorCitiesUrl);
+                  const majorCitiesData = majorCitiesResponse.ok ? await majorCitiesResponse.json() : { features: [] };
+                  
+                  // Step 3: Also search for cities matching the query within the country
+                  const queryCitiesUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=city&filter=countrycode:${countryCode}&limit=10&lang=en&apiKey=${apiKey}`;
+                  const queryCitiesResponse = await fetch(queryCitiesUrl);
+                  const queryCitiesData = queryCitiesResponse.ok ? await queryCitiesResponse.json() : { features: [] };
+                  
+                  // Step 4: Search for major places/states within the country
+                  const placesInCountryUrl = `https://api.geoapify.com/v1/geocode/search?type=state&filter=countrycode:${countryCode}&limit=8&lang=en&apiKey=${apiKey}`;
+                  const placesResponse = await fetch(placesInCountryUrl);
+                  const placesData = placesResponse.ok ? await placesResponse.json() : { features: [] };
+                  
+                  // Combine and deduplicate city results
+                  const allCities = [...(majorCitiesData.features || []), ...(queryCitiesData.features || [])];
+                  const uniqueCities = allCities.filter((city, index, self) => 
+                    index === self.findIndex(c => 
+                      c.properties.place_id === city.properties.place_id ||
+                      (c.properties.name === city.properties.name && c.properties.country_code === city.properties.country_code)
+                    )
+                  );
+                  
+                  console.log(`Found ${uniqueCities.length} unique cities for ${bestCountryMatch.properties.country}`);
+                  console.log('Cities:', uniqueCities.map(c => c.properties.name).slice(0, 10));
+                  
+                  const organized = organizeCountryResults(
+                    [bestCountryMatch], 
+                    [...uniqueCities, ...(placesData.features || [])]
+                  );
+                  setSuggestions(organized);
+                  
+                  // Track search results for feedback context
+                  setLastSearchResults([
+                    { type: 'country', data: bestCountryMatch, score: bestCountryMatch.relevanceScore },
+                    ...uniqueCities?.map((f: any) => ({ type: 'city', data: f })) || [],
+                    ...placesData.features?.map((f: any) => ({ type: 'place', data: f })) || []
+                  ]);
+                  
+                  searchSuccessful = true;
+                }
+              }
             }
           }
         } catch (error) {
@@ -1117,26 +1318,53 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
   const handleItemSelect = useCallback(async (item: SuggestionItem) => {
     if (item.isHeader || !('full' in item)) return;
 
+    // Handle country selection - show cities in that country
     if (item.type === 'country' && item.full) {
       setSelectedCountry(item.full);
-      setQuery('');
-      setSuggestions([]);
+      const countryName = item.full.name || item.full.country || item.full.formatted;
+      setQuery(`Find places in ${countryName}...`);
+      
       if (onStatusChange) onStatusChange({
         emotion: 'thinking',
-        message: `Looking for places in ${item.full.name || item.full.formatted}...`
+        message: `Searching for cities and places in ${countryName}...`
       });
+      
+      // Automatically search for cities in this country
+      try {
+        const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
+        if (apiKey && item.full.country_code) {
+          const citiesUrl = `https://api.geoapify.com/v1/geocode/search?type=city&filter=countrycode:${item.full.country_code}&limit=15&lang=en&apiKey=${apiKey}`;
+          const citiesResponse = await fetch(citiesUrl);
+          
+          if (citiesResponse.ok) {
+            const citiesData = await citiesResponse.json();
+            const cityResults = citiesData.features || [];
+            
+            // Organize results with country first, then cities
+            const organized = organizeCountryWithCities([item.full], cityResults, countryName || 'Selected Country');
+            setSuggestions(organized);
+            
+            if (onStatusChange) onStatusChange({
+              emotion: 'excited',
+              message: `Found ${cityResults.length} cities in ${countryName}! Select multiple cities or continue to next step.`
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching cities for country:', error);
+      }
+      
       if (inputRef.current) inputRef.current.focus();
-    } else if (item.full) {
-      if (onStatusChange) onStatusChange({
-        emotion: 'excited',
-        message: `Great choice! Adding ${item.full.name || item.full.formatted}.`
-      });
-
+      return;
+    }
+    
+    // Handle city/place selection
+    if (item.full) {
       const newDestination: Destination = {
         place_id: item.full.place_id,
         name: item.full.city || item.full.name || item.full.formatted || 'Unknown Location',
         formattedName: item.full.formatted || 'Unknown Location',
-        country: item.full.country || (selectedCountry?.name || ''),
+        country: item.full.country || (selectedCountry?.name || selectedCountry?.country || ''),
         coordinates: [
           item.full.lon ?? 0,
           item.full.lat ?? 0
@@ -1144,22 +1372,30 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
         type: item.type
       };
 
-      if (multiSelect) {
-        const isAlreadySelected = selectedDestinations.some(dest => dest.place_id === newDestination.place_id);
-        const updatedSelections = isAlreadySelected
-          ? selectedDestinations.filter(d => d.place_id !== newDestination.place_id)
-          : [...selectedDestinations, newDestination];
-
+      // Always use multi-select behavior for better UX
+      const isAlreadySelected = selectedDestinations.some(dest => dest.place_id === newDestination.place_id);
+      
+      if (isAlreadySelected) {
+        // Remove if already selected
+        const updatedSelections = selectedDestinations.filter(d => d.place_id !== newDestination.place_id);
         setSelectedDestinations(updatedSelections);
-        if (onSelect) {
-          onSelect(updatedSelections);
-        }
+        
+        if (onStatusChange) onStatusChange({
+          emotion: 'happy',
+          message: `Removed ${newDestination.name} from your selections.`
+        });
       } else {
-        if (onSelect) {
-          onSelect(newDestination);
-        }
-        doHandleClose();
+        // Add to selections
+        const updatedSelections = [...selectedDestinations, newDestination];
+        setSelectedDestinations(updatedSelections);
+        
+        if (onStatusChange) onStatusChange({
+          emotion: 'excited',
+          message: `Added ${newDestination.name}! Select more destinations or click 'Done' to continue.`
+        });
       }
+      
+      // Don't close modal automatically - let user select multiple destinations
     }
   }, [multiSelect, onSelect, doHandleClose, selectedDestinations, onStatusChange, selectedCountry]);
 
@@ -1381,23 +1617,65 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
                       </div>
                     </div>
                   ) : null}
+                  
+                  {/* Feedback Button - Show when there are search results or search issues */}
+                  {(suggestions.length > 0 || (query.length > 1 && !isLoading)) && (
+                    <div className="mt-4 px-4">
+                      <button
+                        onClick={() => {
+                          console.log('Feedback button clicked!');
+                          setShowFeedback(true);
+                          console.log('showFeedback set to:', true);
+                        }}
+                        className="flex items-center space-x-2 text-sm text-gray-500 hover:text-gray-700 transition-colors bg-orange-50 px-3 py-2 rounded-lg border border-orange-200 hover:bg-orange-100"
+                      >
+                        <div className="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center">
+                          <span className="text-sm">🐼</span>
+                        </div>
+                        <span>Search results not helpful? Send feedback to Panda Assistant</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
                 
-                {multiSelect && selectedDestinations.length > 0 && (
-                  <div className="mt-6 pt-4 border-t border-gray-200">
-                    <button
-                      onClick={() => {
-                        onSelect(selectedDestinations);
-                        doHandleClose();
-                      }}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-opacity-75 flex items-center justify-center space-x-2"
-                      aria-label="Confirm selected destinations and close modal"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                      <span>Done ({selectedDestinations.length} Selected)</span>
-                    </button>
+                {selectedDestinations.length > 0 && (
+                  <div className="mt-6 pt-4 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+                    <div className="px-4 pb-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-medium text-gray-600">
+                          {selectedDestinations.length} destination{selectedDestinations.length !== 1 ? 's' : ''} selected
+                        </span>
+                        <button
+                          onClick={() => {
+                            setSelectedDestinations([]);
+                            if (onStatusChange) onStatusChange({
+                              emotion: 'thinking',
+                              message: 'Cleared all selections. Start fresh!'
+                            });
+                          }}
+                          className="text-sm text-gray-500 hover:text-gray-700 underline"
+                        >
+                          Clear all
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (multiSelect) {
+                            onSelect(selectedDestinations);
+                          } else {
+                            onSelect(selectedDestinations[0] || selectedDestinations);
+                          }
+                          doHandleClose();
+                        }}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-opacity-75 flex items-center justify-center space-x-2"
+                        aria-label="Confirm selected destinations and close modal"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        <span>Continue with {selectedDestinations.length} destination{selectedDestinations.length !== 1 ? 's' : ''}</span>
+                      </button>
+                    </div>
                   </div>
                 )}
               </MotionDiv>
@@ -1405,6 +1683,18 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
           </div>
         </FocusTrap>
       )}
+      
+      {/* Panda Feedback System */}
+      <PandaFeedbackSystem
+        isOpen={showFeedback}
+        onClose={() => setShowFeedback(false)}
+        context={{
+          page: 'destination_search',
+          action: 'search_results',
+          searchQuery: query,
+          results: lastSearchResults
+        }}
+      />
     </AnimatePresence>
   );
 };

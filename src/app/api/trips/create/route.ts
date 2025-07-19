@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
       // Required fields
       id: generateUUID(),
       user_id: tripData.user_id,
-      title: tripData.title,
+      name: tripData.title, // Schema uses 'name', not 'title'
       start_date: tripData.start_date,
       end_date: tripData.end_date,
       destination: tripData.destination,
@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
           .insert({
             id: tripRecord.id,
             user_id: tripData.user_id,
-            title: tripData.title,
+            name: tripData.title, // Schema uses 'name', not 'title'
             start_date: tripData.start_date,
             end_date: tripData.end_date,
             destination: tripData.destination,

@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
-import { PandaAssistant } from '@/components/ui/PandaAssistant';
+
 import DestinationSearchWrapper from '@/components/maps/DestinationSearchWrapper';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePandaAssistant } from '@/contexts/PandaAssistantContext';
@@ -682,13 +682,7 @@ export default function NewTripPage() {
         )}
       </div>
       
-      <PandaAssistant
-        
-        
-        
-        
-        
-      />
+
     </div>
   );
 }
