@@ -697,13 +697,12 @@ export default function NewTripPage() {
         )}
       </div>
       
-      {/* Panda Assistant */}
       <PandaAssistant
-        emotion={pandaEmotion}
-        message={pandaMessage}
-        position="bottom-right"
-        size="lg"
-        showMessage={hasInteracted}
+        
+        
+        
+        
+        
       />
     </div>
   );

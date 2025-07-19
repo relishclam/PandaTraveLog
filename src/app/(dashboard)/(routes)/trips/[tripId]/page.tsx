@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { PandaAssistant } from '@/components/ui/PandaAssistant';
+
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
 import supabase from '@/lib/supabase';
@@ -394,13 +394,6 @@ export default function TripDetailsPage({ params }: { params: { tripId: string }
           )}
         </div>
       </div>
-      
-      <PandaAssistant
-        emotion={pandaEmotion}
-        message={pandaMessage}
-        position="bottom-right"
-        size="lg"
-      />
     </div>
   );
 }

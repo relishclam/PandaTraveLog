@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
-import { PandaAssistant } from '@/components/ui/PandaAssistant';
 import supabase from '@/lib/supabase';
 
 // Create a separate component that uses useSearchParams
@@ -146,15 +145,6 @@ function ResetPasswordForm() {
           </form>
         )}
       </div>
-
-      <PandaAssistant
-        emotion={pandaEmotion}
-        message={success 
-          ? "Great! Your password has been reset!" 
-          : "Enter your new password and I'll help you secure your account!"}
-        position="bottom-right"
-        size="md"
-      />
     </div>
   );
 }

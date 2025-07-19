@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { PandaAssistant } from '@/components/ui/PandaAssistant';
 import { useAuth } from '@/hooks/auth';
 import axios from 'axios';
 import { 
@@ -103,12 +102,9 @@ export default function ItineraryPage() {
   const [trip, setTrip] = useState<any>(clientTripData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pandaMessage, setPandaMessage] = useState('I\'m generating exciting itinerary options for you!');
-  const [pandaEmotion, setPandaEmotion] = useState<'happy' | 'thinking' | 'excited' | 'confused' | 'sad'>('thinking');
   const [itineraryOptions, setItineraryOptions] = useState<ItineraryOption[]>([]);
   const [selectedOption, setSelectedOption] = useState<ItineraryOption | null>(null);
   const [selectedActivities, setSelectedActivities] = useState<Record<string, boolean>>({});
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [finalItineraryId, setFinalItineraryId] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<'options' | 'customize' | 'finalizing' | 'final'>('options');
 
@@ -124,8 +120,6 @@ export default function ItineraryPage() {
               const parsedData = JSON.parse(storedTripData);
               console.log('Retrieved trip data from sessionStorage:', parsedData);
               setTrip(parsedData);
-              setPandaEmotion('excited');
-              setPandaMessage('I\'m generating exciting itinerary options for your trip!');
               setLoading(false);
               return; // Exit early since we have the data
             } catch (err) {
@@ -138,8 +132,6 @@ export default function ItineraryPage() {
         // For new trips with client-side data available, use that directly
         if (isNewTrip && clientTripData) {
           console.log('Using client-side trip data:', clientTripData);
-          setPandaEmotion('excited');
-          setPandaMessage('I\'m generating exciting itinerary options for your trip!');
           // We already have the trip data, so proceed directly to fetching options
           fetchItineraryOptions(clientTripData);
           setLoading(false);
@@ -148,18 +140,11 @@ export default function ItineraryPage() {
         
         // For existing trips or if client data isn't available, fetch from the API
         if (isNewTrip) {
-          setPandaEmotion('thinking');
-          setPandaMessage('Your trip is being created. I\'m preparing your itinerary options...');
-        }
-        
-        // Fetch trip data from Supabase (only needed for existing trips)
-        const tripData = await getTrip(tripId, isNewTrip);
-        setTrip(tripData);
-        
-        // If this is a new trip, request itinerary options
-        if (isNewTrip) {
-          setPandaEmotion('excited');
-          setPandaMessage('Your trip has been created! Now generating exciting itinerary options...');
+          // Fetch trip data from Supabase (only needed for existing trips)
+          const tripData = await getTrip(tripId, isNewTrip);
+          setTrip(tripData);
+          
+          // If this is a new trip, request itinerary options
           fetchItineraryOptions(tripData);
         } else {
           // For existing trips, load saved itinerary if available
@@ -168,8 +153,6 @@ export default function ItineraryPage() {
       } catch (err) {
         console.error('Error loading trip:', err);
         setError('Failed to load trip details');
-        setPandaEmotion('confused');
-        setPandaMessage('I had trouble loading your trip details. Please try again or go back to your trips.');
         setLoading(false);
       }
     };
@@ -184,9 +167,6 @@ export default function ItineraryPage() {
       if (!trip && tripData) {
         setTrip(tripData);
       }
-      
-      setPandaEmotion('thinking');
-      setPandaMessage('Generating exciting itinerary options based on your trip details...');
       
       // Extract all destinations (main + additional)
       const additionalDestinations = Array.isArray(tripData.additional_destinations) && tripData.additional_destinations.length > 0
@@ -225,16 +205,12 @@ export default function ItineraryPage() {
       
       if (data.success && data.itineraryOptions) {
         setItineraryOptions(data.itineraryOptions);
-        setPandaEmotion('excited');
-        setPandaMessage('I\'ve created some exciting itinerary options for you! Take a look and pick your favorite!');
       } else {
         throw new Error(data.error || 'Failed to generate itinerary options');
       }
     } catch (err: any) {
       console.error('Error generating itinerary options:', err);
       setError('Failed to generate itinerary options. Please try again.');
-      setPandaEmotion('sad');
-      setPandaMessage('I had trouble creating itinerary options. Let\'s try again.');
     } finally {
       setLoading(false);
     }
@@ -243,8 +219,6 @@ export default function ItineraryPage() {
   // Handle option selection
   const handleSelectOption = (option: ItineraryOption) => {
     setSelectedOption(option);
-    setPandaEmotion('excited');
-    setPandaMessage(`Great choice! Now you can customize the activities in the "${option.title}" itinerary.`);
     setCurrentView('customize');
     
     // Initialize all activities as selected
@@ -270,8 +244,6 @@ export default function ItineraryPage() {
     if (!selectedOption || !trip) return;
     
     setCurrentView('finalizing');
-    setPandaEmotion('thinking');
-    setPandaMessage('Creating your personalized itinerary based on your selections...');
     
     try {
       // Collect all selected activities
@@ -310,8 +282,6 @@ export default function ItineraryPage() {
       if (data.success && data.finalItinerary) {
         // Save final itinerary ID and navigate to it
         setFinalItineraryId(data.finalItinerary.id);
-        setPandaEmotion('excited');
-        setPandaMessage('Your personalized itinerary is ready! I hope you enjoy your trip!');
         setCurrentView('final');
         
         // Save the itinerary to the database
@@ -329,8 +299,6 @@ export default function ItineraryPage() {
     } catch (err: any) {
       console.error('Error generating final itinerary:', err);
       setError('Failed to generate final itinerary. Please try again.');
-      setPandaEmotion('sad');
-      setPandaMessage('I had trouble creating your final itinerary. Let\'s try again.');
       setCurrentView('customize');
     }
   };
@@ -341,8 +309,6 @@ export default function ItineraryPage() {
       // Go back to options view
       setCurrentView('options');
       setSelectedOption(null);
-      setPandaEmotion('happy');
-      setPandaMessage('Let\'s pick a different itinerary option!');
     } else {
       // Go back to trips list
       router.push('/trips');
@@ -596,14 +562,6 @@ export default function ItineraryPage() {
           </p>
         </div>
       )}
-
-      {/* Panda Assistant */}
-      <PandaAssistant
-        emotion={pandaEmotion}
-        message={pandaMessage}
-        position="bottom-right"
-        size="lg"
-      />
     </div>
   );
 }

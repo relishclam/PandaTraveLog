@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
-import { PandaAssistant } from '@/components/ui/PandaAssistant';
+
 import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/Input';
 import { toast } from 'sonner';
@@ -575,13 +575,6 @@ export default function AccountPage() {
           </Button>
         </div>
       </div>
-      
-      <PandaAssistant
-        emotion={pandaEmotion}
-        message={pandaMessage}
-        position="bottom-right"
-        size="md"
-      />
     </div>
   );
 }

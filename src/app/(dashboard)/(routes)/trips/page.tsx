@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
-import { PandaAssistant } from '@/components/ui/PandaAssistant';
+
 import { useAuth } from '@/contexts/AuthContext';
 import supabase from '@/lib/supabase';
 import { formatDate } from '@/lib/utils';
@@ -37,8 +37,6 @@ export default function TripsPage() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pandaEmotion, setPandaEmotion] = useState<'happy' | 'thinking' | 'excited' | 'confused'>('happy');
-  const [pandaMessage, setPandaMessage] = useState('Welcome to your trips dashboard!');
 
   // Check for emergency auth in sessionStorage
   useEffect(() => {
@@ -46,27 +44,27 @@ export default function TripsPage() {
     const authSuccess = sessionStorage.getItem('auth_success');
     const userEmail = sessionStorage.getItem('user_email');
     
-    console.log("🔐 Trips: Checking emergency auth", { authSuccess, userEmail });
+    console.log(" Trips: Checking emergency auth", { authSuccess, userEmail });
     
     if (authSuccess === 'true' && userEmail && !user) {
-      console.log("🔐 Trips: Emergency auth detected, refreshing session");
+      console.log(" Trips: Emergency auth detected, refreshing session");
       // Force a session refresh
       supabase.auth.refreshSession();
       // Don't clear sessionStorage yet, we'll do that after successful fetch
     } else if (!loading && !user) {
-      console.log("🚫 Trips: No auth detected, redirecting to login");
+      console.log(" Trips: No auth detected, redirecting to login");
       router.replace('/login');
     }
   }, [loading, user, router]);
 
 
-  console.log("🏁 Trips: Initial render", { hasUser: !!user });
+  console.log(" Trips: Initial render", { hasUser: !!user });
 
   // Set a safety timeout to prevent infinite loading
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (loading) {
-        console.log("⏱️ Trips: Loading timeout reached, forcing state update");
+        console.log(" Trips: Loading timeout reached, forcing state update");
         setLoading(false);
       }
     }, 5000);
@@ -82,12 +80,12 @@ export default function TripsPage() {
       const userEmail = sessionStorage.getItem('user_email');
       
       if (!user && !(authSuccess === 'true' && userEmail)) {
-        console.log("⚠️ Trips: No user found and no emergency auth, skipping fetch");
+        console.log(" Trips: No user found and no emergency auth, skipping fetch");
         return;
       }
 
       try {
-        console.log("🔄 Trips: Fetching trips", user ? `for user ${user.email}` : 'with emergency auth');
+        console.log(" Trips: Fetching trips", user ? `for user ${user.email}` : 'with emergency auth');
         setLoading(true);
         
         // If we have a user, use their ID, otherwise try to get the user from Supabase
@@ -95,7 +93,7 @@ export default function TripsPage() {
         
         // If we don't have a user ID but have emergency auth, try to get the user
         if (!userId && authSuccess === 'true' && userEmail) {
-          console.log("🔄 Trips: Getting user from Supabase with email", userEmail);
+          console.log(" Trips: Getting user from Supabase with email", userEmail);
           const { data: userData } = await supabase
             .from('profiles')
             .select('id')
@@ -103,13 +101,13 @@ export default function TripsPage() {
             .single();
             
           if (userData?.id) {
-            console.log("✅ Trips: Found user ID from email", userData.id);
+            console.log(" Trips: Found user ID from email", userData.id);
             userId = userData.id;
           }
         }
         
         if (!userId) {
-          console.error("❌ Trips: Could not determine user ID");
+          console.error(" Trips: Could not determine user ID");
           throw new Error('Could not determine user ID');
         }
         
@@ -120,71 +118,54 @@ export default function TripsPage() {
           .order('created_at', { ascending: false });
 
         if (error) {
-          console.error("❌ Trips: Error fetching trips", error);
+          console.error(" Trips: Error fetching trips", error);
           throw error;
         }
 
-        console.log("✅ Trips: Fetched", data?.length, "trips");
+        console.log(" Trips: Fetched", data?.length, "trips");
         setTrips(data || []);
         
         // Clear emergency auth after successful fetch
         if (authSuccess === 'true') {
-          console.log("🧹 Trips: Clearing emergency auth from sessionStorage");
+          console.log(" Trips: Clearing emergency auth from sessionStorage");
           // Don't remove user_email yet as it might be needed for other operations
           sessionStorage.removeItem('auth_success');
         }
-        
-        if (data && data.length === 0) {
-          setPandaEmotion('excited');
-          setPandaMessage("You don't have any trips yet. Let's create your first adventure!");
-        } else {
-          setPandaEmotion('happy');
-          setPandaMessage(`You have ${data?.length} trips planned. Let's explore them!`);
-        }
       } catch (err: any) {
-        console.error('❌ Trips: Error fetching trips:', err);
+        console.error(' Trips: Error fetching trips:', err);
         setError('Failed to load your trips');
-        setPandaEmotion('confused');
-        setPandaMessage('Oh no! I had trouble loading your trips. Please try again.');
       } finally {
-        console.log("🏁 Trips: Setting loading to false");
+        console.log(" Trips: Setting loading to false");
         setLoading(false);
       }
     };
 
-    console.log("🔍 Trips: useEffect triggered", { hasUser: !!user });
+    console.log(" Trips: useEffect triggered", { hasUser: !!user });
     fetchTrips();
   }, [user]);
 
-  console.log("🖼️ Trips: Rendering state", { loading, tripsCount: trips.length, hasError: !!error });
+  console.log(" Trips: Rendering state", { loading, tripsCount: trips.length, hasError: !!error });
 
   const handleDeleteTrip = async (tripId: string) => {
     if (!confirm('Are you sure you want to delete this trip?')) return;
 
     try {
-      setPandaEmotion('thinking');
-      setPandaMessage('Deleting your trip...');
-      
-      console.log("🗑️ Trips: Deleting trip", tripId);
+      console.log(" Trips: Deleting trip", tripId);
       const { error } = await supabase
         .from('trips')
         .delete()
         .eq('id', tripId);
 
       if (error) {
-        console.error("❌ Trips: Error deleting trip", error);
+        console.error(" Trips: Error deleting trip", error);
         throw error;
       }
 
-      console.log("✅ Trips: Trip deleted successfully");
+      console.log(" Trips: Trip deleted successfully");
       // Update local state to remove the deleted trip
       setTrips(trips.filter(trip => trip.id !== tripId));
-      setPandaEmotion('happy');
-      setPandaMessage('Trip deleted successfully!');
     } catch (err) {
-      console.error('❌ Trips: Error deleting trip:', err);
-      setPandaEmotion('confused');
-      setPandaMessage('Sorry, I couldn\'t delete that trip. Please try again.');
+      console.error(' Trips: Error deleting trip:', err);
     }
   };
 
@@ -240,17 +221,9 @@ export default function TripsPage() {
         </div>
       ) : trips.length === 0 ? (
         <div className="bg-white rounded-lg shadow-md p-8 text-center">
-          <div className="flex justify-center mb-4">
-            <Image 
-              src="/images/po/emotions/excited.png"
-              alt="PO the Travel Panda" 
-              width={100} 
-              height={100}
-            />
-          </div>
           <h2 className="text-2xl font-bold text-panda-black mb-2">No trips yet!</h2>
           <p className="text-gray-600 mb-6">
-            Start planning your first adventure with PO's help!
+            Start planning your first adventure!
           </p>
           <Button
             className="bg-backpack-orange hover:bg-backpack-orange/90 text-white mx-auto"
@@ -277,7 +250,7 @@ export default function TripsPage() {
           >
             Plan Your First Trip
           </Button>
-        </div>
+          </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {trips.map((trip) => (
@@ -345,17 +318,10 @@ export default function TripsPage() {
                   </Button>
                 </div>
               </div>
-            </div>
+              </div>
           ))}
         </div>
       )}
-
-      <PandaAssistant
-        emotion={pandaEmotion}
-        message={pandaMessage}
-        position="bottom-right"
-        size="md"
-      />
     </div>
   );
 }

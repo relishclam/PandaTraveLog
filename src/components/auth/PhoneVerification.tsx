@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
-import { PandaAssistant } from '@/components/ui/PandaAssistant';
+
 import { useAuth } from '@/hooks/auth';
 import { COUNTRY_CODES } from '@/lib/country-codes';
 
@@ -239,12 +239,6 @@ export const PhoneVerification: React.FC<PhoneVerificationProps> = ({
           </Button>
         </>
       )}
-      
-      <PandaAssistant
-        emotion={pandaEmotion as 'happy' | 'thinking' | 'excited' | 'confused'}
-        message={pandaMessage}
-        position="bottom-right"
-      />
     </div>
   );
 };

@@ -353,21 +353,9 @@ export default function LoginContent() {
                 </form>
               </div>
             )}
-            
-            {/* Footer with brand message */}
-            <div className="mt-4 pt-3 border-t border-gray-200 text-center text-sm text-gray-600">
-              PandaTraveLog — Making your travels simple and memorable!
-            </div>
           </div>
         </div>
       )}
-
-      <PandaAssistant
-        emotion={pandaEmotion}
-        message={pandaMessage}
-        position="bottom-right"
-        size="md"
-      />
     </div>
   );
 }

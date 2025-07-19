@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { usePandaHelper } from '@/utils/pandaAssistantHelper';
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 
 export default function Home() {
   const { showPanda } = usePandaHelper();
@@ -12,24 +12,26 @@ export default function Home() {
   // Show welcome message when the component mounts
   useEffect(() => {
     showPanda("Hi there! I'm PO, your friendly travel assistant. Need help planning your next adventure?", "excited");
-  }, [showPanda]);
+  }, []); // Empty dependency array means this runs once on mount
   
   // Handle direct navigation
-  const handleNavigation = (path: string) => {
+  const handleNavigation = useCallback((path: string) => {
     window.location.href = path;
-  };
+  }, []);
   return (
     <div className="min-h-screen flex flex-col bg-bamboo-light">
       {/* PO Logo at Top */}
       <div className="w-full flex justify-center pt-10 pb-2">
-        <Image
-          src="/images/po/emotions/happy.png"
-          alt="Meet PO the Travel Panda"
-          width={227}
-          height={227}
-          className="object-contain drop-shadow-lg"
-          priority
-        />
+        <div className="relative" style={{ width: '320px', height: '320px' }}>
+          <Image
+            src="/images/po/emotions/happy.png"
+            alt="Meet PO the Travel Panda"
+            width={320}
+            height={320}
+            className="w-full h-full object-contain drop-shadow-lg"
+            priority
+          />
+        </div>
       </div>
       {/* Hero Section */}
       <section className="relative overflow-hidden">

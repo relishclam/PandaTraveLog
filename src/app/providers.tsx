@@ -46,6 +46,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Only include the GlobalPandaAssistant once at the root level
+  // and make sure it's not duplicated in any child components
   return (
     <ErrorBoundary>
       <AuthProvider>
