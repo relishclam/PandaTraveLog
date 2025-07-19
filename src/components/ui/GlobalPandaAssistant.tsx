@@ -59,6 +59,29 @@ export const GlobalPandaAssistant: React.FC = () => {
 
   const persistentAssistantVisible = state.mainAssistant.visible || state.floatingAssistant.visible;
 
+  // Get current page context for AI assistant
+  const getCurrentContext = () => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      if (path.includes('/trips/new')) return 'trip_creation';
+      if (path.includes('/trips/') && path.includes('/diary')) return 'trip_diary';
+      if (path.includes('/trips/') && path.includes('/itinerary')) return 'trip_itinerary';
+      if (path.includes('/trips')) return 'trips_dashboard';
+      return 'dashboard';
+    }
+    return 'general';
+  };
+
+  // Extract trip ID from URL if available
+  const getTripId = () => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      const tripMatch = path.match(/\/trips\/([^/]+)/);
+      return tripMatch ? tripMatch[1] : undefined;
+    }
+    return undefined;
+  };
+
   const getModalEmotionImage = (emotion?: Emotion) => {
     switch(emotion) {
       case 'thinking': return '/images/po/emotions/thinking.png';
@@ -83,7 +106,10 @@ export const GlobalPandaAssistant: React.FC = () => {
           position="bottom-right"
           size="md"
           initiallyVisible={true} 
-          onMessageClose={state.floatingAssistant.visible ? undefined : hideMainAssistant} 
+          onMessageClose={state.floatingAssistant.visible ? undefined : hideMainAssistant}
+          context={getCurrentContext()}
+          tripId={getTripId()}
+          enableAIChat={true}
         />
       )}
 

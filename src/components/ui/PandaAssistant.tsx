@@ -4,9 +4,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence, HTMLMotionProps } from 'framer-motion';
-import { IoClose, IoExpand, IoContract } from 'react-icons/io5';
+import { IoClose, IoExpand, IoContract, IoChatbubble } from 'react-icons/io5';
 import { getEmotionImagePath, getLogoIconPath, getFallbackLogoPath } from '@/utils/imagePaths';
 import { Emotion } from '@/contexts/PandaAssistantContext';
+import { PandaAIChat } from './PandaAIChat';
 
 type ResponseButton = {
   text: string;
@@ -26,6 +27,9 @@ type PandaAssistantProps = {
   initiallyVisible?: boolean; // Control initial visibility state
   persistState?: boolean; // Whether to persist visibility state in localStorage
   responseButtons?: ResponseButton[]; // Array of response buttons
+  context?: string; // Context for AI chat (e.g., 'trip_creation', 'dashboard')
+  tripId?: string; // Trip ID for context-aware assistance
+  enableAIChat?: boolean; // Whether to enable AI chat functionality
 };
 
 export const PandaAssistant: React.FC<PandaAssistantProps> = ({
@@ -39,11 +43,15 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
   animate = true,
   initiallyVisible = true,
   persistState = true,
-  responseButtons = []
+  responseButtons = [],
+  context = 'general',
+  tripId,
+  enableAIChat = true
 }) => {
   // SSR-safe initial state
   const [visible, setVisible] = useState(initiallyVisible);
   const [minimized, setMinimized] = useState(false);
+  const [showAIChat, setShowAIChat] = useState(false);
 
   // After mount, initialize visibility from localStorage if needed
   useEffect(() => {
@@ -301,15 +309,19 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
           ) : (
             <button
               onClick={onMessageClick || (() => {
-                // Default behavior when no onMessageClick is provided
-                console.log('Panda Assistant clicked!');
+                // Open AI chat if enabled, otherwise just log
+                if (enableAIChat) {
+                  setShowAIChat(true);
+                } else {
+                  console.log('Panda Assistant clicked!');
+                }
               })}
-              className="bg-transparent border-none p-0 m-0 cursor-pointer"
+              className="bg-transparent border-none p-0 m-0 cursor-pointer relative group"
               style={{ boxShadow: 'none', background: 'none' }}
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
               type="button"
-              aria-label="Click to interact with Panda Assistant"
+              aria-label={enableAIChat ? "Chat with PO Assistant" : "Click to interact with Panda Assistant"}
             >
               {imageError ? (
                 // Fallback using proper logo
@@ -336,10 +348,28 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
                   onError={handleImageError}
                 />
               )}
+              
+              {/* AI Chat indicator when enabled */}
+              {enableAIChat && isHovered && (
+                <div className="absolute -top-2 -right-2 bg-orange-500 text-white rounded-full p-1 shadow-lg animate-pulse">
+                  <IoChatbubble size={16} />
+                </div>
+              )}
             </button>
           )}
         </motion.div>
       </div>
+      
+      {/* AI Chat Modal */}
+      {enableAIChat && (
+        <PandaAIChat
+          isOpen={showAIChat}
+          onClose={() => setShowAIChat(false)}
+          context={context}
+          tripId={tripId}
+          initialMessage={message}
+        />
+      )}
     </div>
   );
 };
