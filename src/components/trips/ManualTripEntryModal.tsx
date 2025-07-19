@@ -341,7 +341,7 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
         }
       }
 
-      // Navigate to the trip diary page
+      // Navigate to the trip diary page (using dashboard route)
       router.push(`/trips/${result.id}/diary`);
       onClose();
     } catch (error: any) {
