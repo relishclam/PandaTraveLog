@@ -6,8 +6,8 @@ export async function POST(request: NextRequest) {
   try {
     console.log('=== PO Assistant Chat API Called ===');
     
-    const { message, context, tripId, userId } = await request.json();
-    console.log('Received chat request:', { message, context, tripId, userId });
+    const { message, context, tripId, userId, conversationHistory } = await request.json();
+    console.log('Received chat request:', { message, context, tripId, userId, historyLength: conversationHistory?.length || 0 });
     
     // Validate required fields
     if (!message) {
@@ -46,6 +46,31 @@ export async function POST(request: NextRequest) {
         .eq('user_id', currentUserId)
         .single();
       tripContext = trip;
+    }
+
+    // Get or create conversation history from database
+    let conversationMessages = [];
+    if (currentUserId) {
+      // Try to get existing conversation history
+      const { data: existingHistory } = await supabase
+        .from('assistant_conversations')
+        .select('messages, updated_at')
+        .eq('user_id', currentUserId)
+        .eq('context', context || 'general')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (existingHistory && existingHistory.messages) {
+        conversationMessages = existingHistory.messages;
+        console.log('Retrieved conversation history:', conversationMessages.length, 'messages');
+      }
+    }
+
+    // If client provided conversation history, use that instead (for immediate context)
+    if (conversationHistory && Array.isArray(conversationHistory)) {
+      conversationMessages = conversationHistory;
+      console.log('Using client-provided conversation history:', conversationMessages.length, 'messages');
     }
     
     // Build context for AI
@@ -89,6 +114,8 @@ export async function POST(request: NextRequest) {
             role: 'system',
             content: systemPrompt
           },
+          // Include conversation history
+          ...conversationMessages.slice(-10), // Keep last 10 messages for context
           {
             role: 'user',
             content: message
@@ -120,13 +147,42 @@ export async function POST(request: NextRequest) {
     // Determine emotion based on response content
     const emotion = determineEmotion(assistantMessage, context);
     
-    // Generate suggested actions based on context and response
+    // Generate suggested actions
     const suggestedActions = generateSuggestedActions(context, tripContext, assistantMessage);
+    
+    // Update conversation history in database
+    if (currentUserId) {
+      const updatedHistory = [
+        ...conversationMessages.slice(-8), // Keep last 8 messages + new ones = 10 total
+        { role: 'user', content: message, timestamp: new Date().toISOString() },
+        { role: 'assistant', content: assistantMessage, timestamp: new Date().toISOString() }
+      ];
+
+      // Upsert conversation history
+      await supabase
+        .from('assistant_conversations')
+        .upsert({
+          user_id: currentUserId,
+          context: context || 'general',
+          messages: updatedHistory,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,context'
+        });
+      
+      console.log('Updated conversation history with', updatedHistory.length, 'messages');
+    }
+    
+    console.log('PO Assistant response generated successfully');
     
     return NextResponse.json({
       message: assistantMessage,
       emotion,
       suggestedActions,
+      conversationHistory: conversationMessages.concat([
+        { role: 'user', content: message, timestamp: new Date().toISOString() },
+        { role: 'assistant', content: assistantMessage, timestamp: new Date().toISOString() }
+      ]),
       context: {
         tripId,
         userProfile: userProfile?.name,

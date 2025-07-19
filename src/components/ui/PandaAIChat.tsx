@@ -34,6 +34,7 @@ export const PandaAIChat: React.FC<PandaAIChatProps> = ({
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [conversationLoaded, setConversationLoaded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
@@ -52,9 +53,17 @@ export const PandaAIChat: React.FC<PandaAIChatProps> = ({
     }
   }, [isOpen]);
 
-  // Send initial welcome message when chat opens
+  // Load conversation history when chat opens
   useEffect(() => {
-    if (isOpen && messages.length === 0) {
+    if (isOpen && !conversationLoaded && user?.id) {
+      loadConversationHistory();
+    }
+  }, [isOpen, conversationLoaded, user?.id, context]);
+
+  const loadConversationHistory = async () => {
+    try {
+      // For now, we'll start fresh each time but send history to API
+      // In the future, we could load from localStorage or API
       const welcomeMessage = initialMessage || getWelcomeMessage(context);
       setMessages([{
         id: Date.now().toString(),
@@ -64,8 +73,22 @@ export const PandaAIChat: React.FC<PandaAIChatProps> = ({
         emotion: 'happy',
         suggestedActions: getInitialSuggestions(context)
       }]);
+      setConversationLoaded(true);
+    } catch (error) {
+      console.error('Error loading conversation history:', error);
+      // Fallback to welcome message
+      const welcomeMessage = initialMessage || getWelcomeMessage(context);
+      setMessages([{
+        id: Date.now().toString(),
+        type: 'assistant',
+        content: welcomeMessage,
+        timestamp: new Date(),
+        emotion: 'happy',
+        suggestedActions: getInitialSuggestions(context)
+      }]);
+      setConversationLoaded(true);
     }
-  }, [isOpen, context, initialMessage, messages.length]);
+  };
 
   const getWelcomeMessage = (context: string): string => {
     switch (context) {
@@ -119,6 +142,13 @@ export const PandaAIChat: React.FC<PandaAIChatProps> = ({
     setIsLoading(true);
 
     try {
+      // Convert messages to API format for conversation history
+      const conversationHistory = messages.map(msg => ({
+        role: msg.type === 'user' ? 'user' : 'assistant',
+        content: msg.content,
+        timestamp: msg.timestamp.toISOString()
+      }));
+
       const response = await fetch('/api/assistant/chat', {
         method: 'POST',
         headers: {
@@ -128,7 +158,8 @@ export const PandaAIChat: React.FC<PandaAIChatProps> = ({
           message: textToSend,
           context,
           tripId,
-          userId: user?.id
+          userId: user?.id,
+          conversationHistory
         }),
       });
 
@@ -148,6 +179,14 @@ export const PandaAIChat: React.FC<PandaAIChatProps> = ({
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+      
+      // Log conversation context for debugging
+      console.log('Conversation updated:', {
+        totalMessages: messages.length + 2, // +2 for user and assistant messages just added
+        context,
+        tripId,
+        lastMessage: textToSend
+      });
 
       // Update floating assistant with the emotion
       showFloatingAssistant(undefined, data.emotion || 'happy');
