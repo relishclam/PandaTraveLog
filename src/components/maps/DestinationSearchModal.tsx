@@ -279,10 +279,12 @@ const getIcon = (type?: string) => {
 };
 
 const countryNameToCodeMap: Record<string, string> = {
+  // Existing entries
   "malaysia": "my",
   "thailand": "th",
   "singapore": "sg",
   "japan": "jp",
+  "vietnam": "vn",
   "united states": "us",
   "united states of america": "us",
   "united kingdom": "gb",
@@ -301,6 +303,212 @@ const countryNameToCodeMap: Record<string, string> = {
   "england": "gb",
   "uae": "ae",
   "emirates": "ae",
+  
+  // Major European countries
+  "spain": "es",
+  "italy": "it",
+  "portugal": "pt",
+  "netherlands": "nl",
+  "holland": "nl",
+  "belgium": "be",
+  "switzerland": "ch",
+  "austria": "at",
+  "sweden": "se",
+  "norway": "no",
+  "denmark": "dk",
+  "finland": "fi",
+  "poland": "pl",
+  "czech republic": "cz",
+  "czechia": "cz",
+  "hungary": "hu",
+  "romania": "ro",
+  "bulgaria": "bg",
+  "croatia": "hr",
+  "greece": "gr",
+  "turkey": "tr",
+  "russia": "ru",
+  "ukraine": "ua",
+  "ireland": "ie",
+  "iceland": "is",
+  
+  // Asian countries
+  "south korea": "kr",
+  "korea": "kr",
+  "north korea": "kp",
+  "indonesia": "id",
+  "philippines": "ph",
+  "taiwan": "tw",
+  "hong kong": "hk",
+  "macau": "mo",
+  "myanmar": "mm",
+  "burma": "mm",
+  "cambodia": "kh",
+  "laos": "la",
+  "bangladesh": "bd",
+  "pakistan": "pk",
+  "sri lanka": "lk",
+  "nepal": "np",
+  "bhutan": "bt",
+  "maldives": "mv",
+  "afghanistan": "af",
+  "iran": "ir",
+  "iraq": "iq",
+  "israel": "il",
+  "palestine": "ps",
+  "jordan": "jo",
+  "lebanon": "lb",
+  "syria": "sy",
+  "saudi arabia": "sa",
+  "kuwait": "kw",
+  "qatar": "qa",
+  "bahrain": "bh",
+  "oman": "om",
+  "yemen": "ye",
+  "uzbekistan": "uz",
+  "kazakhstan": "kz",
+  "kyrgyzstan": "kg",
+  "tajikistan": "tj",
+  "turkmenistan": "tm",
+  "mongolia": "mn",
+  
+  // African countries
+  "egypt": "eg",
+  "morocco": "ma",
+  "tunisia": "tn",
+  "algeria": "dz",
+  "libya": "ly",
+  "sudan": "sd",
+  "ethiopia": "et",
+  "kenya": "ke",
+  "tanzania": "tz",
+  "uganda": "ug",
+  "rwanda": "rw",
+  "ghana": "gh",
+  "nigeria": "ng",
+  "senegal": "sn",
+  "ivory coast": "ci",
+  "cote d'ivoire": "ci",
+  "mali": "ml",
+  "burkina faso": "bf",
+  "niger": "ne",
+  "chad": "td",
+  "cameroon": "cm",
+  "central african republic": "cf",
+  "democratic republic of congo": "cd",
+  "congo": "cg",
+  "gabon": "ga",
+  "equatorial guinea": "gq",
+  "sao tome and principe": "st",
+  "cape verde": "cv",
+  "guinea": "gn",
+  "guinea-bissau": "gw",
+  "sierra leone": "sl",
+  "liberia": "lr",
+  "togo": "tg",
+  "benin": "bj",
+  "mauritania": "mr",
+  "gambia": "gm",
+  "botswana": "bw",
+  "namibia": "na",
+  "zambia": "zm",
+  "zimbabwe": "zw",
+  "mozambique": "mz",
+  "madagascar": "mg",
+  "mauritius": "mu",
+  "seychelles": "sc",
+  "comoros": "km",
+  "djibouti": "dj",
+  "eritrea": "er",
+  "somalia": "so",
+  "south sudan": "ss",
+  "malawi": "mw",
+  "lesotho": "ls",
+  "swaziland": "sz",
+  "eswatini": "sz",
+  
+  // American countries
+  "mexico": "mx",
+  "guatemala": "gt",
+  "belize": "bz",
+  "el salvador": "sv",
+  "honduras": "hn",
+  "nicaragua": "ni",
+  "costa rica": "cr",
+  "panama": "pa",
+  "cuba": "cu",
+  "jamaica": "jm",
+  "haiti": "ht",
+  "dominican republic": "do",
+  "puerto rico": "pr",
+  "trinidad and tobago": "tt",
+  "barbados": "bb",
+  "bahamas": "bs",
+  "colombia": "co",
+  "venezuela": "ve",
+  "guyana": "gy",
+  "suriname": "sr",
+  "french guiana": "gf",
+  "ecuador": "ec",
+  "peru": "pe",
+  "bolivia": "bo",
+  "paraguay": "py",
+  "uruguay": "uy",
+  "argentina": "ar",
+  "chile": "cl",
+  
+  // Oceania
+  "new zealand": "nz",
+  "fiji": "fj",
+  "papua new guinea": "pg",
+  "solomon islands": "sb",
+  "vanuatu": "vu",
+  "new caledonia": "nc",
+  "french polynesia": "pf",
+  "samoa": "ws",
+  "tonga": "to",
+  "kiribati": "ki",
+  "tuvalu": "tv",
+  "nauru": "nr",
+  "palau": "pw",
+  "marshall islands": "mh",
+  "micronesia": "fm",
+  
+  // Additional common variations and territories
+  "scotland": "gb",
+  "wales": "gb",
+  "northern ireland": "gb",
+  "virgin islands": "vi",
+  "guam": "gu",
+  "american samoa": "as",
+  "greenland": "gl",
+  "faroe islands": "fo",
+  "gibraltar": "gi",
+  "malta": "mt",
+  "cyprus": "cy",
+  "luxembourg": "lu",
+  "liechtenstein": "li",
+  "monaco": "mc",
+  "san marino": "sm",
+  "vatican": "va",
+  "vatican city": "va",
+  "andorra": "ad",
+  "kosovo": "xk",
+  "montenegro": "me",
+  "north macedonia": "mk",
+  "macedonia": "mk",
+  "bosnia and herzegovina": "ba",
+  "bosnia": "ba",
+  "herzegovina": "ba",
+  "serbia": "rs",
+  "albania": "al",
+  "moldova": "md",
+  "belarus": "by",
+  "lithuania": "lt",
+  "latvia": "lv",
+  "estonia": "ee",
+  "georgia": "ge",
+  "armenia": "am",
+  "azerbaijan": "az",
 };
 
 const getCountryCode = (countryName: string): string | null => {
@@ -554,52 +762,90 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
           setSuggestions(getPopularDestinations());
         }
       } else {
-        const cityUrl = `https://api.geoapify.com/v1/geocode/search?` +
-          `name=${encodeURIComponent(currentQuery)}&` +
-          `format=json&apiKey=${apiKey}&limit=10&lang=en`;
-          
-        const response = await fetch(cityUrl);
+        // Fallback strategy: Try both country and city search for unrecognized queries
+        let searchSuccessful = false;
         
-        if (!response.ok) {
-          console.error('Geoapify city search failed:', response.status, response.statusText);
-          throw new Error(`Geoapify API error: ${response.status}`);
+        // First, try as a potential country search (without country code)
+        try {
+          const fallbackCountryUrl = `https://api.geoapify.com/v1/geocode/search?name=${encodeURIComponent(currentQuery)}&type=country&format=json&apiKey=${apiKey}&limit=5`;
+          const fallbackCountryResponse = await fetch(fallbackCountryUrl);
+          
+          if (fallbackCountryResponse.ok) {
+            const fallbackCountryData = await fallbackCountryResponse.json();
+            
+            if (fallbackCountryData?.results?.length > 0) {
+              const country = fallbackCountryData.results[0];
+              
+              // If we found a country, try to get places within it
+              if (country.result_type === 'country' && country.bbox) {
+                console.log(`Fallback: Found country ${country.name || currentQuery}, searching for places...`);
+                
+                const placesUrl = `https://api.geoapify.com/v2/places?` +
+                  `categories=accommodation,tourism,entertainment,catering&` +
+                  `filter=rect:${country.bbox.lon1},${country.bbox.lat1},${country.bbox.lon2},${country.bbox.lat2}&` +
+                  `limit=20&apiKey=${apiKey}`;
+                
+                const placesResponse = await fetch(placesUrl);
+                const placesData = await placesResponse.json();
+                const organized = organizeCountryResults(fallbackCountryData.results, placesData.features);
+                setSuggestions(organized);
+                searchSuccessful = true;
+              }
+            }
+          }
+        } catch (fallbackError) {
+          console.log('Fallback country search failed, trying city search...', fallbackError);
         }
         
-        const data = await response.json();
-
-        if (data?.results?.length > 0) {
-          const mainResult = data.results[0];
+        // If country search didn't work, try city search
+        if (!searchSuccessful) {
+          const cityUrl = `https://api.geoapify.com/v1/geocode/search?` +
+            `name=${encodeURIComponent(currentQuery)}&` +
+            `format=json&apiKey=${apiKey}&limit=10&lang=en`;
+            
+          const response = await fetch(cityUrl);
           
-          if (mainResult.result_type === 'city') {
-            const attractionsUrl = `https://api.geoapify.com/v2/places?` +
-              `categories=tourism,entertainment&` +
-              `filter=circle:${mainResult.lon},${mainResult.lat},10000&` +
-              `limit=15&apiKey=${apiKey}`;
-              
-            const attractionsResponse = await fetch(attractionsUrl);
-            const attractionsData = await attractionsResponse.json();
-            
-            const citiesUrl = `https://api.geoapify.com/v1/geocode/search?` +
-              `name=${encodeURIComponent(currentQuery)}&` +
-              `type=city&` +
-              `filter=circle:${mainResult.lon},${mainResult.lat},50000&` +
-              `format=json&limit=5&apiKey=${apiKey}`;
-              
-            const citiesResponse = await fetch(citiesUrl);
-            const citiesData = await citiesResponse.json();
-            
-            const organized = organizeCityResults(
-              mainResult,
-              attractionsData,
-              citiesData
-            );
-            setSuggestions(organized);
-          } else {
-            setSuggestions(data.results.map((result: GeoapifyGeocodeResult) => placeToSuggestion(result)));
+          if (!response.ok) {
+            console.error('Geoapify city search failed:', response.status, response.statusText);
+            throw new Error(`Geoapify API error: ${response.status}`);
           }
-        } else {
-          setError("No results found for your search.");
-          setSuggestions(getPopularDestinations());
+          
+          const data = await response.json();
+
+          if (data?.results?.length > 0) {
+            const mainResult = data.results[0];
+            
+            if (mainResult.result_type === 'city') {
+              const attractionsUrl = `https://api.geoapify.com/v2/places?` +
+                `categories=tourism,entertainment&` +
+                `filter=circle:${mainResult.lon},${mainResult.lat},10000&` +
+                `limit=15&apiKey=${apiKey}`;
+                
+              const attractionsResponse = await fetch(attractionsUrl);
+              const attractionsData = await attractionsResponse.json();
+              
+              const citiesUrl = `https://api.geoapify.com/v1/geocode/search?` +
+                `name=${encodeURIComponent(currentQuery)}&` +
+                `type=city&` +
+                `filter=circle:${mainResult.lon},${mainResult.lat},50000&` +
+                `format=json&limit=5&apiKey=${apiKey}`;
+                
+              const citiesResponse = await fetch(citiesUrl);
+              const citiesData = await citiesResponse.json();
+              
+              const organized = organizeCityResults(
+                mainResult,
+                attractionsData,
+                citiesData
+              );
+              setSuggestions(organized);
+            } else {
+              setSuggestions(data.results.map((result: GeoapifyGeocodeResult) => placeToSuggestion(result)));
+            }
+          } else {
+            setError("No results found for your search.");
+            setSuggestions(getPopularDestinations());
+          }
         }
       }
     } catch (error: any) {
