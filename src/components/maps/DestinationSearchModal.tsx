@@ -555,7 +555,7 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
         }
       } else {
         const cityUrl = `https://api.geoapify.com/v1/geocode/search?` +
-          `text=${encodeURIComponent(currentQuery)}&` +
+          `name=${encodeURIComponent(currentQuery)}&` +
           `format=json&apiKey=${apiKey}&limit=10&lang=en`;
           
         const response = await fetch(cityUrl);
@@ -580,6 +580,7 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
             const attractionsData = await attractionsResponse.json();
             
             const citiesUrl = `https://api.geoapify.com/v1/geocode/search?` +
+              `name=${encodeURIComponent(currentQuery)}&` +
               `type=city&` +
               `filter=circle:${mainResult.lon},${mainResult.lat},50000&` +
               `format=json&limit=5&apiKey=${apiKey}`;
