@@ -527,7 +527,7 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
       const isCountrySearch = !!potentialCountryCode;
 
       if (isCountrySearch) {
-        const countryUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&filter=countrycode:${potentialCountryCode}&apiKey=${apiKey}`;
+        const countryUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&filter=countrycode:${potentialCountryCode}&format=json&apiKey=${apiKey}`;
         const countryResponse = await fetch(countryUrl);
         const countryData = await countryResponse.json();
 
@@ -550,7 +550,7 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
       } else {
         const cityUrl = `https://api.geoapify.com/v1/geocode/search?` +
           `text=${encodeURIComponent(currentQuery)}&` +
-          `apiKey=${apiKey}&limit=10&lang=en`;
+          `format=json&apiKey=${apiKey}&limit=10&lang=en`;
           
         const response = await fetch(cityUrl);
         const data = await response.json();
@@ -570,7 +570,7 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
             const citiesUrl = `https://api.geoapify.com/v1/geocode/search?` +
               `type=city&` +
               `filter=circle:${mainResult.lon},${mainResult.lat},50000&` +
-              `limit=5&apiKey=${apiKey}`;
+              `format=json&limit=5&apiKey=${apiKey}`;
               
             const citiesResponse = await fetch(citiesUrl);
             const citiesData = await citiesResponse.json();
