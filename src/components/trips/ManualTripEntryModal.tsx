@@ -212,7 +212,7 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
         .from('trips')
         .insert({
           user_id: user.id,
-          name: tripName,
+          title: tripName, // Fixed: Schema uses 'title', not 'name'
           destination: destinations.map(d => d.name).join(', '),
           start_date: startDate,
           end_date: endDate,
