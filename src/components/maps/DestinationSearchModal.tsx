@@ -527,8 +527,14 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
       const isCountrySearch = !!potentialCountryCode;
 
       if (isCountrySearch) {
-        const countryUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&filter=countrycode:${potentialCountryCode}&format=json&apiKey=${apiKey}`;
+        const countryUrl = `https://api.geoapify.com/v1/geocode/search?name=${encodeURIComponent(currentQuery)}&country=${potentialCountryCode}&format=json&apiKey=${apiKey}`;
         const countryResponse = await fetch(countryUrl);
+        
+        if (!countryResponse.ok) {
+          console.error('Geoapify country search failed:', countryResponse.status, countryResponse.statusText);
+          throw new Error(`Geoapify API error: ${countryResponse.status}`);
+        }
+        
         const countryData = await countryResponse.json();
 
         if (countryData?.results?.length > 0) {
@@ -553,6 +559,12 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
           `format=json&apiKey=${apiKey}&limit=10&lang=en`;
           
         const response = await fetch(cityUrl);
+        
+        if (!response.ok) {
+          console.error('Geoapify city search failed:', response.status, response.statusText);
+          throw new Error(`Geoapify API error: ${response.status}`);
+        }
+        
         const data = await response.json();
 
         if (data?.results?.length > 0) {
