@@ -75,22 +75,10 @@ export async function POST(request: NextRequest) {
     
     console.log('Trip record to insert:', JSON.stringify(tripRecord, null, 2));
     
-    // Insert trip into database using service role to bypass RLS
-    console.log('Inserting trip into database with service role...');
+    // Insert trip into database
+    console.log('Inserting trip into database...');
     
-    // Create service role client for database operations
-    const supabaseServiceRole = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
-    
-    const { data, error } = await supabaseServiceRole
+    const { data, error } = await supabase
       .from('trips')
       .insert(tripRecord)
       .select()
@@ -98,26 +86,10 @@ export async function POST(request: NextRequest) {
     
     if (error) {
       console.error('Database error:', error);
-      
-      // Fallback: Try with regular client if service role fails
-      console.log('Service role failed, trying with regular client...');
-      const fallbackResult = await supabase
-        .from('trips')
-        .insert(tripRecord)
-        .select()
-        .single();
-      
-      if (fallbackResult.error) {
-        console.error('Fallback also failed:', fallbackResult.error);
-        return NextResponse.json(
-          { error: 'Failed to create trip in database', details: fallbackResult.error.message },
-          { status: 500 }
-        );
-      }
-      
-      // Use fallback data if service role failed but regular client succeeded
-      console.log('Fallback succeeded');
-      data = fallbackResult.data;
+      return NextResponse.json(
+        { error: 'Failed to create trip in database', details: error.message },
+        { status: 500 }
+      );
     }
     
     console.log('Trip created successfully:', data);
@@ -126,8 +98,8 @@ export async function POST(request: NextRequest) {
     if (tripData.manual_entry_data) {
       console.log('Saving manual entry data for trip:', tripId);
       
-      // Save to trip_itinerary table for manual trip data using service role
-      const { error: itineraryError } = await supabaseServiceRole
+      // Save to trip_itinerary table for manual trip data
+      const { error: itineraryError } = await supabase
         .from('trip_itinerary')
         .insert({
           trip_id: tripId,
