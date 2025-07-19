@@ -823,31 +823,127 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
         // Fallback strategy: Try both country and city search for unrecognized queries
         let searchSuccessful = false;
         
-        // First, try as a general geographical search (countries, cities, states)
+        // Step 1: Search for exact country matches first
         try {
-          const geoSearchUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=country,city,state&limit=20&apiKey=${apiKey}`;
-          const geoResponse = await fetch(geoSearchUrl);
+          const countrySearchUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=country&limit=5&lang=en&apiKey=${apiKey}`;
+          const countryResponse = await fetch(countrySearchUrl);
           
-          if (geoResponse.ok) {
-            const geoData = await geoResponse.json();
+          if (countryResponse.ok) {
+            const countryData = await countryResponse.json();
             
-            if (geoData?.features?.length > 0) {
-              console.log(`Found ${geoData.features.length} geographical results for "${currentQuery}"`);
+            if (countryData?.features?.length > 0) {
+              // Sort countries by relevance - exact matches first
+              const sortedCountries = countryData.features.sort((a: any, b: any) => {
+                const aName = (a.properties.country || a.properties.name || '').toLowerCase();
+                const bName = (b.properties.country || b.properties.name || '').toLowerCase();
+                const query = currentQuery.toLowerCase();
+                
+                // Exact match gets highest priority
+                if (aName === query && bName !== query) return -1;
+                if (bName === query && aName !== query) return 1;
+                
+                // Starts with query gets second priority
+                if (aName.startsWith(query) && !bName.startsWith(query)) return -1;
+                if (bName.startsWith(query) && !aName.startsWith(query)) return 1;
+                
+                return 0;
+              });
               
-              // Organize results by type: countries first, then cities, then other places
-              const countries = geoData.features.filter((f: any) => f.properties.result_type === 'country');
-              const cities = geoData.features.filter((f: any) => f.properties.result_type === 'city');
-              const otherPlaces = geoData.features.filter((f: any) => 
-                f.properties.result_type !== 'country' && f.properties.result_type !== 'city'
+              const bestCountryMatch = sortedCountries[0];
+              const countryCode = bestCountryMatch.properties.country_code;
+              
+              console.log(`Found country match: ${bestCountryMatch.properties.country || bestCountryMatch.properties.name} (${countryCode})`);
+              
+              // Step 2: Search for cities within this specific country using proper filter
+              const citiesInCountryUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=city&filter=countrycode:${countryCode}&limit=10&lang=en&apiKey=${apiKey}`;
+              const citiesResponse = await fetch(citiesInCountryUrl);
+              const citiesData = citiesResponse.ok ? await citiesResponse.json() : { features: [] };
+              
+              // Step 3: Search for major places/states within the country
+              const placesInCountryUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=state&filter=countrycode:${countryCode}&limit=5&lang=en&apiKey=${apiKey}`;
+              const placesResponse = await fetch(placesInCountryUrl);
+              const placesData = placesResponse.ok ? await placesResponse.json() : { features: [] };
+              
+              const organized = organizeCountryResults(
+                [bestCountryMatch], 
+                [...(citiesData.features || []), ...(placesData.features || [])]
               );
+              setSuggestions(organized);
+              searchSuccessful = true;
+            }
+          }
+        } catch (error) {
+          console.log('Country-specific search failed, trying general search...', error);
+        }
+        
+        // If no country match, try separate searches for different types
+        if (!searchSuccessful) {
+          try {
+            // Search for cities worldwide (sorted by popularity)
+            const citySearchUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=city&limit=10&lang=en&apiKey=${apiKey}`;
+            const cityResponse = await fetch(citySearchUrl);
+            
+            // Search for states/regions worldwide
+            const stateSearchUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(currentQuery)}&type=state&limit=5&lang=en&apiKey=${apiKey}`;
+            const stateResponse = await fetch(stateSearchUrl);
+            
+            const [cityData, stateData] = await Promise.all([
+              cityResponse.ok ? cityResponse.json() : { features: [] },
+              stateResponse.ok ? stateResponse.json() : { features: [] }
+            ]);
+            
+            const allResults = [
+              ...(cityData.features || []),
+              ...(stateData.features || [])
+            ];
+            
+            if (allResults.length > 0) {
+              console.log(`Found ${allResults.length} geographical results for "${currentQuery}"`);
+              
+              // Filter results to only include relevant matches
+              const filteredResults = allResults.filter((f: any) => {
+                const name = (f.properties.name || f.properties.city || f.properties.state || '').toLowerCase();
+                const country = (f.properties.country || '').toLowerCase();
+                const query = currentQuery.toLowerCase();
+                
+                // Only include results where the name actually matches the search query
+                return name.includes(query) || name.startsWith(query) || 
+                       (name.length > 0 && query.includes(name));
+              });
+              
+              // Sort by relevance and accuracy
+              filteredResults.sort((a: any, b: any) => {
+                const aName = (a.properties.name || a.properties.city || a.properties.state || '').toLowerCase();
+                const bName = (b.properties.name || b.properties.city || b.properties.state || '').toLowerCase();
+                const query = currentQuery.toLowerCase();
+                
+                // Exact match gets highest priority
+                if (aName === query && bName !== query) return -1;
+                if (bName === query && aName !== query) return 1;
+                
+                // Starts with query gets second priority
+                if (aName.startsWith(query) && !bName.startsWith(query)) return -1;
+                if (bName.startsWith(query) && !aName.startsWith(query)) return 1;
+                
+                // Cities get priority over states
+                if (a.properties.result_type === 'city' && b.properties.result_type !== 'city') return -1;
+                if (b.properties.result_type === 'city' && a.properties.result_type !== 'city') return 1;
+                
+                return 0;
+              });
+              
+              // Organize results by type
+              const countries: GeoapifyFeature[] = []; // No countries in this fallback
+              const cities = filteredResults.filter((f: any) => f.properties.result_type === 'city');
+              const otherPlaces = filteredResults.filter((f: any) => f.properties.result_type !== 'city');
               
               const organized = organizeGeographicalResults(countries, cities, otherPlaces, currentQuery);
               setSuggestions(organized);
               searchSuccessful = true;
             }
+          } catch (fallbackError) {
+            console.log('Fallback geographical search failed:', fallbackError);
           }
-        } catch (fallbackError) {
-          console.log('Geographical search failed, trying specific city search...', fallbackError);
         }
         
         // If country search didn't work, try city search
