@@ -196,6 +196,14 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
     ));
   }, []);
 
+  // Generate UUID helper
+  const generateUUID = () => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  };
+
   // Submit trip
   const handleSubmit = async () => {
     if (!user) {
@@ -207,49 +215,138 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
     setError(null);
 
     try {
-      // Create the trip
-      const { data: trip, error: tripError } = await supabase
-        .from('trips')
-        .insert({
-          user_id: user.id,
-          title: tripName, // Fixed: Schema uses 'title', not 'name'
-          destination: destinations.map(d => d.name).join(', '),
-          start_date: startDate,
-          end_date: endDate,
-          description: `Manual entry trip with ${destinations.length} destinations`,
-          status: 'planned'
-        })
-        .select()
-        .single();
-
-      if (tripError) throw tripError;
-
-      // Store additional trip data in a JSON format for now
-      // In a real implementation, you'd want separate tables for these
+      // Generate trip ID
+      const tripId = generateUUID();
+      
+      // Prepare trip data for API
       const tripData = {
-        destinations,
-        daySchedules,
-        travelDetails,
-        accommodations
+        id: tripId,
+        user_id: user.id,
+        title: tripName,
+        destination: destinations.map(d => d.name).join(', '),
+        start_date: startDate,
+        end_date: endDate,
+        description: `Manual entry trip with ${destinations.length} destinations`,
+        status: 'planning',
+        // Additional manual entry data
+        manual_entry_data: {
+          destinations,
+          daySchedules,
+          travelDetails,
+          accommodations
+        }
       };
 
-      // For now, we'll store this in the trip_itinerary table as structured content
-      const { error: itineraryError } = await supabase
-        .from('trip_itinerary')
-        .insert({
-          trip_id: trip.id,
-          day_number: 0, // Use 0 to indicate this is the master manual entry data
-          content: JSON.stringify(tripData)
+      console.log('Submitting trip data:', tripData);
+
+      // Call the API endpoint
+      const response = await fetch('/api/trips/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-email': user.email || '',
+          'x-emergency-auth': 'true'
+        },
+        body: JSON.stringify(tripData)
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || `HTTP error! status: ${response.status}`);
+      }
+
+      console.log('Trip created successfully:', result);
+
+      // Enrich trip data with AI backend services
+      try {
+        console.log('Starting trip data enrichment...');
+        const enrichmentResponse = await fetch('/api/trips/enrich', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            tripData: {
+              destinations,
+              accommodations,
+              travelDetails
+            }
+          })
         });
 
-      if (itineraryError) throw itineraryError;
+        if (enrichmentResponse.ok) {
+          const enrichmentResult = await enrichmentResponse.json();
+          console.log('Trip data enriched:', enrichmentResult);
+          
+          // Update local data with enriched information
+          if (enrichmentResult.enrichedData) {
+            if (enrichmentResult.enrichedData.destinations) {
+              setDestinations(enrichmentResult.enrichedData.destinations);
+            }
+            if (enrichmentResult.enrichedData.accommodations) {
+              setAccommodations(enrichmentResult.enrichedData.accommodations);
+            }
+          }
+        } else {
+          console.warn('Failed to enrich trip data, continuing without enrichment');
+        }
+      } catch (enrichmentError) {
+        console.warn('Trip enrichment failed:', enrichmentError);
+        // Don't fail the whole process for enrichment issues
+      }
 
-      // Navigate to the trip page
-      router.push(`/trips/${trip.id}`);
+      // Store detailed itinerary data
+      if (result.id) {
+        try {
+          // Create daily itinerary entries
+          for (const daySchedule of daySchedules) {
+            await supabase
+              .from('trip_itinerary')
+              .insert({
+                trip_id: result.id,
+                day_number: daySchedule.day,
+                content: JSON.stringify({
+                  date: daySchedule.date,
+                  activities: daySchedule.activities,
+                  notes: daySchedule.notes
+                })
+              });
+          }
+
+          // Store travel details
+          if (travelDetails.length > 0) {
+            await supabase
+              .from('trip_itinerary')
+              .insert({
+                trip_id: result.id,
+                day_number: -1, // Special day for travel details
+                content: JSON.stringify({ travel_details: travelDetails })
+              });
+          }
+
+          // Store accommodation details
+          if (accommodations.length > 0) {
+            await supabase
+              .from('trip_itinerary')
+              .insert({
+                trip_id: result.id,
+                day_number: -2, // Special day for accommodation details
+                content: JSON.stringify({ accommodations })
+              });
+          }
+        } catch (itineraryError) {
+          console.warn('Failed to store detailed itinerary:', itineraryError);
+          // Don't fail the whole process for itinerary storage issues
+        }
+      }
+
+      // Navigate to the trip diary page
+      router.push(`/trips/${result.id}/diary`);
       onClose();
     } catch (error: any) {
       console.error('Error creating manual trip:', error);
-      setError(error.message || 'Failed to create trip');
+      setError(error.message || 'Failed to create trip. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

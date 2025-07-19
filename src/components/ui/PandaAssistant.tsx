@@ -300,12 +300,16 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
             </button>
           ) : (
             <button
-              onClick={() => {}} // Empty onClick handler to make it clickable
-              className="bg-transparent border-none p-0 m-0"
+              onClick={onMessageClick || (() => {
+                // Default behavior when no onMessageClick is provided
+                console.log('Panda Assistant clicked!');
+              })}
+              className="bg-transparent border-none p-0 m-0 cursor-pointer"
               style={{ boxShadow: 'none', background: 'none' }}
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
               type="button"
+              aria-label="Click to interact with Panda Assistant"
             >
               {imageError ? (
                 // Fallback using proper logo
