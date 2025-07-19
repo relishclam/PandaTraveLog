@@ -69,7 +69,7 @@ interface Trip {
 }
 
 export default function TripDiaryPage() {
-  const { id } = useParams();
+  const { tripId } = useParams(); // Changed from 'id' to 'tripId'
   const router = useRouter();
   const { user } = useAuth();
   
@@ -86,10 +86,10 @@ export default function TripDiaryPage() {
   const [pandaMessage, setPandaMessage] = useState("Welcome to your Travel Diary! 🐼✈️ I'm here to help you organize your trip details. Click on any section to edit or add information!");
 
   useEffect(() => {
-    if (id && user) {
+    if (tripId && user) {
       loadTripData();
     }
-  }, [id, user]);
+  }, [tripId, user]);
 
   const loadTripData = async () => {
     try {
@@ -99,7 +99,7 @@ export default function TripDiaryPage() {
       const { data: tripData, error: tripError } = await supabase
         .from('trips')
         .select('*')
-        .eq('id', id)
+        .eq('id', tripId)
         .eq('user_id', user?.id)
         .single();
 
@@ -110,7 +110,7 @@ export default function TripDiaryPage() {
       const { data: itineraryData, error: itineraryError } = await supabase
         .from('trip_itinerary')
         .select('*')
-        .eq('trip_id', id)
+        .eq('trip_id', tripId)
         .order('day_number');
 
       if (itineraryError) {
@@ -174,7 +174,7 @@ export default function TripDiaryPage() {
           })
         })
         .eq('id', parseInt(dayId))
-        .eq('trip_id', id);
+        .eq('trip_id', tripId);
 
       if (error) throw error;
       
