@@ -1,5 +1,4 @@
 // Trip Enrichment Service - Uses AI to enhance trip data with addresses, contacts, and map links
-import { OpenAI } from 'openai';
 
 interface EnrichmentRequest {
   placeName: string;
@@ -25,17 +24,11 @@ interface EnrichedPlaceData {
 }
 
 class TripEnrichmentService {
-  private openai: OpenAI;
+  private openRouterApiKey: string;
   private geoapifyApiKey: string;
 
   constructor() {
-    // Initialize OpenRouter client
-    this.openai = new OpenAI({
-      baseURL: "https://openrouter.ai/api/v1",
-      apiKey: process.env.NEXT_PUBLIC_OPENROUTER_API_KEY,
-      dangerouslyAllowBrowser: true
-    });
-    
+    this.openRouterApiKey = process.env.NEXT_PUBLIC_OPENROUTER_API_KEY || '';
     this.geoapifyApiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY || '';
   }
 
@@ -118,29 +111,50 @@ class TripEnrichmentService {
    * Use AI to enhance place information
    */
   private async getAIEnhancement(request: EnrichmentRequest, geoData: any): Promise<any> {
+    if (!this.openRouterApiKey) {
+      console.warn('OpenRouter API key not available, using fallback response');
+      return this.createFallbackResponse(request);
+    }
+
     try {
       const prompt = this.buildEnhancementPrompt(request, geoData);
       
-      const completion = await this.openai.chat.completions.create({
-        model: "anthropic/claude-3.5-sonnet",
-        messages: [
-          {
-            role: "system",
-            content: "You are a travel information assistant. Provide accurate, helpful information about places including addresses, contact details, and travel tips. Always respond in valid JSON format."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 1000
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.openRouterApiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : '',
+          'X-Title': 'PandaTraveLog'
+        },
+        body: JSON.stringify({
+          model: "anthropic/claude-3.5-sonnet",
+          messages: [
+            {
+              role: "system",
+              content: "You are a travel information assistant. Provide accurate, helpful information about places including addresses, contact details, and travel tips. Always respond in valid JSON format."
+            },
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 1000
+        })
       });
 
-      const response = completion.choices[0]?.message?.content;
-      if (response) {
+      if (!response.ok) {
+        console.error('OpenRouter API error:', response.status, response.statusText);
+        return this.createFallbackResponse(request);
+      }
+
+      const data = await response.json();
+      const aiResponse = data.choices?.[0]?.message?.content;
+      
+      if (aiResponse) {
         try {
-          return JSON.parse(response);
+          return JSON.parse(aiResponse);
         } catch (parseError) {
           console.error('Failed to parse AI response:', parseError);
           return this.createFallbackResponse(request);
