@@ -1,4 +1,4 @@
-// src/app/api/trips/[tripId]/route.ts
+// src/app/api/trips/[id]/route.ts
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -9,10 +9,10 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { tripId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { tripId } = params;
+    const { id: tripId } = params;
     console.log(`Fetching trip with ID: ${tripId}`);
 
     // Get the authenticated user to filter trips by user
