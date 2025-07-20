@@ -23,8 +23,8 @@ export const metadata: Metadata = {
     title: "PandaTraveLog"
   },
   icons: {
-    icon: "/icons/icon-192x192.png",
-    apple: "/icons/icon-192x192.png"
+    icon: "/images/logo/logo-icon.png",
+    apple: "/apple-touch-icon.png"
   }
 };
 
@@ -45,9 +45,10 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#f97316" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="PandaTraveLog" />
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
         {/* Favicon configuration */}
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />

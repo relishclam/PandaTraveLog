@@ -4,18 +4,29 @@ const urlsToCache = [
   '/',
   '/trips',
   '/login',
-  '/signup',
-  '/manifest.json',
-  // Add other important routes and assets
+  '/account',
+  '/manifest.json'
+  // Only cache routes that actually exist
 ];
 
-// Install event - cache resources
+// Install event - cache resources with error handling
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('Opened cache');
-        return cache.addAll(urlsToCache);
+        // Cache each URL individually to handle 404s gracefully
+        return Promise.allSettled(
+          urlsToCache.map(url => 
+            cache.add(url).catch(error => {
+              console.warn(`Failed to cache ${url}:`, error);
+              return null; // Continue with other URLs
+            })
+          )
+        );
+      })
+      .catch(error => {
+        console.error('Failed to open cache:', error);
       })
   );
 });
@@ -55,8 +66,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('push', (event) => {
   const options = {
     body: event.data ? event.data.text() : 'New travel update from PandaTraveLog!',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-72x72.png',
+    icon: '/images/logo/logo-icon.png',
+    badge: '/favicon-32x32.png',
     vibrate: [100, 50, 100],
     data: {
       dateOfArrival: Date.now(),
@@ -66,12 +77,12 @@ self.addEventListener('push', (event) => {
       {
         action: 'explore',
         title: 'View Trip',
-        icon: '/icons/icon-96x96.png'
+        icon: '/images/logo/logo-icon.png'
       },
       {
         action: 'close',
         title: 'Close',
-        icon: '/icons/icon-96x96.png'
+        icon: '/images/logo/logo-icon.png'
       }
     ]
   };
