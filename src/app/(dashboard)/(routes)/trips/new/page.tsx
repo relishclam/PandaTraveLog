@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 
 import DestinationSearchWrapper from '@/components/maps/DestinationSearchWrapper';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePandaAssistant } from '@/contexts/PandaAssistantContext';
+import { usePOAssistant } from '@/contexts/POAssistantContext';
 
 // Simple button component
 const Button = ({ 
@@ -135,7 +135,7 @@ export default function NewTripPage() {
   
   // Use auth context (modify if needed for your specific auth implementation)
   const { user, isLoading: authLoading } = useAuth();
-  const { showPandaModal, hidePandaModal } = usePandaAssistant();
+  const { showPO, hidePO } = usePOAssistant();
   
   // Check for emergency auth in sessionStorage
   const [hasEmergencyAuth, setHasEmergencyAuth] = useState(false);

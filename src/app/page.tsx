@@ -3,16 +3,9 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
-import { usePandaHelper } from '@/utils/pandaAssistantHelper';
-import { useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 
 export default function Home() {
-  const { showPanda } = usePandaHelper();
-  
-  // Show welcome message when the component mounts
-  useEffect(() => {
-    showPanda("Hi there! I'm PO, your friendly travel assistant. Need help planning your next adventure?", "excited");
-  }, []); // Empty dependency array means this runs once on mount
   
   // Handle direct navigation
   const handleNavigation = useCallback((path: string) => {

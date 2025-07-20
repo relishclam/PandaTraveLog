@@ -1,45 +1,47 @@
 'use client';
 
 /**
- * Helper functions for using the Panda Assistant across the application
+ * Helper functions for using the PO Assistant across the application
  */
 
-import { usePandaAssistant } from '@/contexts/PandaAssistantContext';
-
-type Emotion = 'happy' | 'thinking' | 'excited' | 'confused' | 'sad';
+import { usePOAssistant } from '@/contexts/POAssistantContext';
 
 /**
- * Hook to access the Panda Assistant functionality with simplified methods
+ * Hook to access the PO Assistant functionality with simplified methods
  * This provides a cleaner API for components to use
  */
 export function usePandaHelper() {
   const {
     state,
-    showMainAssistant,
-    hideMainAssistant,
-    showFloatingAssistant,
-    hideFloatingAssistant,
-    hideAllAssistants
-  } = usePandaAssistant();
+    showPO,
+    hidePO,
+    setContext
+  } = usePOAssistant();
 
   return {
     // Main assistant methods
-    showPanda: (message?: string, emotion: Emotion = 'happy') => showMainAssistant(message, emotion),
-    hidePanda: () => hideMainAssistant(),
+    showPanda: (message?: string) => {
+      setContext('marketing');
+      showPO();
+    },
+    hidePanda: () => hidePO(),
     
-    // Floating assistant methods (for temporary messages that shouldn't block main content)
-    showFloatingPanda: (message?: string, emotion: Emotion = 'happy') => showFloatingAssistant(message, emotion),
-    hideFloatingPanda: () => hideFloatingAssistant(),
+    // Floating assistant methods (for backward compatibility)
+    showFloatingPanda: (message?: string) => {
+      setContext('marketing');
+      showPO();
+    },
+    hideFloatingPanda: () => hidePO(),
     
     // Hide all assistants
-    hideAll: () => hideAllAssistants(),
+    hideAll: () => hidePO(),
     
     // Get current state
-    isPandaVisible: state.mainAssistant.visible,
-    isFloatingPandaVisible: state.floatingAssistant.visible,
+    isPandaVisible: state.isVisible,
+    isFloatingPandaVisible: state.isVisible,
     
-    // Current messages
-    mainMessage: state.mainAssistant.message,
-    floatingMessage: state.floatingAssistant.message
+    // Current messages (simplified for backward compatibility)
+    mainMessage: '',
+    floatingMessage: ''
   };
 }

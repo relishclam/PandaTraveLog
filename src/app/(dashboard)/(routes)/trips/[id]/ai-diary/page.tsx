@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePOAssistant } from '@/contexts/POAssistantContext';
 import supabase from '@/lib/supabase';
-import AIChatInterface from '@/components/chat/AIChatInterface';
 import { Button } from '@/components/ui/Button';
 
 interface Trip {
@@ -37,8 +37,7 @@ export default function AIDiaryPage() {
   const [itinerary, setItinerary] = useState<ItineraryDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isChatMinimized, setIsChatMinimized] = useState(false);
-
+  const { setContext, showPO } = usePOAssistant();
   const tripId = params.id as string;
 
   useEffect(() => {
@@ -51,6 +50,11 @@ export default function AIDiaryPage() {
 
     fetchTripData();
   }, [user, authLoading, tripId]);
+
+  // Set PO context when component mounts
+  useEffect(() => {
+    setContext('diary', tripId);
+  }, [setContext, tripId]);
 
   const fetchTripData = async () => {
     try {
@@ -157,10 +161,10 @@ export default function AIDiaryPage() {
                 AI Generated
               </span>
               <Button
-                onClick={() => setIsChatMinimized(!isChatMinimized)}
-                className="bg-blue-500 hover:bg-blue-600 text-white"
+                onClick={() => showPO()}
+                className="bg-orange-500 hover:bg-orange-600 text-white"
               >
-                {isChatMinimized ? 'Show' : 'Hide'} AI Assistant
+                Chat with PO Assistant
               </Button>
             </div>
           </div>
@@ -169,10 +173,10 @@ export default function AIDiaryPage() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className={`grid gap-8 ${isChatMinimized ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-3'}`}>
+        <div className="grid gap-8 grid-cols-1">
           
           {/* Trip Itinerary */}
-          <div className={`${isChatMinimized ? 'col-span-1' : 'lg:col-span-2'}`}>
+          <div className="col-span-1">
             <div className="bg-white rounded-lg shadow-sm border">
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-xl font-semibold text-gray-900">Trip Itinerary</h2>
@@ -235,27 +239,35 @@ export default function AIDiaryPage() {
             </div>
           </div>
 
-          {/* AI Chat Interface */}
-          {!isChatMinimized && (
-            <div className="lg:col-span-1">
-              <div className="sticky top-8">
-                <AIChatInterface
-                  onTripCreated={handleTripUpdate}
-                  className="h-[600px]"
-                />
+          {/* PO Assistant Info */}
+          <div className="col-span-1">
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="text-center">
+                <div className="mb-4">
+                  <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Chat with PO Assistant</h3>
+                  <p className="text-gray-600 mb-4">
+                    PO is available at the bottom of your screen to help you refine your itinerary, 
+                    add activities, or answer any travel questions!
+                  </p>
+                  <Button
+                    onClick={() => showPO()}
+                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                  >
+                    Open PO Assistant
+                  </Button>
+                </div>
               </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
 
-      {/* Minimized Chat Button */}
-      {isChatMinimized && (
-        <AIChatInterface
-          isMinimized={true}
-          onMinimize={() => setIsChatMinimized(false)}
-        />
-      )}
+      {/* PO Assistant is managed globally and will appear at bottom of screen */}
     </div>
   );
 }
