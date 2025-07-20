@@ -15,8 +15,6 @@ export const metadata: Metadata = {
   title: "PandaTraveLog - Your AI Travel Planner",
   description: "Plan your trips with PO, your friendly travel panda assistant",
   manifest: "/manifest.json",
-  themeColor: "#f97316",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -27,6 +25,16 @@ export const metadata: Metadata = {
     apple: "/apple-touch-icon.png"
   }
 };
+
+export function generateViewport() {
+  return {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+    themeColor: '#f97316'
+  }
+}
 
 export default function RootLayout({
   children,
