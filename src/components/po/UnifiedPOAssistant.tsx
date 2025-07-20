@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo, useMemo } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IoClose, IoSend, IoContract, IoExpand } from 'react-icons/io5';
@@ -22,7 +22,7 @@ interface POAssistantProps {
   className?: string;
 }
 
-export default function UnifiedPOAssistant({
+function UnifiedPOAssistant({
   tripId,
   context = 'dashboard',
   isMinimized = false,
@@ -45,6 +45,14 @@ export default function UnifiedPOAssistant({
   const inputRef = useRef<HTMLInputElement>(null);
   const [inputFocused, setInputFocused] = useState(false);
 
+  // Optimized input handler to prevent re-renders
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputMessage(e.target.value);
+  }, []);
+
+  // Memoize messages to prevent unnecessary re-renders
+  const memoizedMessages = useMemo(() => messages, [messages]);
+
   // Auto-detect context from pathname
   const getContextFromPath = useCallback(() => {
     if (pathname.includes('/trips/new')) return 'trip_creation';
@@ -55,6 +63,19 @@ export default function UnifiedPOAssistant({
   }, [pathname, context, user]);
 
   const currentContext = getContextFromPath();
+
+  // Memoized contextual greeting function
+  const getContextualGreeting = useCallback(() => {
+    const greetings = {
+      marketing: `Hi! I'm PO, your travel planning buddy! ✈️ Let's plan an amazing trip together!`,
+      trip_creation: `Hey there! Ready to plan an awesome trip? I'm PO, and I'll help you create the perfect itinerary! 🌟`,
+      diary: `Welcome back! I'm here to help you with any questions about your trip. Need suggestions for activities, restaurants, or places to visit? 🗺️`,
+      manual_entry: `Hi! I'm PO, your travel assistant. I can help you find great places to visit, restaurants to try, and accommodations to book! 🏨✈️`,
+      dashboard: `Hello! I'm PO, your personal travel assistant. Ready to plan your next adventure? 🌍`
+    };
+    
+    return greetings[currentContext] || greetings.dashboard;
+  }, [currentContext]);
 
   // Load conversation history on mount
   useEffect(() => {
@@ -85,14 +106,14 @@ Where would you like to go?`,
       }]);
       setShowPreAuthNotice(true);
     }
-  }, [user, tripId, currentContext]);
+  }, [user, tripId, currentContext, getContextualGreeting]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const loadConversationHistory = async () => {
+  const loadConversationHistory = useCallback(async () => {
     if (!user || !tripId) return;
 
     try {
@@ -127,21 +148,9 @@ Where would you like to go?`,
         timestamp: new Date()
       }]);
     }
-  };
+  }, [user, tripId, getContextualGreeting]);
 
-  const getContextualGreeting = () => {
-    const greetings = {
-      marketing: `Hi! I'm PO, your travel planning buddy! ✈️ Let's plan an amazing trip together!`,
-      trip_creation: `Hey there! Ready to plan an awesome trip? I'm PO, and I'll help you create the perfect itinerary! 🌟`,
-      diary: `Welcome back! I'm here to help you with any questions about your trip. Need suggestions for activities, restaurants, or places to visit? 🗺️`,
-      manual_entry: `Hi! I'm PO, your travel assistant. I can help you find great places to visit, restaurants to try, and accommodations to book! 🏨✈️`,
-      dashboard: `Hello! I'm PO, your personal travel assistant. Ready to plan your next adventure? 🌍`
-    };
-    
-    return greetings[currentContext] || greetings.dashboard;
-  };
-
-  const sendMessage = async () => {
+  const sendMessage = useCallback(async () => {
     if (!inputMessage.trim() || isLoading) return;
 
     const userMessage: Message = {
@@ -228,14 +237,22 @@ Where would you like to go?`,
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [inputMessage, isLoading, messages, user, tripId, currentContext, conversationId, onTripCreated]);
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
-  };
+  }, [sendMessage]);
+
+  const handleFocus = useCallback(() => {
+    setInputFocused(true);
+  }, []);
+
+  const handleBlur = useCallback(() => {
+    setInputFocused(false);
+  }, []);
 
   // Maintain input focus after state updates
   useEffect(() => {
@@ -247,8 +264,8 @@ Where would you like to go?`,
     }
   }, [inputMessage, inputFocused, isLoading]);
 
-  // Chat Interface Component
-  const ChatInterface = () => (
+  // Chat Interface Component - Memoized to prevent unnecessary re-renders
+  const ChatInterface = useMemo(() => (
     <>
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-orange-50">
@@ -294,7 +311,7 @@ Where would you like to go?`,
           </div>
         )}
         
-        {messages.map((message, index) => (
+        {memoizedMessages.map((message, index) => (
           <div
             key={index}
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -329,35 +346,36 @@ Where would you like to go?`,
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <div className="p-4 border-t border-gray-200">
+      {/* Input - Optimized for mobile */}
+      <div className="p-4 border-t border-gray-200 bg-white">
         <div className="flex space-x-2">
           <input
             ref={inputRef}
             type="text"
             value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={handleKeyPress}
-            onFocus={() => setInputFocused(true)}
-            onBlur={() => setInputFocused(false)}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
             placeholder="Ask PO anything about your trip..."
-            className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+            className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-base"
             disabled={isLoading}
             autoComplete="off"
+            inputMode="text"
           />
           <button
             onClick={sendMessage}
             disabled={isLoading || !inputMessage.trim()}
-            className="p-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
           >
-            <IoSend className="w-4 h-4" />
+            <IoSend className="w-5 h-5" />
           </button>
         </div>
       </div>
     </>
-  );
+  ), [isLoading, onMinimize, showPreAuthNotice, user, memoizedMessages, inputMessage, handleInputChange, handleKeyPress, handleFocus, handleBlur, sendMessage]);
 
-  // Floating PO icon when minimized
+  // Floating PO icon when minimized - Improved for mobile
   if (isMinimized) {
     return (
       <div className="fixed bottom-6 right-6 z-50">
@@ -375,11 +393,13 @@ Where would you like to go?`,
           />
         </button>
         
-        {/* Chat Modal */}
+        {/* Chat Modal - Fixed for mobile */}
         <AnimatePresence>
           {isOpen && (
-            <div className="absolute bottom-20 right-0 w-96 h-[500px] bg-white rounded-lg shadow-2xl border border-gray-200 flex flex-col">
-              <ChatInterface />
+            <div className="fixed inset-0 z-50 md:absolute md:bottom-20 md:right-0 md:inset-auto">
+              <div className="h-full w-full bg-white md:w-96 md:h-[500px] md:rounded-lg md:shadow-2xl border-0 md:border border-gray-200 flex flex-col">
+                {ChatInterface}
+              </div>
             </div>
           )}
         </AnimatePresence>
@@ -390,7 +410,10 @@ Where would you like to go?`,
   // Full-screen or embedded chat interface
   return (
     <div className={`${className} ${isMinimized ? '' : 'h-full flex flex-col'}`}>
-      <ChatInterface />
+      {ChatInterface}
     </div>
   );
 }
+
+// Export memoized component to prevent unnecessary re-renders from parent
+export default memo(UnifiedPOAssistant);
