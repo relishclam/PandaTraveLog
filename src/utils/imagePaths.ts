@@ -1,10 +1,11 @@
 'use client';
 
-import { Emotion } from '@/contexts/PandaAssistantContext';
-
 /**
  * Utility functions for handling image paths
  */
+
+// Define emotion types locally to avoid context dependency
+type Emotion = 'happy' | 'thinking' | 'excited' | 'confused' | 'sad' | 'love' | 'surprised' | 'curious';
 
 // Map of image paths to ensure consistent usage across the application
 export const IMAGE_PATHS = {
