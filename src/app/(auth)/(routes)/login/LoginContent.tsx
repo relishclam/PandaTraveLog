@@ -335,7 +335,6 @@ export default function LoginContent() {
                       width={40}
                       height={40}
                       unoptimized 
-                      height={40} 
                     />
                   </div>
                   
