@@ -233,7 +233,7 @@ Where would you like to go?`,
       <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-orange-50">
         <div className="flex items-center space-x-3">
           <Image
-            src="/images/po/emotions/happy.png"
+            src={isLoading ? "/images/po/emotions/thinking.png" : "/images/po/emotions/excited.png"}
             alt="PO"
             width={40}
             height={40}
@@ -342,7 +342,7 @@ Where would you like to go?`,
           className="bg-orange-500 hover:bg-orange-600 rounded-full p-3 shadow-lg transition-transform hover:scale-110 active:scale-95"
         >
           <Image
-            src="/images/po/emotions/happy.png"
+            src="/images/po/emotions/excited.png"
             alt="PO Assistant"
             width={60}
             height={60}

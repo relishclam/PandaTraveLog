@@ -13,3 +13,22 @@
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+
+# Ensure static assets are served correctly
+[[redirects]]
+  from = "/_next/static/*"
+  to = "/_next/static/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/images/*"
+  to = "/images/:splat"
+  status = 200
+  force = true
+
+# Fallback for all other routes to Next.js
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
