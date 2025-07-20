@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Authorization': `Bearer ${process.env.OPEN_ROUTER_API_KEY}`, // Fixed: Added underscore
         'Content-Type': 'application/json',
         'X-Title': 'PandaTraveLog PO Assistant'
       },
