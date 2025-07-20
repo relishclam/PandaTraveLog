@@ -26,7 +26,6 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import supabase from '@/lib/supabase';
 
 interface Destination {
   id: string;
@@ -196,14 +195,6 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
     ));
   }, []);
 
-  // Generate UUID helper
-  const generateUUID = () => {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-      return v.toString(16);
-    });
-  };
-
   // Submit trip
   const handleSubmit = async () => {
     if (!user) {
@@ -215,138 +206,44 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
     setError(null);
 
     try {
-      // Generate trip ID
-      const tripId = generateUUID();
-      
-      // Prepare trip data for API
+      // Prepare trip data for the API
       const tripData = {
-        id: tripId,
-        user_id: user.id,
         title: tripName,
         destination: destinations.map(d => d.name).join(', '),
         start_date: startDate,
         end_date: endDate,
-        description: `Manual entry trip with ${destinations.length} destinations`,
-        status: 'planning',
-        // Additional manual entry data
-        manual_entry_data: {
-          destinations,
-          daySchedules,
-          travelDetails,
-          accommodations
-        }
+        destinations: destinations,
+        daySchedules: daySchedules,
+        travelDetails: travelDetails,
+        accommodations: accommodations
       };
 
-      console.log('Submitting trip data:', tripData);
-
-      // Call the API endpoint
+      // Call the existing API endpoint
       const response = await fetch('/api/trips/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-email': user.email || '',
-          'x-emergency-auth': 'true'
         },
-        body: JSON.stringify(tripData)
+        body: JSON.stringify(tripData),
       });
 
-      const result = await response.json();
-      
       if (!response.ok) {
-        throw new Error(result.error || `HTTP error! status: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create trip');
       }
 
+      const result = await response.json();
       console.log('Trip created successfully:', result);
-
-      // Enrich trip data with AI backend services
-      try {
-        console.log('Starting trip data enrichment...');
-        const enrichmentResponse = await fetch('/api/trips/enrich', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            tripData: {
-              destinations,
-              accommodations,
-              travelDetails
-            }
-          })
-        });
-
-        if (enrichmentResponse.ok) {
-          const enrichmentResult = await enrichmentResponse.json();
-          console.log('Trip data enriched:', enrichmentResult);
-          
-          // Update local data with enriched information
-          if (enrichmentResult.enrichedData) {
-            if (enrichmentResult.enrichedData.destinations) {
-              setDestinations(enrichmentResult.enrichedData.destinations);
-            }
-            if (enrichmentResult.enrichedData.accommodations) {
-              setAccommodations(enrichmentResult.enrichedData.accommodations);
-            }
-          }
-        } else {
-          console.warn('Failed to enrich trip data, continuing without enrichment');
-        }
-      } catch (enrichmentError) {
-        console.warn('Trip enrichment failed:', enrichmentError);
-        // Don't fail the whole process for enrichment issues
-      }
-
-      // Store detailed itinerary data
-      if (result.id) {
-        try {
-          // Create daily itinerary entries
-          for (const daySchedule of daySchedules) {
-            await supabase
-              .from('trip_itinerary')
-              .insert({
-                trip_id: result.id,
-                day_number: daySchedule.day,
-                content: JSON.stringify({
-                  date: daySchedule.date,
-                  activities: daySchedule.activities,
-                  notes: daySchedule.notes
-                })
-              });
-          }
-
-          // Store travel details
-          if (travelDetails.length > 0) {
-            await supabase
-              .from('trip_itinerary')
-              .insert({
-                trip_id: result.id,
-                day_number: -1, // Special day for travel details
-                content: JSON.stringify({ travel_details: travelDetails })
-              });
-          }
-
-          // Store accommodation details
-          if (accommodations.length > 0) {
-            await supabase
-              .from('trip_itinerary')
-              .insert({
-                trip_id: result.id,
-                day_number: -2, // Special day for accommodation details
-                content: JSON.stringify({ accommodations })
-              });
-          }
-        } catch (itineraryError) {
-          console.warn('Failed to store detailed itinerary:', itineraryError);
-          // Don't fail the whole process for itinerary storage issues
-        }
-      }
-
-      // Navigate to the trip diary page (using dashboard route)
-      router.push(`/trips/${result.id}/diary`);
+      
+      // Navigate to the trip diary
+      router.push(`/trips/${result.tripId}/diary`);
+      
+      // Close modal
       onClose();
-    } catch (error: any) {
-      console.error('Error creating manual trip:', error);
-      setError(error.message || 'Failed to create trip. Please try again.');
+      
+    } catch (error) {
+      console.error('Error creating trip:', error);
+      setError(error instanceof Error ? error.message : 'Failed to create trip');
     } finally {
       setIsSubmitting(false);
     }
@@ -364,7 +261,7 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
       case 4:
         return true; // Travel details are optional
       case 5:
-        return true; // Accommodation details are optional
+        return true; // Accommodation is optional
       default:
         return false;
     }
@@ -406,8 +303,8 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-2xl font-bold">Manual Trip Entry</h2>
-              <p className="text-blue-100">Step {currentStep} of {totalSteps}: {stepTitles[currentStep - 1]}</p>
+              <h2 className="text-2xl font-bold">Create Manual Trip Entry</h2>
+              <p className="text-blue-100 mt-1">Step {currentStep} of {totalSteps}: {stepTitles[currentStep - 1]}</p>
             </div>
             <Button
               variant="ghost"
@@ -418,25 +315,20 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
               <X className="w-5 h-5" />
             </Button>
           </div>
-          
-          {/* Progress Bar */}
-          <div className="mt-4 bg-white/20 rounded-full h-2">
-            <div 
-              className="bg-white rounded-full h-2 transition-all duration-300"
-              style={{ width: `${(currentStep / totalSteps) * 100}%` }}
-            />
-          </div>
         </div>
 
-        {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[60vh]">
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-center">
-              <AlertTriangle className="w-5 h-5 text-red-500 mr-2" />
-              <span className="text-red-700">{error}</span>
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 m-6 mb-0">
+            <div className="flex">
+              <AlertTriangle className="w-5 h-5 text-red-400 mr-3 mt-0.5" />
+              <p className="text-red-700">{error}</p>
             </div>
-          )}
+          </div>
+        )}
 
+        {/* Content */}
+        <div className="p-6 max-h-[60vh] overflow-y-auto">
           {/* Step 1: Trip Details */}
           {currentStep === 1 && (
             <div className="space-y-6">
@@ -483,60 +375,60 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
           {currentStep === 2 && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Destinations</h3>
-                <Button onClick={addDestination} size="sm">
+                <h3 className="text-lg font-semibold text-gray-900">Destinations</h3>
+                <Button onClick={addDestination} className="bg-blue-600 hover:bg-blue-700">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Destination
                 </Button>
               </div>
               
-              {destinations.map((destination, index) => (
-                <Card key={destination.id} className="p-4">
-                  <div className="flex justify-between items-start mb-4">
-                    <Badge variant="outline">Destination {index + 1}</Badge>
-                    {destinations.length > 1 && (
+              {destinations.map((destination) => (
+                <Card key={destination.id} className="border-2 border-gray-200">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-4">
+                      <MapPin className="w-5 h-5 text-blue-600 mt-1" />
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => removeDestination(destination.id)}
-                        className="text-red-500 hover:text-red-700"
+                        className="text-red-600 hover:bg-red-50"
                       >
                         <X className="w-4 h-4" />
                       </Button>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Destination Name *
-                      </label>
-                      <Input
-                        value={destination.name}
-                        onChange={(e) => updateDestination(destination.id, 'name', e.target.value)}
-                        placeholder="e.g., Paris, France"
-                        className="w-full"
-                      />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Address (Optional)
-                      </label>
-                      <Input
-                        value={destination.address || ''}
-                        onChange={(e) => updateDestination(destination.id, 'address', e.target.value)}
-                        placeholder="Specific address or area"
-                        className="w-full"
-                      />
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Destination Name *
+                        </label>
+                        <Input
+                          value={destination.name}
+                          onChange={(e) => updateDestination(destination.id, 'name', e.target.value)}
+                          placeholder="e.g., Paris, France"
+                          className="w-full"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Address (Optional)
+                        </label>
+                        <Input
+                          value={destination.address || ''}
+                          onChange={(e) => updateDestination(destination.id, 'address', e.target.value)}
+                          placeholder="Specific address or area"
+                          className="w-full"
+                        />
+                      </div>
                     </div>
-                  </div>
+                  </CardContent>
                 </Card>
               ))}
               
               {destinations.length === 0 && (
                 <div className="text-center py-8 text-gray-500">
                   <MapPin className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  <p>No destinations added yet. Click "Add Destination" to start.</p>
+                  <p>No destinations added yet. Add at least one destination to continue.</p>
                 </div>
               )}
             </div>
@@ -546,30 +438,32 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
           {currentStep === 3 && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Daily Schedule</h3>
-                <Button onClick={addDaySchedule} size="sm">
+                <h3 className="text-lg font-semibold text-gray-900">Daily Schedule</h3>
+                <Button onClick={addDaySchedule} className="bg-green-600 hover:bg-green-700">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Day
                 </Button>
               </div>
               
-              {daySchedules.map((day, index) => (
-                <Card key={day.id} className="p-4">
-                  <div className="flex justify-between items-start mb-4">
-                    <Badge variant="outline">Day {day.day}</Badge>
-                    {daySchedules.length > 1 && (
+              {daySchedules.map((day) => (
+                <Card key={day.id} className="border-2 border-gray-200">
+                  <CardHeader className="pb-3">
+                    <div className="flex justify-between items-center">
+                      <CardTitle className="text-lg flex items-center">
+                        <Calendar className="w-5 h-5 text-green-600 mr-2" />
+                        Day {day.day}
+                      </CardTitle>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => removeDaySchedule(day.id)}
-                        className="text-red-500 hover:text-red-700"
+                        className="text-red-600 hover:bg-red-50"
                       >
                         <X className="w-4 h-4" />
                       </Button>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-4">
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Date
@@ -600,19 +494,19 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
                       <Textarea
                         value={day.notes || ''}
                         onChange={(e) => updateDaySchedule(day.id, 'notes', e.target.value)}
-                        placeholder="Additional notes or reminders..."
+                        placeholder="Any additional notes or reminders..."
                         className="w-full"
                         rows={2}
                       />
                     </div>
-                  </div>
+                  </CardContent>
                 </Card>
               ))}
               
               {daySchedules.length === 0 && (
                 <div className="text-center py-8 text-gray-500">
                   <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  <p>No daily schedule added yet. Click "Add Day" to start.</p>
+                  <p>No daily schedules added yet. Add at least one day to continue.</p>
                 </div>
               )}
             </div>
@@ -622,110 +516,117 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
           {currentStep === 4 && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Travel Details</h3>
-                <Button onClick={addTravelDetails} size="sm">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Travel Details</h3>
+                  <p className="text-sm text-gray-600">Optional: Add your flight, train, or other travel information</p>
+                </div>
+                <Button onClick={addTravelDetails} className="bg-purple-600 hover:bg-purple-700">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Travel
                 </Button>
               </div>
               
-              {travelDetails.map((travel, index) => (
-                <Card key={travel.id} className="p-4">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center">
-                      {getTravelModeIcon(travel.mode)}
-                      <Badge variant="outline" className="ml-2">Travel {index + 1}</Badge>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeTravelDetails(travel.id)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Travel Mode
-                      </label>
-                      <select
-                        value={travel.mode}
-                        onChange={(e) => updateTravelDetails(travel.id, 'mode', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-md"
+              {travelDetails.map((travel) => (
+                <Card key={travel.id} className="border-2 border-gray-200">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex items-center">
+                        {getTravelModeIcon(travel.mode)}
+                        <Badge variant="outline" className="ml-2 capitalize">
+                          {travel.mode}
+                        </Badge>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeTravelDetails(travel.id)}
+                        className="text-red-600 hover:bg-red-50"
                       >
-                        <option value="flight">Flight</option>
-                        <option value="train">Train</option>
-                        <option value="car">Car</option>
-                        <option value="bus">Bus</option>
-                      </select>
+                        <X className="w-4 h-4" />
+                      </Button>
                     </div>
                     
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Details
-                      </label>
-                      <Textarea
-                        value={travel.details}
-                        onChange={(e) => updateTravelDetails(travel.id, 'details', e.target.value)}
-                        placeholder="Flight number, route, or other travel details..."
-                        className="w-full"
-                        rows={2}
-                      />
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Travel Mode
+                        </label>
+                        <select
+                          value={travel.mode}
+                          onChange={(e) => updateTravelDetails(travel.id, 'mode', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="flight">Flight</option>
+                          <option value="train">Train</option>
+                          <option value="car">Car</option>
+                          <option value="bus">Bus</option>
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Travel Details
+                        </label>
+                        <Textarea
+                          value={travel.details}
+                          onChange={(e) => updateTravelDetails(travel.id, 'details', e.target.value)}
+                          placeholder="Flight number, route, etc."
+                          className="w-full"
+                          rows={2}
+                        />
+                      </div>
+                      
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Departure Time
+                          </label>
+                          <Input
+                            type="datetime-local"
+                            value={travel.departureTime || ''}
+                            onChange={(e) => updateTravelDetails(travel.id, 'departureTime', e.target.value)}
+                            className="w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Arrival Time
+                          </label>
+                          <Input
+                            type="datetime-local"
+                            value={travel.arrivalTime || ''}
+                            onChange={(e) => updateTravelDetails(travel.id, 'arrivalTime', e.target.value)}
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Booking Reference
+                          </label>
+                          <Input
+                            value={travel.bookingReference || ''}
+                            onChange={(e) => updateTravelDetails(travel.id, 'bookingReference', e.target.value)}
+                            placeholder="Confirmation number"
+                            className="w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Contact Info
+                          </label>
+                          <Input
+                            value={travel.contactInfo || ''}
+                            onChange={(e) => updateTravelDetails(travel.id, 'contactInfo', e.target.value)}
+                            placeholder="Airline/company contact"
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
                     </div>
-                    
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Departure Time
-                        </label>
-                        <Input
-                          type="datetime-local"
-                          value={travel.departureTime || ''}
-                          onChange={(e) => updateTravelDetails(travel.id, 'departureTime', e.target.value)}
-                          className="w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Arrival Time
-                        </label>
-                        <Input
-                          type="datetime-local"
-                          value={travel.arrivalTime || ''}
-                          onChange={(e) => updateTravelDetails(travel.id, 'arrivalTime', e.target.value)}
-                          className="w-full"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Booking Reference
-                        </label>
-                        <Input
-                          value={travel.bookingReference || ''}
-                          onChange={(e) => updateTravelDetails(travel.id, 'bookingReference', e.target.value)}
-                          placeholder="Confirmation number"
-                          className="w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Contact Info
-                        </label>
-                        <Input
-                          value={travel.contactInfo || ''}
-                          onChange={(e) => updateTravelDetails(travel.id, 'contactInfo', e.target.value)}
-                          placeholder="Phone or email"
-                          className="w-full"
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  </CardContent>
                 </Card>
               ))}
               
@@ -742,118 +643,120 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
           {currentStep === 5 && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Accommodation</h3>
-                <Button onClick={addAccommodation} size="sm">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Accommodation</h3>
+                  <p className="text-sm text-gray-600">Optional: Add your hotel or accommodation details</p>
+                </div>
+                <Button onClick={addAccommodation} className="bg-orange-600 hover:bg-orange-700">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Accommodation
                 </Button>
               </div>
               
-              {accommodations.map((accommodation, index) => (
-                <Card key={accommodation.id} className="p-4">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center">
-                      <Hotel className="w-4 h-4" />
-                      <Badge variant="outline" className="ml-2">Accommodation {index + 1}</Badge>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeAccommodation(accommodation.id)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Hotel/Accommodation Name
-                      </label>
-                      <Input
-                        value={accommodation.name}
-                        onChange={(e) => updateAccommodation(accommodation.id, 'name', e.target.value)}
-                        placeholder="Hotel name"
-                        className="w-full"
-                      />
+              {accommodations.map((accommodation) => (
+                <Card key={accommodation.id} className="border-2 border-gray-200">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-4">
+                      <Hotel className="w-5 h-5 text-orange-600" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeAccommodation(accommodation.id)}
+                        className="text-red-600 hover:bg-red-50"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
                     </div>
                     
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Address
-                      </label>
-                      <Input
-                        value={accommodation.address}
-                        onChange={(e) => updateAccommodation(accommodation.id, 'address', e.target.value)}
-                        placeholder="Hotel address"
-                        className="w-full"
-                      />
-                    </div>
-                    
-                    <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Check-in Date
+                          Hotel/Accommodation Name
                         </label>
                         <Input
-                          type="date"
-                          value={accommodation.checkIn}
-                          onChange={(e) => updateAccommodation(accommodation.id, 'checkIn', e.target.value)}
+                          value={accommodation.name}
+                          onChange={(e) => updateAccommodation(accommodation.id, 'name', e.target.value)}
+                          placeholder="e.g., Grand Hotel Paris"
                           className="w-full"
                         />
                       </div>
+                      
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Check-out Date
+                          Address
                         </label>
                         <Input
-                          type="date"
-                          value={accommodation.checkOut}
-                          onChange={(e) => updateAccommodation(accommodation.id, 'checkOut', e.target.value)}
+                          value={accommodation.address}
+                          onChange={(e) => updateAccommodation(accommodation.id, 'address', e.target.value)}
+                          placeholder="Hotel address"
                           className="w-full"
                         />
                       </div>
-                    </div>
-                    
-                    <div className="grid md:grid-cols-2 gap-4">
+                      
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Check-in Date
+                          </label>
+                          <Input
+                            type="date"
+                            value={accommodation.checkIn}
+                            onChange={(e) => updateAccommodation(accommodation.id, 'checkIn', e.target.value)}
+                            className="w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Check-out Date
+                          </label>
+                          <Input
+                            type="date"
+                            value={accommodation.checkOut}
+                            onChange={(e) => updateAccommodation(accommodation.id, 'checkOut', e.target.value)}
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Confirmation Number
+                          </label>
+                          <Input
+                            value={accommodation.confirmationNumber || ''}
+                            onChange={(e) => updateAccommodation(accommodation.id, 'confirmationNumber', e.target.value)}
+                            placeholder="Booking confirmation"
+                            className="w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Contact Info
+                          </label>
+                          <Input
+                            value={accommodation.contactInfo || ''}
+                            onChange={(e) => updateAccommodation(accommodation.id, 'contactInfo', e.target.value)}
+                            placeholder="Phone or email"
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
+                      
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Confirmation Number
+                          Notes
                         </label>
-                        <Input
-                          value={accommodation.confirmationNumber || ''}
-                          onChange={(e) => updateAccommodation(accommodation.id, 'confirmationNumber', e.target.value)}
-                          placeholder="Booking confirmation"
+                        <Textarea
+                          value={accommodation.notes || ''}
+                          onChange={(e) => updateAccommodation(accommodation.id, 'notes', e.target.value)}
+                          placeholder="Special requests, room preferences, etc."
                           className="w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Contact Info
-                        </label>
-                        <Input
-                          value={accommodation.contactInfo || ''}
-                          onChange={(e) => updateAccommodation(accommodation.id, 'contactInfo', e.target.value)}
-                          placeholder="Phone or email"
-                          className="w-full"
+                          rows={2}
                         />
                       </div>
                     </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Notes
-                      </label>
-                      <Textarea
-                        value={accommodation.notes || ''}
-                        onChange={(e) => updateAccommodation(accommodation.id, 'notes', e.target.value)}
-                        placeholder="Special requests, room preferences, etc."
-                        className="w-full"
-                        rows={2}
-                      />
-                    </div>
-                  </div>
+                  </CardContent>
                 </Card>
               ))}
               
