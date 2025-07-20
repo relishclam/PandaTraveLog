@@ -17,7 +17,7 @@ export default function Home() {
       <div className="w-full flex justify-center pt-10 pb-2">
         <div className="relative" style={{ width: '320px', height: '320px' }}>
           <Image
-            src="/favicon.ico"
+            src="./favicon.ico"
             alt="Meet PO the Travel Panda"
             width={320}
             height={320}
