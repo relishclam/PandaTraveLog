@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Remove output: 'export'
   reactStrictMode: true,
   
   images: {
@@ -12,9 +11,6 @@ const nextConfig = {
       },
     ],
   },
-  
-  // Remove trailingSlash for SSR
-  // trailingSlash: true,
   
   experimental: {
     esmExternals: false,

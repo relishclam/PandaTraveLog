@@ -1,5 +1,6 @@
 [build]
   command = "npm run build"
+  publish = ".next"
 
 [build.environment]
   NODE_VERSION = "18"
@@ -14,21 +15,5 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# Ensure static assets are served correctly
-[[redirects]]
-  from = "/_next/static/*"
-  to = "/_next/static/:splat"
-  status = 200
-  force = true
-
-[[redirects]]
-  from = "/images/*"
-  to = "/images/:splat"
-  status = 200
-  force = true
-
-# Fallback for all other routes to Next.js
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# Remove all custom redirects - let the Next.js plugin handle routing
+# The plugin will automatically handle _next/static and other Next.js specific routes
