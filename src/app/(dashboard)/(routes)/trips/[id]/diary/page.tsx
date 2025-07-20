@@ -28,7 +28,7 @@ import {
   Plus
 } from 'lucide-react';
 import { PoGuide } from '@/components/po/svg/PoGuide';
-import { PandaAssistant } from '@/components/ui/PandaAssistant';
+import { usePOAssistant } from '@/contexts/POAssistantContext';
 import ItineraryDayCard from '@/components/diary/ItineraryDayCard';
 import CompanionsList from '@/components/diary/CompanionsList';
 import EmergencyContacts from '@/components/diary/EmergencyContacts';
@@ -88,8 +88,7 @@ export default function TripDiaryPage() {
   const [accommodations, setAccommodations] = useState<AccommodationDetails[]>([]);
   const [editingDay, setEditingDay] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [showPandaAssistant, setShowPandaAssistant] = useState(true);
-  const [pandaMessage, setPandaMessage] = useState("Welcome to your Travel Diary! 🐼✈️ I'm here to help you organize your trip details. Click on any section to edit or add information!");
+  const { setContext } = usePOAssistant();
   
   const tripId = params.tripId as string;
   
@@ -244,7 +243,6 @@ export default function TripDiaryPage() {
       if (error) throw error;
       
       setEditingDay(null);
-      setPandaMessage("Great! Your day schedule has been saved! 🎉");
       toast.success('Day schedule saved successfully!');
     } catch (error: any) {
       console.error('Error saving day schedule:', error);
@@ -270,7 +268,6 @@ export default function TripDiaryPage() {
     };
     setDaySchedules(prev => [...prev, newDay]);
     setEditingDay(newDay.id);
-    setPandaMessage("Added a new day to your itinerary! Fill in the details and save when ready. 📅");
   };
 
   const getTravelModeIcon = (mode: string) => {
@@ -283,9 +280,10 @@ export default function TripDiaryPage() {
     }
   };
 
-  const handlePandaAssistantClick = () => {
-    setPandaMessage("Hi there! 🐼 Need help organizing your trip? I can assist you with:\n• Adding daily activities\n• Managing travel details\n• Organizing accommodation info\n• Getting location suggestions\n\nWhat would you like to work on?");
-  };
+  // Set context for PO assistant when this page loads
+  useEffect(() => {
+    setContext('diary', tripId);
+  }, [setContext, tripId]);
   
   if (loading) {
     return (

@@ -2,8 +2,8 @@
 
 import React, { useEffect } from 'react';
 import { AuthProvider } from '@/contexts/AuthContext';
-import { PandaAssistantProvider } from '@/contexts/PandaAssistantContext';
-import { GlobalPandaAssistant } from '@/components/ui/GlobalPandaAssistant';
+import { POAssistantProvider } from '@/contexts/POAssistantContext';
+import { GlobalPOAssistant } from '@/components/po/GlobalPOAssistant';
 
 // Simple error boundary component
 class ErrorBoundary extends React.Component<{children: React.ReactNode}> {
@@ -46,15 +46,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Only include the GlobalPandaAssistant once at the root level
+  // Only include the GlobalPOAssistant once at the root level
   // and make sure it's not duplicated in any child components
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <PandaAssistantProvider>
+        <POAssistantProvider>
           {children}
-          <GlobalPandaAssistant />
-        </PandaAssistantProvider>
+          <GlobalPOAssistant />
+        </POAssistantProvider>
       </AuthProvider>
     </ErrorBoundary>
   );
