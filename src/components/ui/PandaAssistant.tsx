@@ -7,7 +7,7 @@ import { motion, AnimatePresence, HTMLMotionProps } from 'framer-motion';
 import { IoClose, IoExpand, IoContract, IoChatbubble } from 'react-icons/io5';
 import { getEmotionImagePath, getLogoIconPath, getFallbackLogoPath } from '@/utils/imagePaths';
 import { Emotion } from '@/contexts/PandaAssistantContext';
-import { AIChatInterface } from '../chat/AIChatInterface';
+import AIChatInterface from '../chat/AIChatInterface';
 
 type ResponseButton = {
   text: string;
