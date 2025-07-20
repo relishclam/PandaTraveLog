@@ -32,27 +32,72 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Create Supabase client
+    // Create Supabase client with proper cookie handling
     const cookieStore = cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     
-    // Get session and user ID
-    const { data: { session } } = await supabase.auth.getSession();
+    // Get session and user ID with better error handling
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     console.log('Session status:', session ? 'Found' : 'Not found');
+    console.log('Session error:', sessionError);
+    
+    if (session) {
+      console.log('Session user:', session.user?.email);
+    }
     
     let userId: string;
     
     if (session?.user?.id) {
       userId = session.user.id;
       console.log('Using authenticated user ID:', userId);
-    } else if (tripData.user_id) {
-      userId = tripData.user_id;
-      console.log('Using provided user ID:', userId);
     } else {
-      return NextResponse.json(
-        { error: 'No user authentication found' },
-        { status: 401 }
-      );
+      // Try to get user from Authorization header as fallback
+      const authHeader = request.headers.get('authorization');
+      console.log('Auth header present:', !!authHeader);
+      
+      if (authHeader) {
+        try {
+          // Create a new client with the auth token
+          const token = authHeader.replace('Bearer ', '');
+          const supabaseWithToken = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            {
+              global: {
+                headers: {
+                  Authorization: authHeader
+                }
+              }
+            }
+          );
+          
+          const { data: { user }, error: userError } = await supabaseWithToken.auth.getUser();
+          if (user && !userError) {
+            userId = user.id;
+            console.log('Using user from auth header:', userId);
+          } else {
+            console.log('Failed to get user from auth header:', userError);
+            return NextResponse.json(
+              { error: 'No user authentication found' },
+              { status: 401 }
+            );
+          }
+        } catch (error) {
+          console.log('Error processing auth header:', error);
+          return NextResponse.json(
+            { error: 'Invalid authentication' },
+            { status: 401 }
+          );
+        }
+      } else if (tripData.user_id) {
+        userId = tripData.user_id;
+        console.log('Using provided user ID:', userId);
+      } else {
+        return NextResponse.json(
+          { error: 'No user authentication found' },
+          { status: 401 }
+        );
+      }
     }
     
     // Generate trip ID

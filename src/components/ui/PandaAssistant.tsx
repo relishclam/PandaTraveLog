@@ -7,7 +7,7 @@ import { motion, AnimatePresence, HTMLMotionProps } from 'framer-motion';
 import { IoClose, IoExpand, IoContract, IoChatbubble } from 'react-icons/io5';
 import { getEmotionImagePath, getLogoIconPath, getFallbackLogoPath } from '@/utils/imagePaths';
 import { Emotion } from '@/contexts/PandaAssistantContext';
-import { PandaAIChat } from './PandaAIChat';
+import { AIChatInterface } from '../chat/AIChatInterface';
 
 type ResponseButton = {
   text: string;
@@ -77,13 +77,13 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
     lg: { width: 100, height: 100 },
   };
 
-  // Position mapping
+  // Position mapping with mobile-responsive positioning
   const positionClasses = {
-    'bottom-right': 'bottom-6 right-6',
-    'bottom-left': 'bottom-6 left-6',
-    'top-right': 'top-6 right-6',
-    'top-left': 'top-6 left-6',
-    'center': 'bottom-6 left-1/2 transform -translate-x-1/2',
+    'bottom-right': 'bottom-4 right-4 sm:bottom-6 sm:right-6',
+    'bottom-left': 'bottom-4 left-4 sm:bottom-6 sm:left-6',
+    'top-right': 'top-4 right-4 sm:top-6 sm:right-6',
+    'top-left': 'top-4 left-4 sm:top-6 sm:left-6',
+    'center': 'bottom-4 left-1/2 transform -translate-x-1/2 sm:bottom-6',
   };
 
   // Add occasional bounce animation
@@ -360,14 +360,15 @@ export const PandaAssistant: React.FC<PandaAssistantProps> = ({
         </motion.div>
       </div>
       
-      {/* AI Chat Modal */}
+      {/* AI Chat Modal - Authentication Aware */}
       {enableAIChat && (
-        <PandaAIChat
+        <AIChatInterface
           isOpen={showAIChat}
           onClose={() => setShowAIChat(false)}
-          context={context}
-          tripId={tripId}
-          initialMessage={message}
+          onTripCreated={(tripId) => {
+            console.log('Trip created:', tripId);
+            setShowAIChat(false);
+          }}
         />
       )}
     </div>

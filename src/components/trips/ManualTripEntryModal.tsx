@@ -26,6 +26,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import supabase from '@/lib/supabase';
 
 interface Destination {
   id: string;
@@ -218,11 +219,17 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
         accommodations: accommodations
       };
 
-      // Call the existing API endpoint
+      // Get the current session for authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      // Call the existing API endpoint with authentication
       const response = await fetch('/api/trips/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(session?.access_token && {
+            'Authorization': `Bearer ${session.access_token}`
+          })
         },
         body: JSON.stringify(tripData),
       });

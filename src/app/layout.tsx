@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { Providers } from "@/app/providers";
 import "./globals.css";
 import { preloadPandaImages } from "@/utils/imagePaths";
+import PWAInstaller from "@/components/PWAInstaller";
 
 // Preload panda images on the client side
 if (typeof window !== 'undefined') {
@@ -13,6 +14,18 @@ if (typeof window !== 'undefined') {
 export const metadata: Metadata = {
   title: "PandaTraveLog - Your AI Travel Planner",
   description: "Plan your trips with PO, your friendly travel panda assistant",
+  manifest: "/manifest.json",
+  themeColor: "#f97316",
+  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "PandaTraveLog"
+  },
+  icons: {
+    icon: "/icons/icon-192x192.png",
+    apple: "/icons/icon-192x192.png"
+  }
 };
 
 export default function RootLayout({
@@ -28,6 +41,14 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap" 
           rel="stylesheet"
         />
+        {/* PWA Meta Tags */}
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#f97316" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="PandaTraveLog" />
+        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
         {/* Favicon configuration */}
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
@@ -37,6 +58,7 @@ export default function RootLayout({
       <body className="font-nunito antialiased">
         <Providers>
           {children}
+          <PWAInstaller />
         </Providers>
       </body>
     </html>

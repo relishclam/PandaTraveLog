@@ -14,6 +14,8 @@ interface Message {
 }
 
 interface AIChatInterfaceProps {
+  isOpen?: boolean;
+  onClose?: () => void;
   isMinimized?: boolean;
   onMinimize?: () => void;
   onTripCreated?: (tripId: string) => void;
@@ -21,6 +23,8 @@ interface AIChatInterfaceProps {
 }
 
 export default function AIChatInterface({ 
+  isOpen = true,
+  onClose,
   isMinimized = false, 
   onMinimize, 
   onTripCreated,
@@ -180,6 +184,11 @@ export default function AIChatInterface({
     }
   };
 
+  // Don't render if not open
+  if (!isOpen) {
+    return null;
+  }
+
   if (isMinimized) {
     return (
       <div className={`fixed bottom-4 right-4 z-50 ${className}`}>
@@ -196,7 +205,8 @@ export default function AIChatInterface({
   }
 
   return (
-    <div className={`bg-white border border-gray-200 rounded-lg shadow-lg ${className}`}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+      <div className={`bg-white border border-gray-200 rounded-lg shadow-lg w-full max-w-md max-h-[90vh] flex flex-col ${className}`}>
       {/* Chat Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-t-lg">
         <div className="flex items-center space-x-3">
@@ -208,22 +218,36 @@ export default function AIChatInterface({
             <p className="text-xs opacity-90">AI-powered trip planning</p>
           </div>
         </div>
-        {onMinimize && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onMinimize}
-            className="text-white hover:bg-white/20"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </Button>
-        )}
+        <div className="flex items-center space-x-2">
+          {onMinimize && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onMinimize}
+              className="text-white hover:bg-white/20"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </Button>
+          )}
+          {onClose && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="text-white hover:bg-white/20"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Messages */}
-      <div className="h-96 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
         {messages.map((message) => (
           <div
             key={message.id}
@@ -326,6 +350,7 @@ export default function AIChatInterface({
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
