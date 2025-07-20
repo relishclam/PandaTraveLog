@@ -250,52 +250,9 @@ export default function NewTripPage() {
 
     setDestinations(prev => [...prev, place]);
     setPandaEmotion('excited');
-    const newPandaMessage = `Great! ${destination.name} added to your trip. You can add more destinations or continue to trip details.`;
-    setPandaMessage(newPandaMessage);
-    // setShowMultiDestModal(true); // Replace with showPandaModal
-
-    const modalTitle = "Plan Your Adventure";
-    const modalMessage = destinations.length > 0 ? // Check destinations.length + 1 effectively, as we just added one
-      `Fantastic! You've selected ${[...destinations, place].map(d => d.mainText).join(' and ')}. Would you like to add more destinations to your adventure?` :
-      `Great choice! ${place.mainText} sounds amazing! Do you want to add more destinations to your trip?`;
-
-    showPandaModal({
-      title: modalTitle,
-      message: modalMessage,
-      emotion: 'excited',
-      primaryAction: {
-        text: "Yes, add more destinations",
-        onClick: () => {
-          console.log("User chose to add more destinations");
-          // setShowMultiDestModal(false); // Not needed
-          setPandaMessage("Awesome! Search for another destination.");
-          setPandaEmotion('happy');
-          hidePandaModal();
-        },
-        style: 'primary'
-      },
-      secondaryAction: {
-        text: "No, continue to trip details",
-        onClick: () => {
-          console.log("User chose to continue to trip details");
-          // setShowMultiDestModal(false); // Not needed
-          setPandaMessage("Perfect! Let's get into the details of your trip.");
-          setPandaEmotion('excited');
-          // Navigate to trip details page or next step
-          // For now, just hiding modal and logging
-          // router.push(`/trips/${tripId}/details`); // Example navigation
-          setStep(2); // Correctly advance to the next step
-          hidePandaModal();
-        },
-        style: 'secondary'
-      },
-      onClose: () => {
-        console.log("Multi-destination modal closed by user");
-        // setShowMultiDestModal(false); // Reset local state if it were still used
-        // Decide if closing without choice should do something specific
-        // For example, revert Panda message or emotion if needed.
-      }
-    });
+    console.log(`Great choice! ${place.mainText} sounds amazing!`);
+    setPandaMessage("Perfect! Let's get into the details of your trip.");
+    setStep(2); // Advance to the next step
   };
 
   // Remove a destination
