@@ -83,7 +83,7 @@ export default function LoginContent() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-bamboo-light">
         <div className="flex flex-col items-center">
-          <Image src="/images/po/emotions/happy.png" alt="PO the Travel Panda" width={60} height={60} />
+          <Image src="/images/po/emotions/happy.png" alt="PO the Travel Panda" width={60} height={60} unoptimized />
           <div className="mt-4 text-lg font-medium text-panda-black">Loading...</div>
         </div>
       </div>
@@ -152,6 +152,7 @@ export default function LoginContent() {
               width={80}
               height={80}
               className="mx-auto"
+              unoptimized
             />
           </Link>
           <h2 className="text-3xl font-bold text-panda-black">Welcome Back!</h2>
@@ -253,6 +254,7 @@ export default function LoginContent() {
                 width={70} 
                 height={70} 
                 className="mb-2"
+                unoptimized
               />
               <h3 className="text-2xl font-bold text-panda-black">Forgot Your Password?</h3>
               <p className="text-center text-gray-600 mt-1">PO will help you get back to your travels!</p>
@@ -285,6 +287,7 @@ export default function LoginContent() {
                   width={60} 
                   height={60} 
                   className="mx-auto mb-4"
+                  unoptimized
                 />
                 <Button
                   onClick={() => {
@@ -329,7 +332,9 @@ export default function LoginContent() {
                     <Image 
                       src="/images/po/emotions/happy.png" 
                       alt="PO is happy to help" 
-                      width={40} 
+                      width={40}
+                      height={40}
+                      unoptimized 
                       height={40} 
                     />
                   </div>

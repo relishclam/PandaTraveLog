@@ -43,6 +43,7 @@ export default function UnifiedPOAssistant({
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [inputFocused, setInputFocused] = useState(false);
 
   // Auto-detect context from pathname
   const getContextFromPath = useCallback(() => {
@@ -226,6 +227,16 @@ Where would you like to go?`,
     }
   };
 
+  // Maintain input focus after state updates
+  useEffect(() => {
+    if (inputFocused && inputRef.current && !isLoading) {
+      const timeoutId = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 0);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [inputMessage, inputFocused, isLoading]);
+
   // Chat Interface Component
   const ChatInterface = () => (
     <>
@@ -315,11 +326,17 @@ Where would you like to go?`,
             ref={inputRef}
             type="text"
             value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onChange={(e) => {
+              e.preventDefault();
+              setInputMessage(e.target.value);
+            }}
+            onKeyDown={handleKeyPress}
+            onFocus={() => setInputFocused(true)}
+            onBlur={() => setInputFocused(false)}
             placeholder="Ask PO anything about your trip..."
             className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
             disabled={isLoading}
+            autoComplete="off"
           />
           <button
             onClick={sendMessage}
