@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
-import { PandaAssistant } from '@/components/ui/PandaAssistant';
+
 import { useAuth } from '@/contexts/AuthContext';
 import { PhoneVerification } from '@/components/auth/PhoneVerification';
 
@@ -236,7 +236,7 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      {/* PandaAssistant removed to avoid visual hindrance */}
+
     </div>
   );
 }

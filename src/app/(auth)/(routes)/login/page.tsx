@@ -6,7 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
-import { PandaAssistant } from '@/components/ui/PandaAssistant';
+
 import { useAuth } from '@/contexts/AuthContext';
 
 type FormData = {
