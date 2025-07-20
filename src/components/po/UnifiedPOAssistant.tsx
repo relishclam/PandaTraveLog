@@ -59,9 +59,19 @@ export default function UnifiedPOAssistant({
   // Load conversation history on mount
   useEffect(() => {
     if (user && tripId) {
+      // User is signed in and has a trip - load conversation history
       loadConversationHistory();
+    } else if (user && !tripId) {
+      // User is signed in but no specific trip - show personalized greeting
+      const greeting = getContextualGreeting();
+      setMessages([{
+        role: 'assistant',
+        content: greeting,
+        timestamp: new Date()
+      }]);
+      setShowPreAuthNotice(false);
     } else if (!user && currentContext === 'marketing') {
-      // Show initial marketing message
+      // User is not signed in - show marketing message
       setMessages([{
         role: 'assistant',
         content: `Hi there! I'm PO, your friendly travel assistant! 🐼✈️
@@ -121,11 +131,11 @@ Where would you like to go?`,
 
   const getContextualGreeting = () => {
     const greetings = {
-      marketing: `Hi! I'm PO, your travel planning buddy! 🐼✈️ Let's plan an amazing trip together!`,
+      marketing: `Hi! I'm PO, your travel planning buddy! ✈️ Let's plan an amazing trip together!`,
       trip_creation: `Hey there! Ready to plan an awesome trip? I'm PO, and I'll help you create the perfect itinerary! 🌟`,
       diary: `Welcome back! I'm here to help you with any questions about your trip. Need suggestions for activities, restaurants, or places to visit? 🗺️`,
       manual_entry: `Hi! I'm PO, your travel assistant. I can help you find great places to visit, restaurants to try, and accommodations to book! 🏨✈️`,
-      dashboard: `Hello! I'm PO, your personal travel assistant. Ready to plan your next adventure? 🐼🌍`
+      dashboard: `Hello! I'm PO, your personal travel assistant. Ready to plan your next adventure? 🌍`
     };
     
     return greetings[currentContext] || greetings.dashboard;
@@ -326,10 +336,7 @@ Where would you like to go?`,
             ref={inputRef}
             type="text"
             value={inputMessage}
-            onChange={(e) => {
-              e.preventDefault();
-              setInputMessage(e.target.value);
-            }}
+            onChange={(e) => setInputMessage(e.target.value)}
             onKeyDown={handleKeyPress}
             onFocus={() => setInputFocused(true)}
             onBlur={() => setInputFocused(false)}
