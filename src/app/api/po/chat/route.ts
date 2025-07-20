@@ -28,7 +28,15 @@ export async function POST(request: NextRequest) {
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: 'Messages array is required' }, { status: 400 });
     }
-
+// Debug logging
+console.log('🔑 Environment Debug:', {
+  NODE_ENV: process.env.NODE_ENV,
+  hasOpenRouterKey: !!process.env.OPEN_ROUTER_API_KEY,
+  hasPublicOpenRouterKey: !!process.env.NEXT_PUBLIC_OPEN_ROUTER_API_KEY,
+  keyLength: process.env.OPEN_ROUTER_API_KEY?.length || 0,
+  keyPrefix: process.env.OPEN_ROUTER_API_KEY?.substring(0, 20) || 'undefined',
+  allEnvKeys: Object.keys(process.env).filter(key => key.includes('ROUTER')),
+});
     // Get context-aware system prompt
     const systemPrompt = getContextualSystemPrompt(context, tripId, userId);
 
