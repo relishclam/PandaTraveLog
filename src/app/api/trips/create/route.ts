@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
 // Generate a proper UUID for the trip ID
@@ -31,29 +32,97 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Create Supabase client with proper cookie handling
+    // ENHANCED SESSION HANDLING - Try multiple methods
     const cookieStore = cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     
-    // Get session and user ID - SIMPLIFIED APPROACH
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    console.log('🔐 Starting authentication process...');
     
-    console.log('🔐 Session status:', session ? 'Found' : 'Not found');
-    console.log('🔐 Session error:', sessionError);
+    let session = null;
+    let userId = null;
     
-    // CRITICAL: Ensure we have a valid authenticated user
-    if (!session?.user?.id) {
-      console.error('❌ No authenticated user found');
-      console.error('❌ Session details:', session);
+    // Method 1: Try to get session from cookies (standard approach)
+    try {
+      const { data: { session: cookieSession }, error: sessionError } = await supabase.auth.getSession();
+      console.log('🔐 Cookie session attempt:', !!cookieSession);
+      console.log('🔐 Cookie session error:', sessionError);
+      
+      if (cookieSession?.user?.id) {
+        session = cookieSession;
+        userId = cookieSession.user.id;
+        console.log('✅ Method 1 SUCCESS - Cookie session found');
+        console.log('👤 User ID from cookies:', userId);
+        console.log('👤 User email from cookies:', cookieSession.user.email);
+      }
+    } catch (cookieError) {
+      console.log('❌ Method 1 FAILED - Cookie session error:', cookieError);
+    }
+    
+    // Method 2: Try Authorization header if cookie method failed
+    if (!session || !userId) {
+      const authHeader = request.headers.get('authorization');
+      console.log('🔐 Auth header present:', !!authHeader);
+      
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.replace('Bearer ', '');
+        console.log('🔐 Attempting auth header method with token length:', token.length);
+        
+        try {
+          // Create a new Supabase client for token-based auth
+          const tokenSupabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+          );
+          
+          const { data: { user }, error: userError } = await tokenSupabase.auth.getUser(token);
+          console.log('🔐 Token auth user:', !!user);
+          console.log('🔐 Token auth error:', userError);
+          
+          if (user && !userError) {
+            userId = user.id;
+            session = { user: user, access_token: token };
+            console.log('✅ Method 2 SUCCESS - Auth header worked');
+            console.log('👤 User ID from token:', userId);
+            console.log('👤 User email from token:', user.email);
+          }
+        } catch (tokenError) {
+          console.log('❌ Method 2 FAILED - Token auth error:', tokenError);
+        }
+      }
+    }
+    
+    // Method 3: Try to get user directly from Supabase (fallback)
+    if (!session || !userId) {
+      console.log('🔐 Attempting Method 3 - Direct Supabase user retrieval');
+      try {
+        const { data: { user }, error: directUserError } = await supabase.auth.getUser();
+        console.log('🔐 Direct user retrieval:', !!user);
+        console.log('🔐 Direct user error:', directUserError);
+        
+        if (user && !directUserError) {
+          userId = user.id;
+          session = { user: user };
+          console.log('✅ Method 3 SUCCESS - Direct Supabase worked');
+          console.log('👤 User ID direct:', userId);
+        }
+      } catch (directError) {
+        console.log('❌ Method 3 FAILED - Direct retrieval error:', directError);
+      }
+    }
+    
+    // Final check - ensure we have authentication
+    if (!userId || !session) {
+      console.error('❌ ALL AUTHENTICATION METHODS FAILED');
+      console.error('❌ Final userId:', userId);
+      console.error('❌ Final session:', !!session);
       return NextResponse.json(
-        { error: 'Authentication required - please log in again' },
+        { error: 'Authentication failed - no valid session found' },
         { status: 401 }
       );
     }
     
-    const userId = session.user.id;
-    console.log('✅ Using authenticated user ID:', userId);
-    console.log('👤 User email:', session.user.email);
+    console.log('✅ AUTHENTICATION SUCCESS');
+    console.log('✅ Final user ID:', userId);
     
     // Validate user ID format
     const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId);
