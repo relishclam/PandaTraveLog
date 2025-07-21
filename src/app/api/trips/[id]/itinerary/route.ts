@@ -1,4 +1,4 @@
-// src/app/api/trips/[tripId]/itinerary/route.ts
+// src/app/api/trips/[id]/itinerary/route.ts
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -97,10 +97,10 @@ function extractLocationsFromItinerary(itinerary: any): any[] {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { tripId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { tripId } = params;
+    const tripId = params.id;
     console.log(`Saving itinerary for trip with ID: ${tripId}`);
     
     const { itinerary } = await request.json();
@@ -234,10 +234,10 @@ export async function POST(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { tripId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { tripId } = params;
+    const tripId = params.id;
     console.log(`Fetching itinerary for trip with ID: ${tripId}`);
     
     // Get the authenticated user

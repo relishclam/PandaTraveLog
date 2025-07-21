@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-
+import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
 import supabase from '@/lib/supabase';
@@ -44,8 +44,8 @@ type Location = {
   notes: string | null;
 };
 
-export default function TripDetailsPage({ params }: { params: { tripId: string } }) {
-  const { tripId } = params;
+export default function TripDetailsPage({ params }: { params: { id: string } }) {
+  const { id: tripId } = params;
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
   
