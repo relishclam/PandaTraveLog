@@ -1,4 +1,4 @@
-Copy// Service Worker for PandaTraveLog PWA
+// Service Worker for PandaTraveLog PWA
 const CACHE_NAME = 'pandatravelog-v1';
 
 // Only cache static assets, not dynamic routes that require authentication
