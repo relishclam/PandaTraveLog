@@ -33,35 +33,7 @@ export default function TripsPage() {
   const [showManualEntry, setShowManualEntry] = useState(false);
   const { showPO, setContext } = usePOAssistant();
 
-  // Check for emergency auth in sessionStorage
-  useEffect(() => {
-    const authSuccess = sessionStorage.getItem('auth_success');
-    const userEmail = sessionStorage.getItem('user_email');
-    const userId = sessionStorage.getItem('user_id');
-    
-    if (authSuccess === 'true' && userEmail && userId && !user) {
-      console.log('Emergency auth detected, attempting session refresh...');
-      
-      const refreshAuth = async () => {
-        try {
-          const { data: { session }, error } = await supabase.auth.getSession();
-          if (error) throw error;
-          
-          if (session?.user) {
-            console.log('Session refreshed successfully');
-            sessionStorage.removeItem('auth_success');
-            sessionStorage.removeItem('user_email');
-            sessionStorage.removeItem('user_id');
-          }
-        } catch (error) {
-          console.error('Emergency auth refresh failed:', error);
-        }
-      };
-      
-      refreshAuth();
-    }
-  }, [user]);
-
+  // ✅ SIMPLIFIED - Only check auth state from AuthContext
   useEffect(() => {
     if (authLoading) return;
     
@@ -132,34 +104,12 @@ export default function TripsPage() {
     }
   };
 
-  const handleManualTripSave = async (tripData: any) => {
-    try {
-      const response = await fetch('/api/trips/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(tripData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create trip');
-      }
-
-      const result = await response.json();
-      console.log('Trip created successfully:', result);
-      
-      // Refresh trips list
-      await fetchTrips();
-      setShowManualEntry(false);
-    } catch (error) {
-      console.error('Error creating trip:', error);
-      alert('Failed to create trip. Please try again.');
-    }
+  // ✅ Function to handle successful trip creation from modal
+  const handleTripCreated = () => {
+    // Refresh trips list when a trip is successfully created
+    fetchTrips();
+    setShowManualEntry(false);
   };
-
-
 
   if (authLoading) {
     return (
@@ -258,8 +208,6 @@ export default function TripsPage() {
           onClose={() => setShowManualEntry(false)}
         />
       )}
-
-
     </div>
   );
 }

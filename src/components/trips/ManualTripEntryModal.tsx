@@ -196,143 +196,117 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
     ));
   }, []);
 
-  // Submit trip - CORRECTED TYPESCRIPT VERSION
-const handleSubmit = async () => {
-  console.log('🔥 SUBMIT BUTTON CLICKED!'); // Immediate confirmation
-  
-  if (!user) {
-    console.error('❌ No user found');
-    setError('You must be logged in to create a trip');
-    return;
-  }
-
-  console.log('✅ User check passed:', user.email);
-  
-  setIsSubmitting(true);
-  setError(null);
-
-  try {
-    console.log('🚀 Starting trip submission...');
-    console.log('📊 Form data validation:', {
-      tripName: !!tripName,
-      startDate: !!startDate,
-      endDate: !!endDate,
-      destinationsCount: destinations.length,
-      daySchedulesCount: daySchedules.length,
-      accommodationsCount: accommodations.length
-    });
-
-    // Validate basic form data
-    if (!tripName || !startDate || !endDate) {
-      throw new Error('Please fill in all required fields (Trip Name, Start Date, End Date)');
+  // ✅ FIXED: Simplified submit function using AuthContext user only
+  const handleSubmit = async () => {
+    console.log('🔥 SUBMIT BUTTON CLICKED!');
+    
+    if (!user) {
+      console.error('❌ No user found');
+      setError('You must be logged in to create a trip');
+      return;
     }
 
-    if (destinations.length === 0) {
-      throw new Error('Please add at least one destination');
-    }
+    console.log('✅ User check passed:', user.email);
+    
+    setIsSubmitting(true);
+    setError(null);
 
-    if (daySchedules.length === 0) {
-      throw new Error('Please add at least one day schedule');
-    }
+    try {
+      console.log('🚀 Starting trip submission...');
 
-    // Prepare trip data
-    const tripData = {
-      title: tripName,
-      destination: destinations.map(d => d.name).join(', '),
-      start_date: startDate,
-      end_date: endDate,
-      manual_entry_data: {
-        destinations: destinations,
-        daySchedules: daySchedules,
-        travelDetails: travelDetails,
-        accommodations: accommodations
+      // Validate basic form data
+      if (!tripName || !startDate || !endDate) {
+        throw new Error('Please fill in all required fields (Trip Name, Start Date, End Date)');
       }
-    };
 
-    console.log('📤 Prepared trip data:', JSON.stringify(tripData, null, 2));
+      if (destinations.length === 0) {
+        throw new Error('Please add at least one destination');
+      }
 
-    // Get session with detailed logging
-    console.log('🔐 Getting Supabase session...');
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    
-    console.log('🔐 Session retrieved:', !!session);
-    console.log('🔐 Session error:', sessionError);
-    console.log('🔐 Access token present:', !!session?.access_token);
-    console.log('🔐 User ID:', session?.user?.id);
-    
-    if (!session?.access_token) {
-      throw new Error('No valid session found - please refresh the page and try again');
-    }
+      if (daySchedules.length === 0) {
+        throw new Error('Please add at least one day schedule');
+      }
 
-    // Make API call with enhanced error handling
-    console.log('📡 Making API call to /api/trips/create...');
-    
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      controller.abort();
-      console.error('⏰ API call timed out after 30 seconds');
-    }, 30000);
+      // Prepare trip data
+      const tripData = {
+        title: tripName,
+        destination: destinations.map(d => d.name).join(', '),
+        start_date: startDate,
+        end_date: endDate,
+        manual_entry_data: {
+          destinations: destinations,
+          daySchedules: daySchedules,
+          travelDetails: travelDetails,
+          accommodations: accommodations
+        }
+      };
 
-    const response = await fetch('/api/trips/create', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      credentials: 'include',
-      body: JSON.stringify(tripData),
-      signal: controller.signal
-    });
+      console.log('📤 Prepared trip data:', JSON.stringify(tripData, null, 2));
 
-    clearTimeout(timeoutId);
-
-    console.log('📡 Response received:', response.status, response.statusText);
-    console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ 
-        error: `HTTP ${response.status}: ${response.statusText}` 
-      }));
-      console.error('❌ API Error Response:', errorData);
-      throw new Error(errorData.error || `Server error: ${response.status}`);
-    }
-
-    const result = await response.json();
-    console.log('✅ Success response:', result);
-    
-    if (result.success && (result.tripId || result.id)) {
-      const tripId = result.tripId || result.id;
-      console.log('🧭 Navigating to trip:', `/trips/${tripId}/diary`);
+      // ✅ FIXED: Use AuthContext user directly, no session fetching
+      console.log('📡 Making API call to /api/trips/create...');
       
-      // Close modal first
-      onClose();
+      const response = await fetch('/api/trips/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // ✅ FIXED: Let cookies handle authentication, no manual auth header
+        },
+        credentials: 'include', // ✅ This ensures cookies are sent
+        body: JSON.stringify(tripData),
+      });
+
+      console.log('📡 Response received:', response.status, response.statusText);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API Error Response:', errorText);
+        
+        let errorMessage;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || `Server error: ${response.status}`;
+        } catch {
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      console.log('✅ Success response:', result);
       
-      // Then navigate
-      router.push(`/trips/${tripId}/diary`);
-    } else {
-      throw new Error('Invalid response from server - missing trip ID');
+      if (result.success && (result.tripId || result.trip?.id)) {
+        const tripId = result.tripId || result.trip.id;
+        console.log('🧭 Navigating to trip:', `/trips/${tripId}/diary`);
+        
+        // Close modal first
+        onClose();
+        
+        // Then navigate
+        router.push(`/trips/${tripId}/diary`);
+      } else {
+        throw new Error('Invalid response from server - missing trip ID');
+      }
+      
+    } catch (error) {
+      // ✅ FIXED: Proper error handling without unknown type issues
+      console.error('💥 Complete error details:', error);
+      
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          setError('Request timed out - please try again');
+        } else {
+          setError(error.message);
+        }
+      } else {
+        setError('Failed to create trip - please try again');
+      }
+    } finally {
+      console.log('🏁 Finally block - resetting isSubmitting');
+      setIsSubmitting(false);
     }
-    
-  } catch (err: unknown) { // ✅ FIXED: Proper error typing
-    // ✅ FIXED: Type-safe error handling
-    const error = err instanceof Error ? err : new Error(String(err));
-    
-    console.error('💥 Complete error details:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
-    });
-    
-    if (error.name === 'AbortError') {
-      setError('Request timed out - please try again');
-    } else {
-      setError(error.message || 'Failed to create trip');
-    }
-  } finally {
-    console.log('🏁 Finally block - resetting isSubmitting');
-    setIsSubmitting(false);
-  }
-};
+  };
 
   // Validation for each step
   const isStepValid = (step: number): boolean => {
@@ -855,62 +829,47 @@ const handleSubmit = async () => {
           )}
         </div>
 
-        {/* Footer - CORRECTED VERSION */}
-<div className="bg-gray-50 px-6 py-4 flex justify-between items-center">
-  <Button
-    variant="outline"
-    onClick={(e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      prevStep();
-    }}
-    disabled={currentStep === 1}
-    type="button"
-  >
-    Previous
-  </Button>
-  
-  <div className="flex space-x-2">
-    {Array.from({ length: totalSteps }, (_, i) => (
-      <div
-        key={i}
-        className={`w-2 h-2 rounded-full ${
-          i + 1 <= currentStep ? 'bg-blue-600' : 'bg-gray-300'
-        }`}
-      />
-    ))}
-  </div>
-  
-  {currentStep < totalSteps ? (
-    <Button
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        nextStep();
-      }}
-      disabled={!isStepValid(currentStep)}
-      type="button"
-    >
-      Next
-    </Button>
-  ) : (
-    <Button
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log('🔥 CREATE TRIP BUTTON CLICKED!');
-        if (!isSubmitting) {
-          handleSubmit();
-        }
-      }}
-      disabled={isSubmitting || !isStepValid(currentStep)}
-      type="button"
-      className="bg-green-600 hover:bg-green-700"
-    >
-      {isSubmitting ? 'Creating Trip...' : 'Create Trip'}
-    </Button>
-  )}
-</div>
+        {/* Footer */}
+        <div className="bg-gray-50 px-6 py-4 flex justify-between items-center">
+          <Button
+            variant="outline"
+            onClick={prevStep}
+            disabled={currentStep === 1}
+            type="button"
+          >
+            Previous
+          </Button>
+          
+          <div className="flex space-x-2">
+            {Array.from({ length: totalSteps }, (_, i) => (
+              <div
+                key={i}
+                className={`w-2 h-2 rounded-full ${
+                  i + 1 <= currentStep ? 'bg-blue-600' : 'bg-gray-300'
+                }`}
+              />
+            ))}
+          </div>
+          
+          {currentStep < totalSteps ? (
+            <Button
+              onClick={nextStep}
+              disabled={!isStepValid(currentStep)}
+              type="button"
+            >
+              Next
+            </Button>
+          ) : (
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting || !isStepValid(currentStep)}
+              type="button"
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isSubmitting ? 'Creating Trip...' : 'Create Trip'}
+            </Button>
+          )}
+        </div>
       </MotionDiv>
     </div>
   );

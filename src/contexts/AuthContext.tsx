@@ -64,43 +64,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initAuth = async () => {
       setMounted(true);
       
-      // Fetch the initial session
-      await fetchSession();
-      
-      // Set up auth listener
+      // ✅ ONLY use the auth listener - removed manual fetchSession
       const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
         console.log("🔄 AuthContext: Auth state changed", event);
         if (session?.user) {
           await updateUserState(session.user);
         } else {
           setUser(null);
+          setIsLoading(false); // ✅ Make sure to set loading false
         }
       });
       
-      // Store the listener for cleanup
+      // ✅ Get initial session ONCE using the listener pattern
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          updateUserState(session.user);
+        } else {
+          setIsLoading(false);
+        }
+      });
+      
       return authListener;
-    };
-    
-    // Function to fetch the current session
-    const fetchSession = async () => {
-      console.log("🔄 AuthContext: Fetching session");
-      const { data: { session }, error } = await supabase.auth.getSession();
-
-      if (error) {
-        console.error('❌ AuthContext: Error fetching session:', error);
-        setUser(null);
-        setIsLoading(false);
-        return;
-      }
-
-      if (session?.user) {
-        console.log("✅ AuthContext: Session found");
-        await updateUserState(session.user);
-      } else {
-        console.log("❗ AuthContext: No session found");
-        setUser(null);
-        setIsLoading(false);
-      }
     };
     
     // Start the auth initialization process
