@@ -119,7 +119,7 @@ export default function TripDiaryPage() {
         }
         
         const tripData = await tripResponse.json();
-        setTrip(tripData.trip);
+setTrip(tripData);  // ✅ CORRECT: Use tripData directly
         
         // Fetch itinerary with auth header
         const itineraryResponse = await fetch(`/api/trips/get-itinerary?tripId=${tripId}`, {
