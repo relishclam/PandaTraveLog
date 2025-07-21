@@ -98,8 +98,22 @@ export default function TripDiaryPage() {
       setError(null);
       
       try {
-        // Fetch trip details
-        const tripResponse = await fetch(`/api/trips/${tripId}`);
+        // Get the current user session and token
+        const { data: { session } } = await supabase.auth.getSession();
+        const authToken = session?.access_token;
+
+        if (!authToken) {
+          throw new Error('No authentication token available');
+        }
+
+        // Fetch trip details with auth header
+        const tripResponse = await fetch(`/api/trips/${tripId}`, {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
         if (!tripResponse.ok) {
           throw new Error('Failed to load trip details');
         }
@@ -107,8 +121,14 @@ export default function TripDiaryPage() {
         const tripData = await tripResponse.json();
         setTrip(tripData.trip);
         
-        // Fetch itinerary
-        const itineraryResponse = await fetch(`/api/trips/get-itinerary?tripId=${tripId}`);
+        // Fetch itinerary with auth header
+        const itineraryResponse = await fetch(`/api/trips/get-itinerary?tripId=${tripId}`, {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
         if (!itineraryResponse.ok) {
           if (itineraryResponse.status === 404) {
             // No itinerary found but trip exists, not an error
