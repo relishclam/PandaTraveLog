@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
 // Generate a proper UUID for the trip ID
@@ -36,67 +35,36 @@ export async function POST(request: NextRequest) {
     const cookieStore = cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     
-    // Get session and user ID with better error handling
+    // Get session and user ID - SIMPLIFIED APPROACH
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
     console.log('🔐 Session status:', session ? 'Found' : 'Not found');
+    console.log('🔐 Session error:', sessionError);
     
-    if (sessionError) {
-      console.log('❌ Session error:', sessionError);
+    // CRITICAL: Ensure we have a valid authenticated user
+    if (!session?.user?.id) {
+      console.error('❌ No authenticated user found');
+      console.error('❌ Session details:', session);
+      return NextResponse.json(
+        { error: 'Authentication required - please log in again' },
+        { status: 401 }
+      );
     }
     
-    if (session) {
-      console.log('👤 Session user:', session.user?.email);
-    }
+    const userId = session.user.id;
+    console.log('✅ Using authenticated user ID:', userId);
+    console.log('👤 User email:', session.user.email);
     
-    let userId: string;
+    // Validate user ID format
+    const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId);
+    console.log('🔍 Is user_id valid UUID?', isValidUUID);
     
-    if (session?.user?.id) {
-      userId = session.user.id;
-      console.log('✅ Using authenticated user ID:', userId);
-    } else {
-      // Try to get user from Authorization header as fallback
-      const authHeader = request.headers.get('authorization');
-      console.log('🔑 Auth header present:', !!authHeader);
-      
-      if (authHeader) {
-        try {
-          const token = authHeader.replace('Bearer ', '');
-          const supabaseWithToken = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            {
-              global: {
-                headers: {
-                  Authorization: authHeader
-                }
-              }
-            }
-          );
-          
-          const { data: { user }, error: userError } = await supabaseWithToken.auth.getUser();
-          if (user && !userError) {
-            userId = user.id;
-            console.log('✅ Using user from auth header:', userId);
-          } else {
-            console.log('❌ Failed to get user from auth header:', userError);
-            return NextResponse.json(
-              { error: 'No user authentication found' },
-              { status: 401 }
-            );
-          }
-        } catch (error) {
-          console.log('❌ Error processing auth header:', error);
-          return NextResponse.json(
-            { error: 'Invalid authentication' },
-            { status: 401 }
-          );
-        }
-      } else {
-        return NextResponse.json(
-          { error: 'No user authentication found' },
-          { status: 401 }
-        );
-      }
+    if (!isValidUUID) {
+      console.error('❌ Invalid user ID format:', userId);
+      return NextResponse.json(
+        { error: 'Invalid user authentication format' },
+        { status: 401 }
+      );
     }
     
     // Generate trip ID
@@ -106,7 +74,7 @@ export async function POST(request: NextRequest) {
     // Prepare trip record with essential fields
     const tripRecord = {
       id: tripId,
-      user_id: userId,
+      user_id: userId, // CRITICAL: Ensure this is set correctly
       title: tripData.title,
       start_date: tripData.start_date,
       end_date: tripData.end_date,
@@ -117,6 +85,12 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString()
     };
     
+    // DEBUGGING: Log final values before database insert
+    console.log('🔍 Final debugging before insert:');
+    console.log('- Trip ID:', tripRecord.id);
+    console.log('- User ID:', tripRecord.user_id);
+    console.log('- User ID type:', typeof tripRecord.user_id);
+    console.log('- User ID length:', tripRecord.user_id?.length);
     console.log('💾 Trip record to insert:', JSON.stringify(tripRecord, null, 2));
     
     // Insert trip into database
@@ -130,6 +104,12 @@ export async function POST(request: NextRequest) {
     
     if (error) {
       console.error('💥 Database error:', error);
+      console.error('💥 Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
       return NextResponse.json(
         { error: 'Failed to create trip in database', details: error.message },
         { status: 500 }
@@ -145,7 +125,7 @@ export async function POST(request: NextRequest) {
       try {
         // Save destinations to trip_destinations table
         if (tripData.manual_entry_data.destinations && tripData.manual_entry_data.destinations.length > 0) {
-          console.log('🗺️  Saving destinations...');
+          console.log('🗺️ Saving destinations...');
           const destinationInserts = tripData.manual_entry_data.destinations.map((dest: any, index: number) => ({
             trip_id: tripId,
             name: dest.name,
@@ -250,7 +230,7 @@ export async function POST(request: NextRequest) {
         // Continue anyway - main trip was created successfully
       }
     } else {
-      console.log('ℹ️  No manual entry data to save');
+      console.log('ℹ️ No manual entry data to save');
     }
     
     // Return success response
