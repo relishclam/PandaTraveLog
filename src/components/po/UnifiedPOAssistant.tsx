@@ -378,7 +378,7 @@ Where would you like to go?`,
   // Floating PO icon when minimized - Improved for mobile
   if (isMinimized) {
     return (
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className="fixed bottom-4 right-4 z-50">
         <button
           onClick={() => setIsOpen(true)}
           className="bg-orange-500 hover:bg-orange-600 rounded-full p-3 shadow-lg transition-transform hover:scale-110 active:scale-95"

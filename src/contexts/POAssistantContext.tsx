@@ -10,6 +10,7 @@ interface POAssistantState {
   currentContext: 'marketing' | 'trip_creation' | 'diary' | 'manual_entry' | 'dashboard';
   currentTripId?: string;
   showPreAuthNotice: boolean;
+  isModalOpen: boolean; // ✅ NEW: Track modal state
 }
 
 interface POAssistantContextType {
@@ -20,6 +21,7 @@ interface POAssistantContextType {
   expandPO: () => void;
   setContext: (context: POAssistantState['currentContext'], tripId?: string) => void;
   togglePO: () => void;
+  setModalOpen: (isOpen: boolean) => void; // ✅ NEW: Modal control
 }
 
 const initialState: POAssistantState = {
@@ -27,7 +29,8 @@ const initialState: POAssistantState = {
   isMinimized: true,
   currentContext: 'dashboard',
   currentTripId: undefined,
-  showPreAuthNotice: false
+  showPreAuthNotice: false,
+  isModalOpen: false // ✅ NEW: Initialize modal state
 };
 
 const POAssistantContext = createContext<POAssistantContextType | undefined>(undefined);
@@ -36,6 +39,90 @@ export const POAssistantProvider: React.FC<{ children: ReactNode }> = ({ childre
   const { user } = useAuth();
   const pathname = usePathname();
   const [state, setState] = useState<POAssistantState>(initialState);
+
+  // ✅ NEW: Modal detection using MutationObserver
+  useEffect(() => {
+    const detectModals = () => {
+      // Check for common modal selectors
+      const modalSelectors = [
+        '.fixed.inset-0', // Your modal backdrop
+        '[role="dialog"]',
+        '.modal',
+        '.modal-backdrop',
+        '.z-50', // High z-index elements
+        '.z-\\[60\\]', // Escaped bracket z-index
+        '.z-\\[9999\\]'
+      ];
+      
+      const hasModal = modalSelectors.some(selector => {
+        try {
+          return document.querySelector(selector) !== null;
+        } catch {
+          return false;
+        }
+      });
+
+      // Also check for backdrop elements
+      const hasBackdrop = document.querySelector('.bg-black.bg-opacity-50') !== null;
+      
+      const isModalCurrentlyOpen = hasModal || hasBackdrop;
+      
+      setState(prev => {
+        if (prev.isModalOpen !== isModalCurrentlyOpen) {
+          console.log('🔍 PO Assistant: Modal state changed:', isModalCurrentlyOpen);
+          return {
+            ...prev,
+            isModalOpen: isModalCurrentlyOpen,
+            // ✅ Auto-minimize when modal opens
+            isMinimized: isModalCurrentlyOpen ? true : prev.isMinimized
+          };
+        }
+        return prev;
+      });
+    };
+
+    // Initial check
+    detectModals();
+
+    // Set up observer for DOM changes
+    const observer = new MutationObserver((mutations) => {
+      // Check if any mutation affected modal elements
+      const shouldCheck = mutations.some(mutation => {
+        if (mutation.type === 'childList') {
+          // Check added nodes
+          const addedNodes = Array.from(mutation.addedNodes);
+          return addedNodes.some(node => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const element = node as Element;
+              return element.classList?.contains('fixed') || 
+                     element.getAttribute('role') === 'dialog' ||
+                     element.classList?.contains('modal');
+            }
+            return false;
+          });
+        }
+        return false;
+      });
+
+      if (shouldCheck) {
+        // Debounce the check
+        setTimeout(detectModals, 100);
+      }
+    });
+
+    // Observe document changes
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class', 'role']
+    });
+
+    // Cleanup
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
 
   // Auto-detect context from pathname
   useEffect(() => {
@@ -69,19 +156,25 @@ export const POAssistantProvider: React.FC<{ children: ReactNode }> = ({ childre
     }));
   }, [pathname, user]);
 
-  // Show PO automatically in certain contexts
+  // Show PO automatically in certain contexts (but not when modal is open)
   useEffect(() => {
     const shouldAutoShow = 
       state.currentContext === 'marketing' || 
       state.currentContext === 'trip_creation';
     
-    if (shouldAutoShow && !state.isVisible) {
+    // ✅ UPDATED: Don't auto-show if modal is open
+    if (shouldAutoShow && !state.isVisible && !state.isModalOpen) {
       setState(prev => ({ ...prev, isVisible: true }));
     }
-  }, [state.currentContext, state.isVisible]);
+  }, [state.currentContext, state.isVisible, state.isModalOpen]);
 
   const showPO = () => {
-    setState(prev => ({ ...prev, isVisible: true, isMinimized: false }));
+    setState(prev => ({ 
+      ...prev, 
+      isVisible: true, 
+      // ✅ UPDATED: Keep minimized if modal is open
+      isMinimized: prev.isModalOpen ? true : false 
+    }));
   };
 
   const hidePO = () => {
@@ -93,7 +186,11 @@ export const POAssistantProvider: React.FC<{ children: ReactNode }> = ({ childre
   };
 
   const expandPO = () => {
-    setState(prev => ({ ...prev, isMinimized: false }));
+    // ✅ UPDATED: Don't expand if modal is open
+    setState(prev => ({ 
+      ...prev, 
+      isMinimized: prev.isModalOpen ? true : false 
+    }));
   };
 
   const setContext = (context: POAssistantState['currentContext'], tripId?: string) => {
@@ -108,7 +205,19 @@ export const POAssistantProvider: React.FC<{ children: ReactNode }> = ({ childre
     setState(prev => ({
       ...prev,
       isVisible: !prev.isVisible,
-      isMinimized: prev.isVisible ? true : false
+      // ✅ UPDATED: Handle modal state in toggle
+      isMinimized: !prev.isVisible ? (prev.isModalOpen ? true : false) : true
+    }));
+  };
+
+  // ✅ NEW: Manual modal control function
+  const setModalOpen = (isOpen: boolean) => {
+    console.log('🎛️ PO Assistant: Manual modal state set to:', isOpen);
+    setState(prev => ({
+      ...prev,
+      isModalOpen: isOpen,
+      // Auto-minimize when modal opens
+      isMinimized: isOpen ? true : prev.isMinimized
     }));
   };
 
@@ -119,7 +228,8 @@ export const POAssistantProvider: React.FC<{ children: ReactNode }> = ({ childre
     minimizePO,
     expandPO,
     setContext,
-    togglePO
+    togglePO,
+    setModalOpen // ✅ NEW: Expose modal control
   };
 
   return (
