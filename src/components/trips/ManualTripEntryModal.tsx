@@ -208,21 +208,13 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
   
     try {
       console.log('🚀 Starting trip submission...');
-      console.log('📊 Form data:', {
-        tripName,
-        destinations: destinations.length,
-        daySchedules: daySchedules.length,
-        travelDetails: travelDetails.length,
-        accommodations: accommodations.length
-      });
   
-      // Prepare trip data for the API
+      // Prepare trip data
       const tripData = {
         title: tripName,
         destination: destinations.map(d => d.name).join(', '),
         start_date: startDate,
         end_date: endDate,
-        // ✅ Package manual entry data correctly
         manual_entry_data: {
           destinations: destinations,
           daySchedules: daySchedules,
@@ -234,23 +226,31 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
       console.log('📤 Sending trip data:', JSON.stringify(tripData, null, 2));
   
       // Get the current session for authentication
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       console.log('🔐 Session retrieved:', !!session);
+      console.log('🔐 Session error:', sessionError);
+      console.log('🔐 Session user:', session?.user?.id);
       
-      // Call the API endpoint
+      if (!session?.access_token) {
+        throw new Error('No valid session found - please refresh and try again');
+      }
+  
+      // Call the API endpoint with proper headers
       const response = await fetch('/api/trips/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(session?.access_token && {
-            'Authorization': `Bearer ${session.access_token}`
-          })
+          // ✅ CRITICAL: Pass the session token properly
+          'Authorization': `Bearer ${session.access_token}`,
+          // ✅ Also pass as Cookie for server-side session
+          'Cookie': document.cookie
         },
+        // ✅ CRITICAL: Include credentials for cookie-based auth
+        credentials: 'include',
         body: JSON.stringify(tripData),
       });
   
       console.log('📡 Response status:', response.status);
-      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
   
       if (!response.ok) {
         const errorData = await response.json();
