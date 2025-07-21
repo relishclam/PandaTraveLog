@@ -13,12 +13,31 @@ export async function GET(
 ) {
   try {
     const { id: tripId } = params;
-    console.log(`Fetching trip with ID: ${tripId}`);
+    
+    // Get the authorization token from headers
+    const authHeader = request.headers.get('authorization');
+    let userId = null;
 
-    // Get the authenticated user to filter trips by user
-    const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id;
-    console.log(`Current user ID: ${userId || 'Not authenticated'}`);
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      
+      try {
+        // Verify the JWT token and get user
+        const { data: { user: verifiedUser }, error: authError } = await supabase.auth.getUser(token);
+        
+        if (authError) {
+          console.log(`[info] Token verification failed: ${authError.message}`);
+        } else if (verifiedUser) {
+          userId = verifiedUser.id;
+          console.log(`[info] Token verified successfully for user: ${userId}`);
+        }
+      } catch (authErr) {
+        console.log(`[info] Authentication error: ${authErr}`);
+      }
+    }
+
+    console.log(`[info] Fetching trip with ID: ${tripId}`);
+    console.log(`[info] Current user ID: ${userId || 'Not authenticated'}`);
 
     // Log all trips in the database for debugging
     const { data: allTrips, error: allTripsError } = await supabase
@@ -26,7 +45,7 @@ export async function GET(
       .select('id, title')
       .limit(10);
     
-    console.log('Available trips in database:', allTrips || 'None found', allTripsError);
+    console.log('[info] Available trips in database:', allTrips || 'None found', allTripsError);
 
     // First try to find the trip directly by the full ID (trip-timestamp format)
     const { data: tripByFullId, error: fullIdError } = await supabase
@@ -36,15 +55,15 @@ export async function GET(
       .single();
 
     if (!fullIdError && tripByFullId) {
-      console.log('Found trip by full ID lookup');
+      console.log('[info] Found trip by full ID lookup');
       return handleTripResponse(tripByFullId, tripId);
     }
-    console.log('Full ID lookup failed:', fullIdError);
+    console.log('[info] Full ID lookup failed:', fullIdError);
 
     // If that fails, try to extract the numeric part if it's in the format 'trip-1234567890'
     if (tripId.startsWith('trip-')) {
       const numericId = tripId.replace('trip-', '');
-      console.log(`Extracted numeric ID: ${numericId}`);
+      console.log(`[info] Extracted numeric ID: ${numericId}`);
 
       // Try direct lookup with just the numeric part
       const { data: tripByNumericId, error: numericIdError } = await supabase
@@ -54,10 +73,10 @@ export async function GET(
         .single();
 
       if (!numericIdError && tripByNumericId) {
-        console.log('Found trip by numeric ID lookup');
+        console.log('[info] Found trip by numeric ID lookup');
         return handleTripResponse(tripByNumericId, tripId);
       }
-      console.log('Numeric ID lookup failed:', numericIdError);
+      console.log('[info] Numeric ID lookup failed:', numericIdError);
 
       // Try with a LIKE query as a fallback
       const { data: tripByLikeId, error: likeIdError } = await supabase
@@ -67,10 +86,10 @@ export async function GET(
         .limit(1);
 
       if (!likeIdError && tripByLikeId && tripByLikeId.length > 0) {
-        console.log('Found trip by LIKE ID lookup');
+        console.log('[info] Found trip by LIKE ID lookup');
         return handleTripResponse(tripByLikeId[0], tripId);
       }
-      console.log('LIKE ID lookup failed:', likeIdError);
+      console.log('[info] LIKE ID lookup failed:', likeIdError);
     }
 
     // As a last resort, get the most recent trip for the user
@@ -83,15 +102,15 @@ export async function GET(
         .limit(1);
       
       if (!latestError && latestTrip && latestTrip.length > 0) {
-        console.log(`Using most recent trip as fallback: ${latestTrip[0].id}`);
+        console.log(`[info] Using most recent trip as fallback: ${latestTrip[0].id}`);
         return handleTripResponse(latestTrip[0], tripId);
       }
-      console.log('Latest trip lookup failed:', latestError);
+      console.log('[info] Latest trip lookup failed:', latestError);
     }
     
     // If we still haven't found anything, return 404
-    console.error(`No trips found for ID ${tripId} after all attempts`);
-    console.error('Supabase connection details:', {
+    console.error(`[error] No trips found for ID ${tripId} after all attempts`);
+    console.error('[error] Supabase connection details:', {
       url: supabaseUrl ? 'Set' : 'Not set',
       key: supabaseKey ? 'Key set' : 'No key set',
       tripId,
@@ -108,7 +127,7 @@ export async function GET(
       { status: 404 }
     );
   } catch (error: any) {
-    console.error('Unexpected error in trip fetch API:', error);
+    console.error('[error] Unexpected error in trip fetch API:', error);
     return NextResponse.json(
       { error: `Server error: ${error.message}` },
       { status: 500 }
@@ -128,18 +147,18 @@ async function handleTripResponse(trip: any, tripId: string) {
       .eq('trip_id', trip.id);
 
     if (!destError && destinations && destinations.length > 0) {
-      console.log(`Found ${destinations.length} additional destinations for trip`);
+      console.log(`[info] Found ${destinations.length} additional destinations for trip`);
       additionalDestinations = destinations;
     } else {
-      console.log('No additional destinations found for trip');
+      console.log('[info] No additional destinations found for trip');
       // If trip has additional_destinations as a JSON field, use that
       if (trip.additional_destinations && Array.isArray(trip.additional_destinations)) {
         additionalDestinations = trip.additional_destinations;
-        console.log(`Using ${additionalDestinations.length} destinations from trip JSON field`);
+        console.log(`[info] Using ${additionalDestinations.length} destinations from trip JSON field`);
       }
     }
   } catch (destErr) {
-    console.warn('Failed to fetch additional destinations:', destErr);
+    console.warn('[warn] Failed to fetch additional destinations:', destErr);
     // Continue even if this fails
   }
 
@@ -157,9 +176,9 @@ async function handleTripResponse(trip: any, tripId: string) {
     trip_id: formattedTripId
   };
 
-  console.log(`Successfully fetched trip: ${trip.title}`);
-  console.log(`Returning trip with ${additionalDestinations.length} additional destinations`);
-  console.log(`Using consistent trip ID format: ${formattedTripId}`);
+  console.log(`[info] Successfully fetched trip: ${trip.title}`);
+  console.log(`[info] Returning trip with ${additionalDestinations.length} additional destinations`);
+  console.log(`[info] Using consistent trip ID format: ${formattedTripId}`);
   
   // Return the combined trip data
   return NextResponse.json(tripWithDestinations);
