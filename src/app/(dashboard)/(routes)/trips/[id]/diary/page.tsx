@@ -90,7 +90,7 @@ export default function TripDiaryPage() {
   const [saving, setSaving] = useState(false);
   const { setContext } = usePOAssistant();
   
-  const tripId = params.tripId as string;
+  const tripId = params.id as string;
   
   useEffect(() => {
     async function loadTripAndItinerary() {

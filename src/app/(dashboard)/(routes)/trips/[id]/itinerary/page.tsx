@@ -89,7 +89,7 @@ export default function ItineraryPage() {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
-  const tripId = params.tripId as string;
+  const tripId = params.id as string;
   const isNewTrip = searchParams.get('new') === 'true';
   const { user } = useAuth(); // Get user info including country
   const { showPO } = usePOAssistant();
