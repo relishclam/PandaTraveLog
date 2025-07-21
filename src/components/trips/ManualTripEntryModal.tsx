@@ -202,27 +202,42 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
       setError('You must be logged in to create a trip');
       return;
     }
-
+  
     setIsSubmitting(true);
     setError(null);
-
+  
     try {
+      console.log('🚀 Starting trip submission...');
+      console.log('📊 Form data:', {
+        tripName,
+        destinations: destinations.length,
+        daySchedules: daySchedules.length,
+        travelDetails: travelDetails.length,
+        accommodations: accommodations.length
+      });
+  
       // Prepare trip data for the API
       const tripData = {
         title: tripName,
         destination: destinations.map(d => d.name).join(', '),
         start_date: startDate,
         end_date: endDate,
-        destinations: destinations,
-        daySchedules: daySchedules,
-        travelDetails: travelDetails,
-        accommodations: accommodations
+        // ✅ Package manual entry data correctly
+        manual_entry_data: {
+          destinations: destinations,
+          daySchedules: daySchedules,
+          travelDetails: travelDetails,
+          accommodations: accommodations
+        }
       };
-
+  
+      console.log('📤 Sending trip data:', JSON.stringify(tripData, null, 2));
+  
       // Get the current session for authentication
       const { data: { session } } = await supabase.auth.getSession();
+      console.log('🔐 Session retrieved:', !!session);
       
-      // Call the existing API endpoint with authentication
+      // Call the API endpoint
       const response = await fetch('/api/trips/create', {
         method: 'POST',
         headers: {
@@ -233,23 +248,32 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
         },
         body: JSON.stringify(tripData),
       });
-
+  
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+  
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create trip');
+        console.error('❌ API Error Response:', errorData);
+        throw new Error(errorData.error || `HTTP ${response.status}: Failed to create trip`);
       }
-
+  
       const result = await response.json();
-      console.log('Trip created successfully:', result);
+      console.log('✅ Trip created successfully:', result);
       
-      // Navigate to the trip diary
-      router.push(`/trips/${result.tripId}/diary`);
-      
-      // Close modal
-      onClose();
+      if (result.success && result.tripId) {
+        // Navigate to the trip diary
+        console.log('🧭 Navigating to trip diary:', `/trips/${result.tripId}/diary`);
+        router.push(`/trips/${result.tripId}/diary`);
+        
+        // Close modal
+        onClose();
+      } else {
+        throw new Error('Invalid response from server');
+      }
       
     } catch (error) {
-      console.error('Error creating trip:', error);
+      console.error('❌ Error creating trip:', error);
       setError(error instanceof Error ? error.message : 'Failed to create trip');
     } finally {
       setIsSubmitting(false);
