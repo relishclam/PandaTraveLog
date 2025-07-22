@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 
 // Paths that require authentication - be more specific!
 const protectedPaths = ['/dashboard', '/trips', '/profile'];
@@ -20,52 +20,8 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    // Create server-side Supabase client that can read cookies
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name) {
-            return request.cookies.get(name)?.value;
-          },
-          set(name, value, options) {
-            request.cookies.set({
-              name,
-              value,
-              ...options,
-            });
-            response = NextResponse.next({
-              request: {
-                headers: request.headers,
-              },
-            });
-            response.cookies.set({
-              name,
-              value,
-              ...options,
-            });
-          },
-          remove(name, options) {
-            request.cookies.set({
-              name,
-              value: '',
-              ...options,
-            });
-            response = NextResponse.next({
-              request: {
-                headers: request.headers,
-              },
-            });
-            response.cookies.set({
-              name,
-              value: '',
-              ...options,
-            });
-          },
-        },
-      }
-    );
+    // Create middleware Supabase client that's compatible with auth-helpers
+    const supabase = createMiddlewareClient({ req: request, res: response });
 
     // Get the session using the cookies from the request
     const { data: { session }, error } = await supabase.auth.getSession();
