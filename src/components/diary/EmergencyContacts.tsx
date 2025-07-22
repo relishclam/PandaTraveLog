@@ -260,7 +260,7 @@ const EmergencyContacts: React.FC<EmergencyContactsProps> = ({ tripId }) => {
     }
   };
   
-  if (loading) {
+  if (isLoading) {
     return (
       <Card>
         <CardHeader>
