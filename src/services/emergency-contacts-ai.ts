@@ -3,7 +3,9 @@
  * Generates destination-specific emergency contacts using OpenRouter AI
  */
 
-import { OpenRouterService } from './openrouter-service';
+import axios from 'axios';
+
+const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 export interface EmergencyContactData {
   name: string;
@@ -26,11 +28,7 @@ export interface DestinationEmergencyInfo {
 }
 
 export class EmergencyContactsAI {
-  private openRouterService: OpenRouterService;
-
-  constructor() {
-    this.openRouterService = new OpenRouterService();
-  }
+  // No constructor needed since we're using the imported service object
 
   /**
    * Generate emergency contacts for a destination using AI
@@ -42,7 +40,14 @@ export class EmergencyContactsAI {
     try {
       const prompt = this.buildEmergencyContactsPrompt(destination, country);
       
-      const response = await this.openRouterService.generateContent({
+      // Get API key from environment variables
+      const apiKey = process.env.OPENROUTER_API_KEY;
+      if (!apiKey) {
+        throw new Error('OpenRouter API key not configured');
+      }
+
+      const response = await axios.post(OPENROUTER_API_URL, {
+        model: 'anthropic/claude-3.5-sonnet',
         messages: [
           {
             role: 'system',
@@ -53,15 +58,22 @@ export class EmergencyContactsAI {
             content: prompt
           }
         ],
-        model: 'anthropic/claude-3.5-sonnet',
         temperature: 0.1, // Low temperature for factual accuracy
+        response_format: { type: 'json_object' }
+      }, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+          'X-Title': 'PandaTraveLog Emergency Contacts'
+        }
       });
 
-      if (!response.success || !response.content) {
-        throw new Error('Failed to generate emergency contacts');
+      if (!response.data?.choices?.[0]?.message?.content) {
+        throw new Error('Invalid response from AI service');
       }
 
-      return this.parseEmergencyContactsResponse(response.content, destination);
+      return this.parseEmergencyContactsResponse(response.data.choices[0].message.content, destination);
       
     } catch (error) {
       console.error('Error generating emergency contacts:', error);
@@ -206,7 +218,15 @@ Return in JSON format:
 }
 `;
 
-    const response = await this.openRouterService.generateContent({
+    // Get API key from environment variables
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) {
+      console.warn('OpenRouter API key not configured for accommodation enrichment');
+      return accommodation; // Return original if no API key
+    }
+
+    const response = await axios.post(OPENROUTER_API_URL, {
+      model: 'anthropic/claude-3.5-sonnet',
       messages: [
         {
           role: 'system',
@@ -217,13 +237,21 @@ Return in JSON format:
           content: prompt
         }
       ],
-      model: 'anthropic/claude-3.5-sonnet',
-      temperature: 0.1
+      temperature: 0.1,
+      response_format: { type: 'json_object' }
+    }, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+        'X-Title': 'PandaTraveLog Accommodation Enrichment'
+      }
     });
 
-    if (response.success && response.content) {
+    if (response.data?.choices?.[0]?.message?.content) {
       try {
-        const jsonMatch = response.content.match(/\{[\s\S]*\}/);
+        const content = response.data.choices[0].message.content;
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           const contactInfo = JSON.parse(jsonMatch[0]);
           
