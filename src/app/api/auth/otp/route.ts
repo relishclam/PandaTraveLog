@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
-import supabase from '@/lib/supabase';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import { sendVerificationToken, verifyToken } from '@/lib/twilio';
 
 export async function POST(request: Request) {
   try {
+    const supabase = createRouteHandlerClient({ cookies });
     const { phoneNumber, code, action } = await request.json();
 
     if (!phoneNumber) {

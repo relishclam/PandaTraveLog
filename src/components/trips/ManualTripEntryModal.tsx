@@ -26,7 +26,10 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import supabase from '@/lib/supabase';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+
+// Initialize Supabase client for this component
+const supabase = createClientComponentClient();
 
 interface Destination {
   id: string;

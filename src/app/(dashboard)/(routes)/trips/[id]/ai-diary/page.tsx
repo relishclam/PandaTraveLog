@@ -4,7 +4,10 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePOAssistant } from '@/contexts/POAssistantContext';
-import supabase from '@/lib/supabase';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+
+// Initialize Supabase client for this component
+const supabase = createClientComponentClient();
 import { Button } from '@/components/ui/Button';
 
 interface Trip {

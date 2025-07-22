@@ -8,7 +8,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Plus, Edit2, Trash2, Copy, ExternalLink, UserPlus } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/Avatar';
 import { toast } from 'sonner';
-import supabase from '@/lib/supabase';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+
+// Initialize Supabase client for this component
+const supabase = createClientComponentClient();
 import { useAuth } from '@/hooks/auth';
 import { ScrollArea } from '@/components/ui/ScrollArea';
 import { PoGuide } from '@/components/po/svg/PoGuide';

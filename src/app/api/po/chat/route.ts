@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import supabase from '@/lib/supabase';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -23,6 +24,7 @@ interface TripData {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = createRouteHandlerClient({ cookies });
     const { messages, userId, tripId, context, conversationId } = await request.json();
 
     if (!messages || !Array.isArray(messages)) {
@@ -85,6 +87,7 @@ export async function POST(request: NextRequest) {
     let savedConversationId = conversationId;
     if (userId) {
       savedConversationId = await saveConversation(
+        supabase,
         userId, 
         tripId, 
         context, 
@@ -223,6 +226,7 @@ CURRENT CONTEXT: Dashboard
 }
 
 async function saveConversation(
+  supabase: any,
   userId: string, 
   tripId: string | undefined, 
   context: string, 

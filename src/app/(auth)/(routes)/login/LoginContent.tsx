@@ -8,7 +8,10 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 
 import { useAuth } from "@/contexts/AuthContext";
-import supabase from "@/lib/supabase";
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+
+// Initialize Supabase client for this component
+const supabase = createClientComponentClient();
 
 type LoginFormData = {
   email: string;
