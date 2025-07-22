@@ -31,6 +31,13 @@ interface CompanionsListProps {
   tripId: string;
 }
 
+// Helper function to generate WhatsApp URL
+const getWhatsAppUrl = (phoneNumber: string): string => {
+  // Remove all non-numeric characters except +
+  const cleanNumber = phoneNumber.replace(/[^+\d]/g, '');
+  return `https://wa.me/${cleanNumber}`;
+};
+
 const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
   const [companions, setCompanions] = useState<CompanionProps[]>([]);
   const [loading, setLoading] = useState(true);
