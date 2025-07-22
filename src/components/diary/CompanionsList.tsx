@@ -111,6 +111,7 @@ const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
           .from('trip_companions')
           .insert({
             trip_id: tripId,
+            user_id: user?.id,
             name: companionData.name,
             email: companionData.email || null,
             phone: companionData.phone || null,
