@@ -21,6 +21,7 @@ interface CompanionProps {
   name: string;
   email?: string;
   phone?: string;
+  relationship?: string;
   whatsapp?: string;
   notes?: string;
   profile_image?: string;
@@ -82,6 +83,7 @@ const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
             name: companionData.name,
             email: companionData.email || null,
             phone: companionData.phone || null,
+            relationship: companionData.relationship || null,
             whatsapp: companionData.whatsapp || null,
             notes: companionData.notes || null,
             updated_at: new Date().toISOString(),
@@ -100,7 +102,9 @@ const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
             name: companionData.name,
             email: companionData.email || null,
             phone: companionData.phone || null,
-            relationship: companionData.whatsapp || null, // Map whatsapp to relationship field
+            relationship: companionData.relationship || null,
+            whatsapp: companionData.whatsapp || null,
+            notes: companionData.notes || null,
           });
         
         if (error) throw error;
@@ -170,12 +174,12 @@ const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
     toast.success(`${label} copied to clipboard`);
   };
   
-  // Format WhatsApp URL
+  // Format WhatsApp URL for direct chat functionality
   const getWhatsAppUrl = (phone: string) => {
-    let formattedPhone = phone.replace(/\D/g, '');
-    if (!formattedPhone.startsWith('+')) {
-      formattedPhone = '+' + formattedPhone;
-    }
+    // Remove any non-digit characters
+    const cleanPhone = phone.replace(/\D/g, '');
+    // Ensure it starts with country code (add + if not present)
+    const formattedPhone = cleanPhone.startsWith('+') ? cleanPhone.slice(1) : cleanPhone;
     return `https://wa.me/${formattedPhone}`;
   };
   
@@ -325,6 +329,22 @@ const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
                             </div>
                           )}
                           
+                          {companion.relationship && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-600">Relationship: {companion.relationship}</span>
+                              <div className="flex space-x-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => copyToClipboard(companion.relationship!, 'Relationship')}
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                          
                           {companion.whatsapp && (
                             <div className="flex items-center justify-between">
                               <span className="text-gray-600">WhatsApp: {companion.whatsapp}</span>
@@ -412,6 +432,19 @@ const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
                 value={editingCompanion?.phone || newCompanion.phone || ''}
                 onChange={handleChange}
                 placeholder="Phone Number"
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="relationship">
+                Relationship
+              </Label>
+              <Input
+                id="relationship"
+                name="relationship"
+                value={editingCompanion?.relationship || newCompanion.relationship || ''}
+                onChange={handleChange}
+                placeholder="Relationship (e.g., Friend, Family, Colleague)"
               />
             </div>
             
