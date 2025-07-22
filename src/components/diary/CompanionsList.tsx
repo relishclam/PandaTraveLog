@@ -94,12 +94,10 @@ const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
           .from('trip_companions')
           .insert({
             trip_id: tripId,
-            user_id: user?.id,
             name: companionData.name,
             email: companionData.email || null,
             phone: companionData.phone || null,
-            whatsapp: companionData.whatsapp || null,
-            notes: companionData.notes || null,
+            relationship: companionData.whatsapp || null, // Map whatsapp to relationship field
           });
         
         if (error) throw error;

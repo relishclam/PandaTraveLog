@@ -30,8 +30,9 @@ interface EmergencyContactsProps {
 
 const EmergencyContacts: React.FC<EmergencyContactsProps> = ({ tripId }) => {
   const [contacts, setContacts] = useState<EmergencyContactProps[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiGenerating, setAiGenerating] = useState(false);
   const [newContact, setNewContact] = useState<Partial<EmergencyContactProps>>({
     type: 'medical', // Default type
     priority: 1,
@@ -50,10 +51,10 @@ const EmergencyContacts: React.FC<EmergencyContactsProps> = ({ tripId }) => {
       setError(null);
       
       const { data, error } = await supabase
-        .from('emergency_contacts')
+        .from('travel_contacts')
         .select('*')
-        .eq('trip_id', tripId)
-        .order('priority', { ascending: true });
+        .eq('user_id', user?.id)
+        .order('name');
       
       if (error) throw error;
       
@@ -78,14 +79,11 @@ const EmergencyContacts: React.FC<EmergencyContactsProps> = ({ tripId }) => {
       if (editingContact) {
         // Update existing contact
         const { error } = await supabase
-          .from('emergency_contacts')
+          .from('travel_contacts')
           .update({
             name: contactData.name,
             phone: contactData.phone,
-            type: contactData.type,
-            address: contactData.address || null,
-            notes: contactData.notes || null,
-            priority: contactData.priority || 1,
+            relationship: contactData.type, // Map type to relationship field
             updated_at: new Date().toISOString(),
           })
           .eq('id', editingContact.id);
@@ -96,16 +94,12 @@ const EmergencyContacts: React.FC<EmergencyContactsProps> = ({ tripId }) => {
       } else {
         // Add new contact
         const { error } = await supabase
-          .from('emergency_contacts')
+          .from('travel_contacts')
           .insert({
-            trip_id: tripId,
             user_id: user?.id,
             name: contactData.name,
             phone: contactData.phone,
-            type: contactData.type,
-            address: contactData.address || null,
-            notes: contactData.notes || null,
-            priority: contactData.priority || 1,
+            relationship: contactData.type, // Map type to relationship field
           });
         
         if (error) throw error;
@@ -130,7 +124,7 @@ const EmergencyContacts: React.FC<EmergencyContactsProps> = ({ tripId }) => {
   const handleDeleteContact = async (id: string) => {
     try {
       const { error } = await supabase
-        .from('emergency_contacts')
+        .from('travel_contacts')
         .delete()
         .eq('id', id);
       
@@ -141,6 +135,39 @@ const EmergencyContacts: React.FC<EmergencyContactsProps> = ({ tripId }) => {
     } catch (err: any) {
       console.error('Error deleting emergency contact:', err);
       toast.error(err.message || 'Failed to delete emergency contact');
+    }
+  };
+
+  const handleGenerateAIContacts = async () => {
+    try {
+      setAiGenerating(true);
+      setError(null);
+      
+      const response = await fetch(`/api/trips/${tripId}/emergency-contacts/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate emergency contacts');
+      }
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        toast.success(`Generated ${result.newContactsAdded} new emergency contacts for your destination!`);
+        await fetchContacts(); // Refresh the contacts list
+      } else {
+        throw new Error(result.error || 'Failed to generate contacts');
+      }
+      
+    } catch (err: any) {
+      console.error('Error generating AI contacts:', err);
+      toast.error(err.message || 'Failed to generate emergency contacts');
+    } finally {
+      setAiGenerating(false);
     }
   };
   
@@ -276,10 +303,27 @@ const EmergencyContacts: React.FC<EmergencyContactsProps> = ({ tripId }) => {
             <CardTitle>Emergency Contacts</CardTitle>
             <CardDescription>Important contacts for your trip</CardDescription>
           </div>
-          <Button size="sm" onClick={openAddDialog}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Contact
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={handleGenerateAIContacts}
+              disabled={aiGenerating}
+            >
+              {aiGenerating ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2" />
+              ) : (
+                <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              )}
+              {aiGenerating ? 'Generating...' : 'AI Auto-Fill'}
+            </Button>
+            <Button size="sm" onClick={openAddDialog}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Contact
+            </Button>
+          </div>
         </CardHeader>
         
         <CardContent>

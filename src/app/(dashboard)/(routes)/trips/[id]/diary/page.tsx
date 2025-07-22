@@ -87,10 +87,17 @@ export default function TripDiaryPage() {
   const [travelDetails, setTravelDetails] = useState<TravelDetails[]>([]);
   const [accommodations, setAccommodations] = useState<AccommodationDetails[]>([]);
   const [editingDay, setEditingDay] = useState<string | null>(null);
+  const [editingAccommodation, setEditingAccommodation] = useState<string | null>(null);
+  const [editingTravel, setEditingTravel] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const { setContext } = usePOAssistant();
   
-  const tripId = params.id as string;
+  const tripId = params?.id as string;
+  
+  if (!tripId) {
+    router.push('/trips');
+    return null;
+  }
   
   useEffect(() => {
     async function loadTripAndItinerary() {
@@ -154,57 +161,75 @@ setTrip(tripData);  // ✅ CORRECT: Use tripData directly
     
     async function loadManualTripData() {
       try {
-        // Load itinerary data from trip_itinerary table
-        const { data: itineraryData, error: itineraryError } = await supabase
-          .from('trip_itinerary')
-          .select('*')
-          .eq('trip_id', tripId)
-          .order('day_number');
+        // Load data from correct schema tables
+        const [schedulesResult, travelResult, accommodationsResult] = await Promise.all([
+          // Load day schedules
+          supabase
+            .from('trip_day_schedules')
+            .select('*')
+            .eq('trip_id', tripId)
+            .order('day_number'),
+          
+          // Load travel details
+          supabase
+            .from('trip_travel_details')
+            .select('*')
+            .eq('trip_id', tripId),
+          
+          // Load accommodations
+          supabase
+            .from('trip_accommodations')
+            .select('*')
+            .eq('trip_id', tripId)
+        ]);
 
-        if (itineraryError) {
-          console.warn('Failed to load manual trip data:', itineraryError);
-          return;
+        // Process day schedules
+        if (schedulesResult.data) {
+          const schedules: DaySchedule[] = schedulesResult.data.map(item => ({
+            id: item.id,
+            day: item.day_number,
+            date: item.date || '',
+            activities: item.activities || '',
+            notes: item.notes || ''
+          }));
+          setDaySchedules(schedules);
         }
 
-        if (itineraryData) {
-          // Parse itinerary data
-          const schedules: DaySchedule[] = [];
-          let travel: TravelDetails[] = [];
-          let hotels: AccommodationDetails[] = [];
-
-          itineraryData.forEach(item => {
-            try {
-              const content = JSON.parse(item.content);
-              
-              if (item.day_number > 0) {
-                // Regular day schedule
-                schedules.push({
-                  id: item.id.toString(),
-                  day: item.day_number,
-                  date: content.date || '',
-                  activities: content.activities || '',
-                  notes: content.notes || ''
-                });
-              } else if (item.day_number === -1 && content.travel_details) {
-                // Travel details
-                travel = content.travel_details;
-              } else if (item.day_number === -2 && content.accommodations) {
-                // Accommodations
-                hotels = content.accommodations;
-              }
-            } catch (e) {
-              console.warn('Failed to parse itinerary item:', e);
-            }
-          });
-
-          setDaySchedules(schedules);
+        // Process travel details
+        if (travelResult.data) {
+          const travel: TravelDetails[] = travelResult.data.map(item => ({
+            id: item.id,
+            mode: item.mode,
+            details: item.details || '',
+            departureTime: item.departure_time || '',
+            arrivalTime: item.arrival_time || '',
+            bookingReference: item.booking_reference || '',
+            contactInfo: item.contact_info || ''
+          }));
           setTravelDetails(travel);
+        }
+
+        // Process accommodations
+        if (accommodationsResult.data) {
+          const hotels: AccommodationDetails[] = accommodationsResult.data.map(item => ({
+            id: item.id,
+            name: item.name,
+            address: item.address || '',
+            checkIn: item.check_in || '',
+            checkOut: item.check_out || '',
+            confirmationNumber: item.confirmation_number || '',
+            contactInfo: item.contact_info || '',
+            notes: item.notes || ''
+          }));
           setAccommodations(hotels);
-          
-          // Update active tab if manual data exists
-          if (schedules.length > 0 || travel.length > 0 || hotels.length > 0) {
-            setActiveTab('manual');
-          }
+        }
+        
+        // Update active tab if manual data exists
+        const hasData = (schedulesResult.data?.length || 0) > 0 || 
+                       (travelResult.data?.length || 0) > 0 || 
+                       (accommodationsResult.data?.length || 0) > 0;
+        if (hasData) {
+          setActiveTab('manual');
         }
       } catch (error) {
         console.warn('Error loading manual trip data:', error);
@@ -248,25 +273,32 @@ setTrip(tripData);  // ✅ CORRECT: Use tripData directly
       const day = daySchedules.find(d => d.id === dayId);
       if (!day) return;
 
+      // Use the correct table name from your schema
       const { error } = await supabase
-        .from('trip_itinerary')
-        .update({
-          content: JSON.stringify({
-            date: day.date,
-            activities: day.activities,
-            notes: day.notes
-          })
-        })
-        .eq('id', parseInt(dayId))
-        .eq('trip_id', tripId);
+        .from('trip_day_schedules')
+        .upsert({
+          id: dayId,
+          trip_id: tripId,
+          day_number: day.day,
+          date: day.date || null,
+          activities: day.activities,
+          notes: day.notes || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'id'
+        });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
       
       setEditingDay(null);
       toast.success('Day schedule saved successfully!');
     } catch (error: any) {
       console.error('Error saving day schedule:', error);
-      toast.error('Failed to save changes');
+      toast.error(`Failed to save changes: ${error.message}`);
     } finally {
       setSaving(false);
     }
@@ -275,6 +307,99 @@ setTrip(tripData);  // ✅ CORRECT: Use tripData directly
   const updateDaySchedule = (dayId: string, field: keyof DaySchedule, value: string) => {
     setDaySchedules(prev => prev.map(day => 
       day.id === dayId ? { ...day, [field]: value } : day
+    ));
+  };
+
+  // Save accommodation function
+  const saveAccommodation = async (accommodationId: string) => {
+    try {
+      setSaving(true);
+      const accommodation = accommodations.find(a => a.id === accommodationId);
+      if (!accommodation) return;
+
+      const { error } = await supabase
+        .from('trip_accommodations')
+        .upsert({
+          id: accommodationId,
+          trip_id: tripId,
+          name: accommodation.name,
+          address: accommodation.address || null,
+          check_in: accommodation.checkIn || null,
+          check_out: accommodation.checkOut || null,
+          confirmation_number: accommodation.confirmationNumber || null,
+          contact_info: accommodation.contactInfo || null,
+          notes: accommodation.notes || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'id'
+        });
+
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
+      
+      setEditingAccommodation(null);
+      toast.success('Accommodation saved successfully!');
+    } catch (error: any) {
+      console.error('Error saving accommodation:', error);
+      toast.error(`Failed to save accommodation: ${error.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Update accommodation function
+  const updateAccommodation = (accommodationId: string, field: keyof AccommodationDetails, value: string) => {
+    setAccommodations(prev => prev.map(accommodation => 
+      accommodation.id === accommodationId ? { ...accommodation, [field]: value } : accommodation
+    ));
+  };
+
+  // Save travel details function
+  const saveTravelDetails = async (travelId: string) => {
+    try {
+      setSaving(true);
+      const travel = travelDetails.find(t => t.id === travelId);
+      if (!travel) return;
+
+      const { error } = await supabase
+        .from('trip_travel_details')
+        .upsert({
+          id: travelId,
+          trip_id: tripId,
+          mode: travel.mode,
+          details: travel.details || null,
+          departure_time: travel.departureTime || null,
+          arrival_time: travel.arrivalTime || null,
+          booking_reference: travel.bookingReference || null,
+          contact_info: travel.contactInfo || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'id'
+        });
+
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
+      
+      setEditingTravel(null);
+      toast.success('Travel details saved successfully!');
+    } catch (error: any) {
+      console.error('Error saving travel details:', error);
+      toast.error(`Failed to save travel details: ${error.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Update travel details function
+  const updateTravelDetails = (travelId: string, field: keyof TravelDetails, value: string) => {
+    setTravelDetails(prev => prev.map(travel => 
+      travel.id === travelId ? { ...travel, [field]: value } : travel
     ));
   };
 
@@ -402,22 +527,67 @@ setTrip(tripData);  // ✅ CORRECT: Use tripData directly
         )}
       </div>
       
-      {/* Tabs Navigation */}
+      {/* Tabs Navigation - Mobile Optimized */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-10">
-        <TabsList className="w-full md:w-auto mb-4">
-          <TabsTrigger value="itinerary" className="flex-1 md:flex-none">
-            AI Itinerary
-          </TabsTrigger>
-          <TabsTrigger value="manual" className="flex-1 md:flex-none">
-            Manual Trip
-          </TabsTrigger>
-          <TabsTrigger value="companions" className="flex-1 md:flex-none">
-            Companions
-          </TabsTrigger>
-          <TabsTrigger value="emergency" className="flex-1 md:flex-none">
-            Emergency Contacts
-          </TabsTrigger>
-        </TabsList>
+        <div className="relative">
+          <TabsList className="w-full md:w-auto mb-4 grid grid-cols-2 md:grid-cols-4 gap-1 md:gap-0 h-auto md:h-10 p-1">
+            <TabsTrigger 
+              value="itinerary" 
+              className="flex-1 md:flex-none text-xs md:text-sm px-2 md:px-3 py-2 md:py-1.5 min-h-[44px] md:min-h-[36px] flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2"
+            >
+              <svg className="w-4 h-4 md:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+              <span className="hidden md:inline">AI Itinerary</span>
+              <span className="md:hidden text-center leading-tight">AI<br />Itinerary</span>
+            </TabsTrigger>
+            
+            <TabsTrigger 
+              value="manual" 
+              className="flex-1 md:flex-none text-xs md:text-sm px-2 md:px-3 py-2 md:py-1.5 min-h-[44px] md:min-h-[36px] flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2"
+            >
+              <svg className="w-4 h-4 md:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+              <span className="hidden md:inline">Manual Trip</span>
+              <span className="md:hidden text-center leading-tight">Manual<br />Trip</span>
+            </TabsTrigger>
+            
+            <TabsTrigger 
+              value="companions" 
+              className="flex-1 md:flex-none text-xs md:text-sm px-2 md:px-3 py-2 md:py-1.5 min-h-[44px] md:min-h-[36px] flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2"
+            >
+              <svg className="w-4 h-4 md:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+              </svg>
+              <span className="hidden md:inline">Companions</span>
+              <span className="md:hidden text-center leading-tight">Companions</span>
+            </TabsTrigger>
+            
+            <TabsTrigger 
+              value="emergency" 
+              className="flex-1 md:flex-none text-xs md:text-sm px-2 md:px-3 py-2 md:py-1.5 min-h-[44px] md:min-h-[36px] flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2"
+            >
+              <svg className="w-4 h-4 md:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              <span className="hidden md:inline">Emergency Contacts</span>
+              <span className="md:hidden text-center leading-tight">Emergency<br />Contacts</span>
+            </TabsTrigger>
+          </TabsList>
+          
+          {/* Mobile Tab Indicator */}
+          <div className="md:hidden flex justify-center mt-2 space-x-1">
+            {['itinerary', 'manual', 'companions', 'emergency'].map((tab) => (
+              <div
+                key={tab}
+                className={`h-1 w-6 rounded-full transition-colors duration-200 ${
+                  activeTab === tab ? 'bg-primary' : 'bg-gray-200'
+                }`}
+              />
+            ))}
+          </div>
+        </div>
         
         {/* AI Itinerary Tab */}
         <TabsContent value="itinerary" className="mt-0">
@@ -493,37 +663,140 @@ setTrip(tripData);  // ✅ CORRECT: Use tripData directly
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Hotel className="w-5 h-5 mr-2" />
-                    Accommodations
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Hotel className="w-5 h-5 mr-2" />
+                      Accommodations
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Add new accommodation functionality can be added here
+                        const newAccommodation: AccommodationDetails = {
+                          id: `temp-${Date.now()}`,
+                          name: '',
+                          address: '',
+                          checkIn: '',
+                          checkOut: '',
+                          confirmationNumber: '',
+                          contactInfo: '',
+                          notes: ''
+                        };
+                        setAccommodations(prev => [...prev, newAccommodation]);
+                        setEditingAccommodation(newAccommodation.id);
+                      }}
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      Add
+                    </Button>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   {accommodations.length > 0 ? (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {accommodations.map(hotel => (
-                        <div key={hotel.id} className="border-l-4 border-blue-200 pl-3">
-                          <p className="font-medium">{hotel.name}</p>
-                          <p className="text-sm text-gray-600">
-                            {(hotel as any).enrichedData?.address || hotel.address}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {hotel.checkIn} to {hotel.checkOut}
-                          </p>
-                          {(hotel as any).enrichedData?.contactInfo?.phone && (
-                            <p className="text-xs text-blue-600">
-                              📞 {(hotel as any).enrichedData.contactInfo.phone}
-                            </p>
-                          )}
-                          {(hotel as any).enrichedData?.mapLink && (
-                            <a 
-                              href={(hotel as any).enrichedData.mapLink} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-xs text-blue-600 hover:underline"
+                        <div key={hotel.id} className="border rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-medium text-gray-900">Accommodation {accommodations.indexOf(hotel) + 1}</h4>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setEditingAccommodation(editingAccommodation === hotel.id ? null : hotel.id)}
                             >
-                              🗺️ View on Map
-                            </a>
+                              {editingAccommodation === hotel.id ? <X className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
+                            </Button>
+                          </div>
+                          
+                          {editingAccommodation === hotel.id ? (
+                            <div className="space-y-3">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Hotel Name</label>
+                                  <Input
+                                    value={hotel.name}
+                                    onChange={(e) => updateAccommodation(hotel.id, 'name', e.target.value)}
+                                    placeholder="Hotel name"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                                  <Input
+                                    value={hotel.address}
+                                    onChange={(e) => updateAccommodation(hotel.id, 'address', e.target.value)}
+                                    placeholder="Hotel address"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Check-in</label>
+                                  <Input
+                                    value={hotel.checkIn}
+                                    onChange={(e) => updateAccommodation(hotel.id, 'checkIn', e.target.value)}
+                                    placeholder="Check-in date/time"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Check-out</label>
+                                  <Input
+                                    value={hotel.checkOut}
+                                    onChange={(e) => updateAccommodation(hotel.id, 'checkOut', e.target.value)}
+                                    placeholder="Check-out date/time"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Confirmation Number</label>
+                                  <Input
+                                    value={hotel.confirmationNumber || ''}
+                                    onChange={(e) => updateAccommodation(hotel.id, 'confirmationNumber', e.target.value)}
+                                    placeholder="Booking confirmation"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Info</label>
+                                  <Input
+                                    value={hotel.contactInfo || ''}
+                                    onChange={(e) => updateAccommodation(hotel.id, 'contactInfo', e.target.value)}
+                                    placeholder="Phone number or email"
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                                <Textarea
+                                  value={hotel.notes || ''}
+                                  onChange={(e) => updateAccommodation(hotel.id, 'notes', e.target.value)}
+                                  placeholder="Additional notes"
+                                  rows={2}
+                                />
+                              </div>
+                              <Button
+                                onClick={() => saveAccommodation(hotel.id)}
+                                disabled={saving}
+                                className="flex items-center gap-2"
+                              >
+                                <Save className="w-4 h-4" />
+                                {saving ? 'Saving...' : 'Save Changes'}
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {hotel.name && <p className="font-medium">{hotel.name}</p>}
+                              {hotel.address && <p className="text-sm text-gray-600">{hotel.address}</p>}
+                              {(hotel.checkIn || hotel.checkOut) && (
+                                <p className="text-xs text-gray-500">
+                                  {hotel.checkIn} to {hotel.checkOut}
+                                </p>
+                              )}
+                              {hotel.confirmationNumber && (
+                                <p className="text-xs text-gray-500">Ref: {hotel.confirmationNumber}</p>
+                              )}
+                              {hotel.contactInfo && (
+                                <p className="text-xs text-blue-600">📞 {hotel.contactInfo}</p>
+                              )}
+                              {hotel.notes && (
+                                <p className="text-sm text-gray-600 italic">{hotel.notes}</p>
+                              )}
+                            </div>
                           )}
                         </div>
                       ))}

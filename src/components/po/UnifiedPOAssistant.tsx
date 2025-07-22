@@ -55,6 +55,7 @@ function UnifiedPOAssistant({
 
   // Auto-detect context from pathname
   const getContextFromPath = useCallback(() => {
+    if (!pathname) return context; // Handle null pathname
     if (pathname.includes('/trips/new')) return 'trip_creation';
     if (pathname.includes('/diary')) return 'diary';
     if (pathname.includes('/trips/') && !user) return 'marketing';
