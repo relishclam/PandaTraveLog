@@ -392,10 +392,7 @@ const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
       
       {/* 🔥 FIXED: Added proper accessibility attributes */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent 
-          className="sm:max-w-md" 
-          aria-describedby="companions-dialog-description"
-        >
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
               {editingCompanion ? 'Edit Companion' : 'Add New Companion'}
