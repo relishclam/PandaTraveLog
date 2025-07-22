@@ -97,7 +97,6 @@ const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
             phone: companionData.phone || null,
             relationship: companionData.relationship || null,
             whatsapp: companionData.whatsapp || null,
-            notes: companionData.notes || null,
             updated_at: new Date().toISOString(),
           })
           .eq('id', editingCompanion.id);
@@ -117,7 +116,6 @@ const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
             phone: companionData.phone || null,
             relationship: companionData.relationship || null,
             whatsapp: companionData.whatsapp || null,
-            notes: companionData.notes || null,
           });
         
         if (error) throw error;
