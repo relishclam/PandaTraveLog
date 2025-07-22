@@ -40,6 +40,8 @@ export default function LoginContent() {
 
   const searchParams = useSearchParams();
   const verified = searchParams?.get('verified') === 'false';
+  const message = searchParams?.get('message');
+  const showEmailConfirmation = message === 'check_email';
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>();
   const { register: registerReset, handleSubmit: handleResetSubmit, formState: { errors: resetErrors } } = useForm<ResetFormData>();
@@ -167,6 +169,25 @@ export default function LoginContent() {
         {verified && (
           <div className="mt-4 bg-blue-50 border border-blue-200 text-blue-600 px-4 py-3 rounded-md">
             Please check your email to verify your account before signing in.
+          </div>
+        )}
+
+        {showEmailConfirmation && (
+          <div className="mt-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md">
+            <div className="flex items-center">
+              <Image 
+                src="/images/po/emotions/excited.png" 
+                alt="PO is excited" 
+                width={24} 
+                height={24} 
+                className="mr-2"
+                unoptimized
+              />
+              <div>
+                <p className="font-medium">Account created successfully! 🎉</p>
+                <p className="text-sm mt-1">Please check your email and click the confirmation link to activate your account, then return here to sign in.</p>
+              </div>
+            </div>
           </div>
         )}
 

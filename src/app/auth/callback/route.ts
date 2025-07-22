@@ -22,8 +22,8 @@ export async function GET(request: NextRequest) {
       if (data.user) {
         console.log('✅ Email verification successful for:', data.user.email)
         
-        // Create or update user profile
-        await supabase.from('profiles').upsert({
+        // Create or update user profile using metadata from signup
+        const { error: profileError } = await supabase.from('profiles').upsert({
           id: data.user.id,
           email: data.user.email,
           name: data.user.user_metadata?.name || '',
@@ -31,7 +31,12 @@ export async function GET(request: NextRequest) {
           is_phone_verified: false,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        })
+        });
+        
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          // Don't fail the entire flow for profile errors
+        }
 
         // Redirect to trips page on successful verification
         return NextResponse.redirect(`${requestUrl.origin}/trips?verified=true`)

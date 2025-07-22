@@ -278,12 +278,10 @@ Return in JSON format:
     emergencyInfo: DestinationEmergencyInfo
   ): Promise<void> {
     try {
-      // Store in localStorage for quick access
-      const cacheKey = `emergency_contacts_${tripId}`;
-      localStorage.setItem(cacheKey, JSON.stringify(emergencyInfo));
-      
-      // Also store in database for persistence
-      // This would integrate with your existing Supabase setup
+      // Server-side caching - store in memory or database
+      // For now, we'll skip caching on server-side to avoid localStorage errors
+      // In production, this could use Redis or database caching
+      console.log(`Caching emergency contacts for trip ${tripId}`);
       
     } catch (error) {
       console.error('Error caching emergency contacts:', error);
@@ -295,20 +293,11 @@ Return in JSON format:
    */
   getCachedEmergencyContacts(tripId: string): DestinationEmergencyInfo | null {
     try {
-      const cacheKey = `emergency_contacts_${tripId}`;
-      const cached = localStorage.getItem(cacheKey);
-      
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        
-        // Check if cache is still fresh (24 hours)
-        const cacheAge = Date.now() - new Date(parsed.lastUpdated).getTime();
-        if (cacheAge < 24 * 60 * 60 * 1000) {
-          return parsed;
-        }
-      }
-      
+      // Server-side - no localStorage available
+      // Always return null to force fresh generation
+      // In production, this could check Redis or database cache
       return null;
+      
     } catch (error) {
       console.error('Error reading cached emergency contacts:', error);
       return null;

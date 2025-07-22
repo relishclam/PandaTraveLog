@@ -147,6 +147,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: {
+            name: name,
+            phone: phone || ''
+          }
+        }
       });
 
       if (error) {
@@ -159,31 +166,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       console.log("✅ AuthContext: User created, creating profile");
-      // Create profile entry with phone if provided
-      await supabase.from('profiles').upsert({
-        id: data.user.id,
-        email: email,
-        name: name,
-        phone: phone || '',
-        is_phone_verified: false,
-        updated_at: new Date().toISOString(),
-      });
       
-      // Update user state first
-      if (data.session) {
-        await updateUserState(data.user);
-        
-        // Use proper router navigation
-        console.log("✅ AuthContext: User has active session after signup, redirecting");
-        setTimeout(() => {
-          router.push('/trips');
-        }, 500); // Small delay to ensure database operations complete
-      } else {
-        console.log("⚠️ AuthContext: No active session after signup, redirect to login");
-        setTimeout(() => {
-          router.push('/login?verified=false');
-        }, 500);
-      }
+      // With email confirmation enabled, user won't have a session immediately
+      // The profile will be created via the auth callback after email confirmation
+      console.log("📧 AuthContext: Email confirmation required");
+      
+      // Don't create profile here - it will be created in the auth callback
+      // after email confirmation to avoid duplicate entries
+      
+      // Always redirect to login with a message about email confirmation
+      console.log("📧 AuthContext: Redirecting to login with email confirmation message");
+      setTimeout(() => {
+        router.push('/login?message=check_email');
+      }, 500);
       
       // Return the user ID for phone verification
       return { id: data.user.id };
