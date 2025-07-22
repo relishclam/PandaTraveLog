@@ -1,3 +1,4 @@
+// src/components/diary/CompanionsList.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -47,7 +48,7 @@ const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { user } = useAuth();
   
-  // Add useCallback to prevent infinite re-renders
+  // 🔥 FIXED: Remove isLoading from dependencies to prevent infinite loop
   const fetchCompanions = useCallback(async () => {
     if (isLoading) return; // Prevent multiple calls
     
@@ -70,14 +71,14 @@ const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [tripId, isLoading]);
+  }, [tripId]); // 🔥 FIXED: Removed isLoading from dependencies
   
-  // Use useEffect with proper dependencies
+  // 🔥 FIXED: Use fetchCompanions directly since it's properly memoized
   useEffect(() => {
     if (tripId) {
       fetchCompanions();
     }
-  }, [tripId]); // Remove fetchCompanions from dependencies
+  }, [tripId, fetchCompanions]); // 🔥 FIXED: Added fetchCompanions back since it's stable now
   
   const handleAddOrUpdateCompanion = async () => {
     try {
@@ -389,14 +390,21 @@ const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
         </CardContent>
       </Card>
       
+      {/* 🔥 FIXED: Added proper accessibility attributes */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-md" aria-describedby="companions-description">
+        <DialogContent 
+          className="sm:max-w-md" 
+          aria-describedby="companions-dialog-description"
+        >
           <DialogHeader>
             <DialogTitle>
               {editingCompanion ? 'Edit Companion' : 'Add New Companion'}
             </DialogTitle>
-            <DialogDescription id="companions-description">
-              {editingCompanion ? 'Update the details of your travel companion' : 'Add a new person to your travel companions list'}
+            <DialogDescription id="companions-dialog-description">
+              {editingCompanion 
+                ? 'Update the details of your travel companion' 
+                : 'Add a new person to your travel companions list'
+              }
             </DialogDescription>
           </DialogHeader>
           
