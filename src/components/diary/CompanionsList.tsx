@@ -12,7 +12,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 // Initialize Supabase client for this component
 const supabase = createClientComponentClient();
-import { useAuth } from '@/hooks/auth';
+import { useAuth } from '@/contexts/AuthContext';
 import { ScrollArea } from '@/components/ui/ScrollArea';
 import { PoGuide } from '@/components/po/svg/PoGuide';
 
