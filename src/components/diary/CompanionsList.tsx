@@ -181,15 +181,6 @@ const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
     toast.success(`${label} copied to clipboard`);
   };
   
-  // Format WhatsApp URL for direct chat functionality
-  const getWhatsAppUrl = (phone: string) => {
-    // Remove any non-digit characters
-    const cleanPhone = phone.replace(/\D/g, '');
-    // Ensure it starts with country code (add + if not present)
-    const formattedPhone = cleanPhone.startsWith('+') ? cleanPhone.slice(1) : cleanPhone;
-    return `https://wa.me/${formattedPhone}`;
-  };
-  
   if (loading) {
     return (
       <Card>
