@@ -45,36 +45,37 @@ const EmergencyContacts: React.FC<EmergencyContactsProps> = ({ tripId }) => {
   const { user } = useAuth();
   
   // Add useCallback to prevent infinite re-renders
-  const fetchContacts = useCallback(async () => {
-    if (isLoading || !user?.id) return; // Prevent multiple calls
-    
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const { data, error } = await supabase
-        .from('travel_contacts')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('name');
-      
-      if (error) throw error;
-      
-      setContacts(data || []);
-    } catch (err: any) {
-      console.error('Error fetching emergency contacts:', err);
-      setError(err.message || 'Failed to load emergency contacts');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user?.id, isLoading]);
+  // Fix the fetchContacts function in EmergencyContacts.tsx
+const fetchContacts = useCallback(async () => {
+  if (isLoading || !user?.id) return; // Prevent multiple calls
   
-  // Use useEffect with proper dependencies
-  useEffect(() => {
-    if (tripId && user?.id) {
-      fetchContacts();
-    }
-  }, [tripId, user?.id]); // Remove fetchContacts from dependencies
+  setIsLoading(true);
+  setError(null);
+  
+  try {
+    const { data, error } = await supabase
+      .from('travel_contacts')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('name');
+    
+    if (error) throw error;
+    
+    setContacts(data || []);
+  } catch (err: any) {
+    console.error('Error fetching emergency contacts:', err);
+    setError(err.message || 'Failed to load emergency contacts');
+  } finally {
+    setIsLoading(false);
+  }
+}, [user?.id]); // 🔥 FIXED: Removed isLoading from dependencies
+
+// Update the useEffect
+useEffect(() => {
+  if (tripId && user?.id) {
+    fetchContacts();
+  }
+}, [tripId, user?.id, fetchContacts]); // 🔥 FIXED: Added fetchContacts back since it's stable now // Remove fetchContacts from dependencies
   
   const handleAddOrUpdateContact = async () => {
     try {

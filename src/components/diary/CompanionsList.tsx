@@ -392,18 +392,21 @@ const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
       
       {/* 🔥 FIXED: Added proper accessibility attributes */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {editingCompanion ? 'Edit Companion' : 'Add New Companion'}
-            </DialogTitle>
-            <DialogDescription id="companions-dialog-description">
-              {editingCompanion 
-                ? 'Update the details of your travel companion' 
-                : 'Add a new person to your travel companions list'
-              }
-            </DialogDescription>
-          </DialogHeader>
+  <DialogContent 
+    className="sm:max-w-md" 
+    aria-describedby="companions-dialog-description"
+  >
+    <DialogHeader>
+      <DialogTitle>
+        {editingCompanion ? 'Edit Companion' : 'Add New Companion'}
+      </DialogTitle>
+      <DialogDescription id="companions-dialog-description">
+        {editingCompanion 
+          ? 'Update the details of your travel companion' 
+          : 'Add a new person to your travel companions list'
+        }
+      </DialogDescription>
+    </DialogHeader>
           
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
