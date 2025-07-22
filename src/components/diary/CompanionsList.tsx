@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/Dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/Dialog';
 import { Plus, Edit2, Trash2, Copy, ExternalLink, UserPlus } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/Avatar';
 import { toast } from 'sonner';
@@ -40,22 +40,21 @@ const getWhatsAppUrl = (phoneNumber: string): string => {
 
 const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
   const [companions, setCompanions] = useState<CompanionProps[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newCompanion, setNewCompanion] = useState<Partial<CompanionProps>>({});
   const [editingCompanion, setEditingCompanion] = useState<CompanionProps | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { user } = useAuth();
   
-  useEffect(() => {
-    fetchCompanions();
-  }, [tripId]);
-  
-  const fetchCompanions = async () => {
+  // Add useCallback to prevent infinite re-renders
+  const fetchCompanions = useCallback(async () => {
+    if (isLoading) return; // Prevent multiple calls
+    
+    setIsLoading(true);
+    setError(null);
+    
     try {
-      setLoading(true);
-      setError(null);
-      
       const { data, error } = await supabase
         .from('trip_companions')
         .select('*')
@@ -69,9 +68,16 @@ const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
       console.error('Error fetching companions:', err);
       setError(err.message || 'Failed to load companions');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  };
+  }, [tripId, isLoading]);
+  
+  // Use useEffect with proper dependencies
+  useEffect(() => {
+    if (tripId) {
+      fetchCompanions();
+    }
+  }, [tripId]); // Remove fetchCompanions from dependencies
   
   const handleAddOrUpdateCompanion = async () => {
     try {
@@ -181,7 +187,7 @@ const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
     toast.success(`${label} copied to clipboard`);
   };
   
-  if (loading) {
+  if (isLoading) {
     return (
       <Card>
         <CardHeader>
@@ -384,11 +390,14 @@ const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
       </Card>
       
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" aria-describedby="companions-description">
           <DialogHeader>
             <DialogTitle>
               {editingCompanion ? 'Edit Companion' : 'Add New Companion'}
             </DialogTitle>
+            <DialogDescription id="companions-description">
+              {editingCompanion ? 'Update the details of your travel companion' : 'Add a new person to your travel companions list'}
+            </DialogDescription>
           </DialogHeader>
           
           <div className="grid gap-4 py-4">

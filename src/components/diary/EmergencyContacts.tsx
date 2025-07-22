@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/Dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/Dialog';
 import { Plus, Edit2, Trash2, Copy, ExternalLink, Phone, AlertCircle } from 'lucide-react';
-import { useAuth } from '@/hooks/auth';
+import { useAuth } from '@/contexts/AuthContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { toast } from 'sonner';
@@ -33,7 +33,7 @@ interface EmergencyContactsProps {
 
 const EmergencyContacts: React.FC<EmergencyContactsProps> = ({ tripId }) => {
   const [contacts, setContacts] = useState<EmergencyContactProps[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [newContact, setNewContact] = useState<Partial<EmergencyContactProps>>({
@@ -44,19 +44,18 @@ const EmergencyContacts: React.FC<EmergencyContactsProps> = ({ tripId }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { user } = useAuth();
   
-  useEffect(() => {
-    fetchContacts();
-  }, [tripId]);
-  
-  const fetchContacts = async () => {
+  // Add useCallback to prevent infinite re-renders
+  const fetchContacts = useCallback(async () => {
+    if (isLoading || !user?.id) return; // Prevent multiple calls
+    
+    setIsLoading(true);
+    setError(null);
+    
     try {
-      setLoading(true);
-      setError(null);
-      
       const { data, error } = await supabase
         .from('travel_contacts')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .order('name');
       
       if (error) throw error;
@@ -66,9 +65,16 @@ const EmergencyContacts: React.FC<EmergencyContactsProps> = ({ tripId }) => {
       console.error('Error fetching emergency contacts:', err);
       setError(err.message || 'Failed to load emergency contacts');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  };
+  }, [user?.id, isLoading]);
+  
+  // Use useEffect with proper dependencies
+  useEffect(() => {
+    if (tripId && user?.id) {
+      fetchContacts();
+    }
+  }, [tripId, user?.id]); // Remove fetchContacts from dependencies
   
   const handleAddOrUpdateContact = async () => {
     try {
@@ -438,11 +444,14 @@ const EmergencyContacts: React.FC<EmergencyContactsProps> = ({ tripId }) => {
       </Card>
       
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" aria-describedby="emergency-contacts-description">
           <DialogHeader>
             <DialogTitle>
               {editingContact ? 'Edit Emergency Contact' : 'Add Emergency Contact'}
             </DialogTitle>
+            <DialogDescription id="emergency-contacts-description">
+              {editingContact ? 'Update the details of your emergency contact' : 'Add a new emergency contact for your trip'}
+            </DialogDescription>
           </DialogHeader>
           
           <div className="grid gap-4 py-4">

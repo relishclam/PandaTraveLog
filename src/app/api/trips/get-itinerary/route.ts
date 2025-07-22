@@ -48,18 +48,18 @@ export async function GET(request: Request) {
     // Create Supabase client for data operations
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Get itinerary data - adjust table name and structure as needed
-    const { data: itinerary, error } = await supabase
-      .from('trip_itinerary') // Adjust this table name to match your database
+    // Get the main itinerary record
+    const { data: itinerary, error: itineraryError } = await supabase
+      .from('itineraries')
       .select('*')
       .eq('trip_id', tripId)
-      .order('day_number', { ascending: true }); // Adjust ordering as needed
+      .single();
 
-    if (error) {
-      console.error('[error] Error fetching itinerary:', error);
+    if (itineraryError) {
+      console.error('[error] Error fetching itinerary:', itineraryError);
       
       // If no data found, return empty itinerary instead of error
-      if (error.code === 'PGRST116') {
+      if (itineraryError.code === 'PGRST116') {
         console.log('[info] No itinerary data found, returning empty itinerary');
         return NextResponse.json({
           success: true,
@@ -71,18 +71,82 @@ export async function GET(request: Request) {
       }
       
       return NextResponse.json(
-        { success: false, error: error.message || 'Failed to fetch itinerary' },
+        { success: false, error: itineraryError.message || 'Failed to fetch itinerary' },
         { status: 500 }
       );
     }
+
+    if (!itinerary) {
+      console.log('[info] No itinerary found, returning empty itinerary');
+      return NextResponse.json({
+        success: true,
+        itinerary: {
+          trip_id: tripId,
+          days: []
+        }
+      });
+    }
+
+    // Get itinerary days
+    const { data: days, error: daysError } = await supabase
+      .from('itinerary_days')
+      .select('*')
+      .eq('itinerary_id', itinerary.id)
+      .order('day_number', { ascending: true });
+
+    if (daysError) {
+      console.error('[error] Error fetching itinerary days:', daysError);
+      return NextResponse.json(
+        { success: false, error: daysError.message || 'Failed to fetch itinerary days' },
+        { status: 500 }
+      );
+    }
+
+    // Get activities and meals for each day
+    const daysWithDetails = await Promise.all((days || []).map(async (day) => {
+      // Get activities
+      const { data: activities, error: activitiesError } = await supabase
+        .from('activities')
+        .select('*')
+        .eq('day_id', day.id)
+        .order('sort_order', { ascending: true });
+
+      if (activitiesError) {
+        console.error(`[error] Error fetching activities for day ${day.id}:`, activitiesError);
+      }
+
+      // Get meals
+      const { data: meals, error: mealsError } = await supabase
+        .from('meals')
+        .select('*')
+        .eq('day_id', day.id);
+
+      if (mealsError) {
+        console.error(`[error] Error fetching meals for day ${day.id}:`, mealsError);
+      }
+
+      // Organize meals by type
+      const organizedMeals = {
+        breakfast: meals?.find(m => m.type === 'breakfast'),
+        lunch: meals?.find(m => m.type === 'lunch'),
+        dinner: meals?.find(m => m.type === 'dinner')
+      };
+
+      return {
+        ...day,
+        activities: activities || [],
+        meals: organizedMeals
+      };
+    }));
     
-    console.log(`[info] Successfully fetched ${itinerary?.length || 0} itinerary items`);
+    console.log(`[info] Successfully fetched itinerary with ${daysWithDetails.length} days and ${daysWithDetails.reduce((total, day) => total + day.activities.length, 0)} activities`);
     
     return NextResponse.json({
       success: true,
       itinerary: {
+        ...itinerary,
         trip_id: tripId,
-        days: itinerary || []
+        days: daysWithDetails
       }
     });
     

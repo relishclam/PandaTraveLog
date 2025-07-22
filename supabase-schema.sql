@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS trip_companions (
   email TEXT,
   phone TEXT,
   relationship TEXT,
+  whatsapp TEXT,
   notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
