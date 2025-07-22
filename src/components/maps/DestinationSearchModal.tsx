@@ -1403,7 +1403,7 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <FocusTrap>
-          <div role="dialog" aria-modal="true" aria-labelledby="modal-title">
+                    <div role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-description">
             <MotionDiv 
               className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
               initial={{ opacity: 0 }}
@@ -1423,6 +1423,9 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
                 <div className="flex items-center p-4 bg-bamboo-light rounded-t-xl border-b-2 border-green-500">
                   <div className="flex-1">
                     <h2 className="text-2xl font-bold text-green-800" id="modal-title">Destination Search</h2>
+                    <div id="modal-description" className="sr-only">
+                      Search and select your travel destinations from countries, cities, and places around the world
+                    </div>
                   </div>
                   <button 
                     onClick={doHandleClose}
@@ -1434,6 +1437,7 @@ const DestinationSearchModal: React.FC<DestinationSearchModalProps> = ({
                     </svg>
                   </button>
                 </div>
+
                 
                 {selectedCountry && selectedCountry.country && (
                   <div className="mx-4 mt-4">
