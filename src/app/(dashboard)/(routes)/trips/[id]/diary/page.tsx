@@ -23,6 +23,7 @@ import {
   Car,
   Bus,
   Edit3,
+  Edit,
   Save,
   X,
   Plus
@@ -358,6 +359,52 @@ setTrip(tripData);  // ✅ CORRECT: Use tripData directly
     setAccommodations(prev => prev.map(accommodation => 
       accommodation.id === accommodationId ? { ...accommodation, [field]: value } : accommodation
     ));
+  };
+
+  // Update travel detail function
+  const updateTravelDetail = (travelId: string, field: keyof TravelDetails, value: string) => {
+    setTravelDetails(prev => prev.map(travel => 
+      travel.id === travelId ? { ...travel, [field]: value } : travel
+    ));
+  };
+
+  // Save travel detail function
+  const saveTravelDetail = async (travelId: string) => {
+    try {
+      setSaving(true);
+      const travel = travelDetails.find(t => t.id === travelId);
+      if (!travel) return;
+
+      const { error } = await supabase
+        .from('trip_travel_details')
+        .upsert({
+          id: travelId,
+          trip_id: tripId,
+          mode: travel.mode,
+          details: travel.details || null,
+          departure_time: travel.departureTime || null,
+          arrival_time: travel.arrivalTime || null,
+          booking_reference: travel.bookingReference || null,
+          contact_info: travel.contactInfo || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'id'
+        });
+
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
+      
+      setEditingTravel(null);
+      toast.success('Travel details saved successfully!');
+    } catch (error: any) {
+      console.error('Error saving travel details:', error);
+      toast.error(`Failed to save travel details: ${error.message}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Save travel details function
@@ -812,23 +859,108 @@ setTrip(tripData);  // ✅ CORRECT: Use tripData directly
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Plane className="w-5 h-5 mr-2" />
-                    Travel Info
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Plane className="w-5 h-5 mr-2" />
+                      Travel Info
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Add new travel detail functionality
+                        const newTravel: TravelDetails = {
+                          id: `temp-${Date.now()}`,
+                          mode: 'flight',
+                          details: '',
+                          bookingReference: ''
+                        };
+                        setTravelDetails(prev => [...prev, newTravel]);
+                        setEditingTravel(newTravel.id);
+                      }}
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      Add
+                    </Button>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   {travelDetails.length > 0 ? (
                     <div className="space-y-3">
                       {travelDetails.map(travel => (
-                        <div key={travel.id} className="border-l-4 border-green-200 pl-3">
-                          <div className="flex items-center gap-2">
-                            {getTravelModeIcon(travel.mode)}
-                            <span className="font-medium capitalize">{travel.mode}</span>
-                          </div>
-                          <p className="text-sm text-gray-600">{travel.details}</p>
-                          {travel.bookingReference && (
-                            <p className="text-xs text-gray-500">Ref: {travel.bookingReference}</p>
+                        <div key={travel.id} className="border-l-4 border-green-200 pl-3 relative">
+                          {editingTravel === travel.id ? (
+                            <div className="space-y-3">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Travel Mode</label>
+                                <select
+                                  value={travel.mode}
+                                  onChange={(e) => updateTravelDetail(travel.id, 'mode', e.target.value as any)}
+                                  className="w-full p-2 border border-gray-300 rounded-md"
+                                >
+                                  <option value="flight">Flight</option>
+                                  <option value="train">Train</option>
+                                  <option value="bus">Bus</option>
+                                  <option value="car">Car</option>
+                                  <option value="boat">Boat</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Travel Details</label>
+                                <Textarea
+                                  value={travel.details}
+                                  onChange={(e) => updateTravelDetail(travel.id, 'details', e.target.value)}
+                                  placeholder="Flight number, departure/arrival times, etc."
+                                  rows={3}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Booking Reference</label>
+                                <Input
+                                  value={travel.bookingReference || ''}
+                                  onChange={(e) => updateTravelDetail(travel.id, 'bookingReference', e.target.value)}
+                                  placeholder="Booking confirmation number"
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  onClick={() => saveTravelDetail(travel.id)}
+                                  disabled={saving}
+                                  size="sm"
+                                  className="flex items-center gap-2"
+                                >
+                                  <Save className="w-4 h-4" />
+                                  {saving ? 'Saving...' : 'Save'}
+                                </Button>
+                                <Button
+                                  onClick={() => setEditingTravel(null)}
+                                  variant="outline"
+                                  size="sm"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  {getTravelModeIcon(travel.mode)}
+                                  <span className="font-medium capitalize">{travel.mode}</span>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setEditingTravel(travel.id)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                              </div>
+                              <p className="text-sm text-gray-600">{travel.details}</p>
+                              {travel.bookingReference && (
+                                <p className="text-xs text-gray-500">Ref: {travel.bookingReference}</p>
+                              )}
+                            </div>
                           )}
                         </div>
                       ))}

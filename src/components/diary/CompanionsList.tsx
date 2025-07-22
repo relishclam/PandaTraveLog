@@ -50,8 +50,6 @@ const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
   
   // 🔥 FIXED: Remove isLoading from dependencies to prevent infinite loop
   const fetchCompanions = useCallback(async () => {
-    if (isLoading) return; // Prevent multiple calls
-    
     setIsLoading(true);
     setError(null);
     

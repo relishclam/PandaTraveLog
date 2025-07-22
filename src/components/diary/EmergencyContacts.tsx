@@ -47,7 +47,7 @@ const EmergencyContacts: React.FC<EmergencyContactsProps> = ({ tripId }) => {
   // Add useCallback to prevent infinite re-renders
   // Fix the fetchContacts function in EmergencyContacts.tsx
 const fetchContacts = useCallback(async () => {
-  if (isLoading || !user?.id) return; // Prevent multiple calls
+  if (!user?.id) return; // Only prevent if no user
   
   setIsLoading(true);
   setError(null);

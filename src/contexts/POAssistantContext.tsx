@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { usePathname } from 'next/navigation';
 
@@ -168,50 +168,50 @@ export const POAssistantProvider: React.FC<{ children: ReactNode }> = ({ childre
     }
   }, [state.currentContext, state.isVisible, state.isModalOpen]);
 
-  const showPO = () => {
+  const showPO = useCallback(() => {
     setState(prev => ({ 
       ...prev, 
       isVisible: true, 
       // ✅ UPDATED: Keep minimized if modal is open
       isMinimized: prev.isModalOpen ? true : false 
     }));
-  };
+  }, []);
 
-  const hidePO = () => {
+  const hidePO = useCallback(() => {
     setState(prev => ({ ...prev, isVisible: false }));
-  };
+  }, []);
 
-  const minimizePO = () => {
+  const minimizePO = useCallback(() => {
     setState(prev => ({ ...prev, isMinimized: true }));
-  };
+  }, []);
 
-  const expandPO = () => {
+  const expandPO = useCallback(() => {
     // ✅ UPDATED: Don't expand if modal is open
     setState(prev => ({ 
       ...prev, 
       isMinimized: prev.isModalOpen ? true : false 
     }));
-  };
+  }, []);
 
-  const setContext = (context: POAssistantState['currentContext'], tripId?: string) => {
+  const setContext = useCallback((context: POAssistantState['currentContext'], tripId?: string) => {
     setState(prev => ({
       ...prev,
       currentContext: context,
       currentTripId: tripId
     }));
-  };
+  }, []); // 🔥 FIXED: Added useCallback to prevent infinite loop
 
-  const togglePO = () => {
+  const togglePO = useCallback(() => {
     setState(prev => ({
       ...prev,
       isVisible: !prev.isVisible,
       // ✅ UPDATED: Handle modal state in toggle
       isMinimized: !prev.isVisible ? (prev.isModalOpen ? true : false) : true
     }));
-  };
+  }, []);
 
   // ✅ NEW: Manual modal control function
-  const setModalOpen = (isOpen: boolean) => {
+  const setModalOpen = useCallback((isOpen: boolean) => {
     console.log('🎛️ PO Assistant: Manual modal state set to:', isOpen);
     setState(prev => ({
       ...prev,
@@ -219,7 +219,7 @@ export const POAssistantProvider: React.FC<{ children: ReactNode }> = ({ childre
       // Auto-minimize when modal opens
       isMinimized: isOpen ? true : prev.isMinimized
     }));
-  };
+  }, []);
 
   const contextValue: POAssistantContextType = {
     state,
