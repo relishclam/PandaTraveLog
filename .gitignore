@@ -40,11 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Local Netlify folder
+# Local Netlify folder (KEEP THIS)
 .netlify
-. e n v . l o c a l  
+netlify.toml
 
 # VS Code settings
 .vscode/
-
- 
