@@ -1,16 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+// ✅ FIXED: Create Supabase client inside a function, not at module level
+const getSupabaseClient = () => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  
+  if (!url || !key) {
+    throw new Error('Missing Supabase environment variables')
+  }
+  
+  return createClient(url, key)
+}
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const supabase = getSupabaseClient() // ✅ Create client here
     const { id } = await params
     
     const { data, error } = await supabase
@@ -40,6 +48,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const supabase = getSupabaseClient() // ✅ Create client here
     const { id } = await params
     const body = await request.json()
     
@@ -73,6 +82,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const supabase = getSupabaseClient() // ✅ Create client here
     const { id } = await params
     const body = await request.json()
     const { companionId, ...updateData } = body
@@ -106,6 +116,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const supabase = getSupabaseClient() // ✅ Create client here
     const { id } = await params
     const url = new URL(request.url)
     const companionId = url.searchParams.get('companionId')
