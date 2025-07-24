@@ -35,37 +35,69 @@ export async function POST(request: NextRequest) {
     let tripContext = null;
     if (tripId && userId) {
       try {
-        // Fetch trip details, companions, and itinerary
-        const [tripResponse, companionsResponse, itineraryResponse] = await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/trips/${tripId}`, {
-            headers: { 'Cookie': request.headers.get('cookie') || '' }
-          }),
-          fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/trips/${tripId}/companions`, {
-            headers: { 'Cookie': request.headers.get('cookie') || '' }
-          }),
-          fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/trips/${tripId}/itinerary`, {
-            headers: { 'Cookie': request.headers.get('cookie') || '' }
-          })
+        console.log(`🔍 Loading trip context for tripId: ${tripId}, userId: ${userId}`);
+        
+        // Use Supabase directly instead of internal API calls to avoid auth issues
+        const [tripResult, companionsResult, itineraryResult, accommodationsResult, travelResult] = await Promise.all([
+          supabase.from('trips').select('*').eq('id', tripId).eq('user_id', userId).single(),
+          supabase.from('trip_companions').select('*').eq('trip_id', tripId),
+          supabase.from('trip_itinerary').select('*').eq('trip_id', tripId).order('day_number'),
+          supabase.from('trip_accommodations').select('*').eq('trip_id', tripId),
+          supabase.from('trip_travel_details').select('*').eq('trip_id', tripId)
         ]);
 
-        if (tripResponse.ok) {
-          const trip = await tripResponse.json();
-          const companions = companionsResponse.ok ? await companionsResponse.json() : { companions: [] };
-          const itinerary = itineraryResponse.ok ? await itineraryResponse.json() : { itinerary: [] };
+        if (tripResult.data) {
+          const trip = tripResult.data;
+          const companions = companionsResult.data || [];
+          const itinerary = itineraryResult.data || [];
+          const accommodations = accommodationsResult.data || [];
+          const travelDetails = travelResult.data || [];
 
           tripContext = {
             id: trip.id,
-            name: trip.name,
+            name: trip.name || trip.title,
             destination: trip.destination,
             startDate: trip.start_date,
             endDate: trip.end_date,
-            companions: companions.companions || [],
-            itinerary: itinerary.itinerary || [],
-            budget: trip.budget
+            companions: companions.map((c: any) => ({ name: c.name, relationship: c.relationship })),
+            itinerary: itinerary.map((item: any) => ({
+              day_number: item.day_number,
+              title: item.title,
+              description: item.description,
+              activity_type: item.activity_type,
+              location: item.location,
+              start_time: item.start_time,
+              end_time: item.end_time
+            })),
+            accommodations: accommodations.map((acc: any) => ({
+              name: acc.name,
+              address: acc.address,
+              check_in_date: acc.check_in_date,
+              check_out_date: acc.check_out_date
+            })),
+            travelDetails: travelDetails.map((travel: any) => ({
+              mode: travel.mode,
+              departure_location: travel.departure_location,
+              arrival_location: travel.arrival_location,
+              departure_date: travel.departure_date
+            })),
+            budget: trip.budget,
+            manual_entry_data: trip.manual_entry_data
           };
+          
+          console.log(`✅ Successfully loaded trip context:`, {
+            tripName: tripContext.name,
+            destination: tripContext.destination,
+            companionsCount: companions.length,
+            itineraryCount: itinerary.length,
+            accommodationsCount: accommodations.length,
+            travelDetailsCount: travelDetails.length
+          });
+        } else {
+          console.warn(`❌ Trip not found for tripId: ${tripId}, userId: ${userId}`);
         }
       } catch (error) {
-        console.error('Error loading trip context:', error);
+        console.error('❌ Error loading trip context:', error);
         // Continue without trip context
       }
     }
@@ -107,9 +139,40 @@ export async function POST(request: NextRequest) {
     const aiResponse = await openRouterResponse.json();
     const aiMessage = aiResponse.choices[0]?.message?.content || "Oops! My bamboo internet seems to be having issues! 🐼 Please try again in a moment!";
 
-    // Check if the response contains trip data
+    // Check if the response contains trip data or diary write instructions
     let tripData: TripData | null = null;
+    let diaryWriteData: any = null;
+    
     const tripDataMatch = aiMessage.match(/TRIP_DATA_START\s*([\s\S]*?)\s*TRIP_DATA_END/);
+    const diaryWriteMatch = aiMessage.match(/DIARY_WRITE_START\s*([\s\S]*?)\s*DIARY_WRITE_END/);
+    
+    // Handle diary writing if requested
+    if (diaryWriteMatch && tripId) {
+      try {
+        const writeInstructions = JSON.parse(diaryWriteMatch[1]);
+        console.log('🔄 PO Assistant requesting diary write:', writeInstructions);
+        
+        // Call the diary write API
+        const writeResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/trips/${tripId}/diary/write`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cookie': request.headers.get('cookie') || ''
+          },
+          body: JSON.stringify(writeInstructions)
+        });
+        
+        if (writeResponse.ok) {
+          const writeResult = await writeResponse.json();
+          diaryWriteData = writeResult;
+          console.log('✅ Successfully wrote to diary:', writeResult);
+        } else {
+          console.error('❌ Failed to write to diary:', await writeResponse.text());
+        }
+      } catch (error) {
+        console.error('❌ Error processing diary write:', error);
+      }
+    }
     
     if (tripDataMatch) {
       try {
@@ -233,17 +296,79 @@ CURRENT TRIP DETAILS:
 - Days Planned: ${tripContext.itinerary.length}
 - Budget: ${tripContext.budget ? `${tripContext.budget.total} ${tripContext.budget.currency}` : 'Not set'}
 
+CURRENT ACCOMMODATIONS:
+${tripContext.accommodations.map((acc: any) => `- ${acc.name} (${acc.address}) - Check-in: ${acc.check_in_date}`).join('\n') || 'No accommodations added yet'}
+
+CURRENT TRAVEL DETAILS:
+${tripContext.travelDetails.map((travel: any) => `- ${travel.mode}: ${travel.departure_location} → ${travel.arrival_location} (${travel.departure_date})`).join('\n') || 'No travel details added yet'}
+
 RECENT ITINERARY ITEMS:
-${tripContext.itinerary.slice(-5).map((item: any) => `Day ${item.day_number}: ${item.title} (${item.activity_type})`).join('\n')}
+${tripContext.itinerary.slice(-5).map((item: any) => `Day ${item.day_number}: ${item.title} (${item.activity_type})`).join('\n') || 'No itinerary items yet'}
 ` : tripId ? `- This conversation is about trip ID: ${tripId}` : ''}
+
+**IMPORTANT CAPABILITIES:**
+- You CAN access and reference all trip details above
+- You CAN suggest specific additions to their itinerary, accommodations, and travel plans
+- You CAN help extract hotel and transport contact information for emergency contacts
+- When suggesting accommodations or transport, provide specific names, addresses, and contact details
+- You CAN WRITE DIRECTLY to their trip diary using the DIARY_WRITE format below
+- Help the user add concrete, actionable items to their trip diary
+
+**DIARY WRITING FORMAT:**
+When you want to add items to the user's trip diary, use this format in your response:
+
+DIARY_WRITE_START
+{
+  "type": "itinerary_item|accommodation|travel_detail|companion|multiple_items",
+  "data": {
+    // For itinerary_item:
+    "day_number": 1,
+    "title": "Visit Eiffel Tower",
+    "description": "Iconic landmark visit with photo opportunities",
+    "activity_type": "sightseeing",
+    "location": "Champ de Mars, Paris",
+    "start_time": "09:00",
+    "end_time": "11:00",
+    "estimated_cost": 25,
+    "notes": "Book tickets in advance"
+    
+    // For accommodation:
+    "name": "Hotel Name",
+    "address": "Full address",
+    "check_in_date": "2024-01-15",
+    "check_out_date": "2024-01-17",
+    "contact_info": "+33 1 23 45 67 89",
+    "notes": "Includes breakfast"
+    
+    // For travel_detail:
+    "mode": "flight|train|bus|car",
+    "departure_location": "Origin",
+    "arrival_location": "Destination",
+    "departure_date": "2024-01-15",
+    "departure_time": "14:30",
+    "arrival_time": "16:45",
+    "booking_reference": "ABC123",
+    "contact_info": "+33 1 23 45 67 89",
+    "details": "Additional details"
+    
+    // For multiple_items:
+    "itinerary_items": [...],
+    "accommodations": [...],
+    "travel_details": [...]
+  }
+}
+DIARY_WRITE_END
+
+Use this format when the user asks you to add something to their trip or when you're providing specific recommendations they should save.
 
 - The user is viewing their trip diary and may need help with:
   * Adding activities or places to visit
-  * Finding restaurants or accommodations
+  * Finding restaurants or accommodations  
   * Getting local tips and cultural insights
   * Modifying their existing itinerary
   * Transportation and logistics questions
   * Budget-friendly alternatives
+  * Extracting emergency contact information from their trip details
 - Reference their existing trip details when possible
 - Provide specific, actionable suggestions with details
 - Help optimize their current plans

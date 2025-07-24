@@ -31,6 +31,60 @@ export class EmergencyContactsAI {
   // No constructor needed since we're using the imported service object
 
   /**
+   * Generate emergency contacts from trip diary data (hotels, transport, etc.) with WhatsApp links
+   */
+  async generateEmergencyContactsFromDiary(
+    destination: string,
+    country?: string,
+    accommodations: any[] = [],
+    travelDetails: any[] = [],
+    manualEntryData?: any
+  ): Promise<DestinationEmergencyInfo> {
+    try {
+      const prompt = this.buildDiaryExtractionPrompt(destination, country, accommodations, travelDetails, manualEntryData);
+      
+      // Get API key from environment variables
+      const apiKey = process.env.OPENROUTER_API_KEY;
+      if (!apiKey) {
+        throw new Error('OpenRouter API key not configured');
+      }
+
+      const response = await axios.post(OPENROUTER_API_URL, {
+        model: 'anthropic/claude-3.5-sonnet',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a travel safety expert specializing in extracting emergency contact information from trip data. Extract hotel, accommodation, and transport contact details from the provided trip diary data and generate emergency contacts with WhatsApp links for mobile numbers.`
+          },
+          {
+            role: 'user', 
+            content: prompt
+          }
+        ],
+        temperature: 0.1, // Low temperature for factual accuracy
+        response_format: { type: 'json_object' }
+      }, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+          'X-Title': 'PandaTraveLog Diary Emergency Contacts'
+        }
+      });
+
+      if (!response.data?.choices?.[0]?.message?.content) {
+        throw new Error('Invalid response from AI service');
+      }
+
+      return this.parseEmergencyContactsResponse(response.data.choices[0].message.content, destination);
+      
+    } catch (error) {
+      console.error('Error generating emergency contacts from diary:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Generate emergency contacts for a destination using AI
    */
   async generateEmergencyContacts(
@@ -79,6 +133,82 @@ export class EmergencyContactsAI {
       console.error('Error generating emergency contacts:', error);
       throw error;
     }
+  }
+
+  /**
+   * Build the AI prompt for extracting emergency contacts from trip diary data
+   */
+  private buildDiaryExtractionPrompt(
+    destination: string, 
+    country?: string, 
+    accommodations: any[] = [], 
+    travelDetails: any[] = [], 
+    manualEntryData?: any
+  ): string {
+    const accommodationInfo = accommodations.map(acc => `
+- Hotel/Accommodation: ${acc.name || 'Unknown'}
+  Address: ${acc.address || 'Not provided'}
+  Check-in: ${acc.check_in_date || 'Not specified'}
+  Check-out: ${acc.check_out_date || 'Not specified'}
+  Notes: ${acc.notes || 'None'}`).join('');
+
+    const transportInfo = travelDetails.map(travel => `
+- Transport: ${travel.mode || 'Unknown'} from ${travel.departure_location || 'Unknown'} to ${travel.arrival_location || 'Unknown'}
+  Date: ${travel.departure_date || 'Not specified'}
+  Details: ${travel.details || 'None'}`).join('');
+
+    const manualInfo = manualEntryData ? `
+Manual Entry Data:
+${JSON.stringify(manualEntryData, null, 2)}` : '';
+
+    return `
+Extract emergency contact information from this trip diary data for ${destination}${country ? `, ${country}` : ''}.
+
+**TRIP DIARY DATA:**
+${accommodationInfo || '\nNo accommodation data available'}
+${transportInfo || '\nNo transport data available'}
+${manualInfo}
+
+**EXTRACTION REQUIREMENTS:**
+1. Extract hotel/accommodation contact details (phone, email, address)
+2. Extract transport provider contacts (airlines, train companies, taxi services, etc.)
+3. Add general destination emergency services
+4. For mobile phone numbers, include WhatsApp links in the format: https://wa.me/[country_code][phone_number]
+5. Prioritize contacts extracted from the diary data
+
+**CONTACT TYPES TO GENERATE:**
+- accommodation: Hotels, hostels, Airbnb hosts from diary
+- transportation: Airlines, trains, buses, taxis from diary
+- emergency_services: Local police, fire, ambulance
+- medical: Local hospitals, clinics
+- embassy: Relevant embassy/consulate (if international travel)
+
+Return the response in this exact JSON format:
+{
+  "destination": "${destination}",
+  "country": "${country || 'detected_country_name'}",
+  "countryCode": "country_code",
+  "contacts": [
+    {
+      "name": "Hotel/Transport Name from diary",
+      "phone": "+country_code_phone_number",
+      "type": "accommodation|transportation|emergency_services|medical|embassy",
+      "address": "full_address_if_available",
+      "notes": "Extracted from trip diary. WhatsApp: https://wa.me/[country_code][phone_number]",
+      "priority": 1,
+      "isVerified": false,
+      "source": "ai_generated"
+    }
+  ],
+  "confidence": 0.85
+}
+
+**IMPORTANT:** 
+- Prioritize contacts extracted from the actual trip diary data
+- Include WhatsApp links for all mobile numbers in the notes field
+- Mark diary-extracted contacts with higher priority (1-2)
+- Only include real, plausible contact information
+`;
   }
 
   /**

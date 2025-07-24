@@ -21,10 +21,10 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get trip details to extract destination
+    // Get trip details and all diary data
     const { data: trip, error: tripError } = await supabase
       .from('trips')
-      .select('destination, country, user_id')
+      .select('destination, country, user_id, manual_entry_data')
       .eq('id', tripId)
       .eq('user_id', user.id)
       .single();
@@ -33,29 +33,43 @@ export async function POST(
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     }
 
+    // Extract accommodation and transport details from trip diary
+    const [accommodations, travelDetails] = await Promise.all([
+      supabase
+        .from('trip_accommodations')
+        .select('*')
+        .eq('trip_id', tripId),
+      supabase
+        .from('trip_travel_details')
+        .select('*')
+        .eq('trip_id', tripId)
+    ]);
+
+    console.log('📍 Extracted trip diary data:', {
+      accommodations: accommodations.data?.length || 0,
+      travelDetails: travelDetails.data?.length || 0,
+      manualEntryData: !!trip.manual_entry_data
+    });
+
     // Initialize AI service
     const emergencyContactsAI = new EmergencyContactsAI();
 
-    // Check for cached contacts first
-    let emergencyInfo = emergencyContactsAI.getCachedEmergencyContacts(tripId);
-
-    if (!emergencyInfo) {
-      // Generate new emergency contacts using AI
-      emergencyInfo = await emergencyContactsAI.generateEmergencyContacts(
-        trip.destination,
-        trip.country
-      );
-
-      // Cache the results
-      await emergencyContactsAI.cacheEmergencyContacts(tripId, emergencyInfo);
-    }
+    // Generate emergency contacts from trip diary data
+    const emergencyInfo = await emergencyContactsAI.generateEmergencyContactsFromDiary(
+      trip.destination,
+      trip.country,
+      accommodations.data || [],
+      travelDetails.data || [],
+      trip.manual_entry_data
+    );
 
     // Save generated contacts to database
-    const contactsToInsert = emergencyInfo.contacts.map(contact => ({
+    const contactsToInsert = emergencyInfo.contacts.map((contact: { name: string; phone: string; type: string; notes?: string }) => ({
       user_id: user.id,
       name: contact.name,
       phone: contact.phone,
       relationship: contact.type,
+      notes: contact.notes || '',
       is_ai_generated: true,
       ai_confidence: emergencyInfo.confidence,
       created_at: new Date().toISOString(),
@@ -68,7 +82,7 @@ export async function POST(
       .select('phone')
       .eq('user_id', user.id);
 
-    const existingPhones = new Set(existingContacts?.map(c => c.phone) || []);
+    const existingPhones = new Set(existingContacts?.map((c: any) => c.phone) || []);
     const newContacts = contactsToInsert.filter(contact => 
       !existingPhones.has(contact.phone)
     );

@@ -23,6 +23,7 @@
     "@twilio-labs/serverless-runtime-types": "^4.0.1",
     "@types/node": "^22.15.18",
     "@types/react": "^19.1.4",
+    "@types/uuid": "^10.0.0",
     "autoprefixer": "^10.4.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.0.0",
@@ -44,6 +45,7 @@
     "tailwindcss": "^3.3.0",
     "twilio": "^4.19.0",
     "typescript": "^5.8.3",
+    "uuid": "^11.1.0",
     "zustand": "^4.4.7"
   },
   "devDependencies": {
