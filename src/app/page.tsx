@@ -4,8 +4,11 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { useCallback } from 'react';
+import UnifiedPOAssistant from '@/components/po/UnifiedPOAssistant';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Home() {
+  const { user } = useAuth();
   
   // Handle direct navigation
   const handleNavigation = useCallback((path: string) => {
@@ -137,7 +140,8 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* PO Assistant is now managed globally */}
+      {/* Enhanced PO Assistant Integration */}
+      <UnifiedPOAssistant context="marketing" />
     </div>
   );
 }
