@@ -462,7 +462,7 @@ Where would you like to go?`,
       <AIDiaryAdoptionModal
         isOpen={showAIDiaryModal}
         onClose={() => setShowAIDiaryModal(false)}
-        conversationId={conversationId}
+        conversationId={conversationId || undefined}
         tripId={tripId}
       />
     </>
