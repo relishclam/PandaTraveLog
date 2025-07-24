@@ -1,11 +1,17 @@
-// src/app/api/trips/[id]/itinerary/route.ts
-import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Initialize Supabase client with service role key for admin operations
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
 
 // Helper function to ensure all coordinates in the itinerary are properly formatted
 function processItineraryCoordinates(itinerary: any): any {
@@ -113,7 +119,7 @@ export async function POST(
     }
     
     // Get the authenticated user to verify ownership
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await supabaseAdmin.auth.getSession();
     const userId = session?.user?.id;
     
     if (!userId) {
@@ -123,10 +129,10 @@ export async function POST(
       );
     }
     
-    // Verify trip ownership
-    const { data: trip, error: tripError } = await supabase
+    // First, verify trip ownership
+    const { data: trip, error: tripError } = await supabaseAdmin
       .from('trips')
-      .select('id, user_id')
+      .select('id, user_id, name, destination, start_date, end_date')
       .eq('id', tripId.replace('trip-', ''))
       .single();
     
@@ -148,14 +154,12 @@ export async function POST(
     // Process the itinerary to ensure all location coordinates are properly formatted
     const processedItinerary = processItineraryCoordinates(itinerary);
     
-    // Create a new itinerary record
-    const { data: savedItinerary, error: saveError } = await supabase
-      .from('itineraries')
+    // Save the itinerary to the database
+    const { data: savedItinerary, error: saveError } = await supabaseAdmin
+      .from('trip_itineraries')
       .upsert({
         trip_id: trip.id,
-        name: processedItinerary.title || `Itinerary for ${tripId}`,
-        description: processedItinerary.description || '',
-        created_at: new Date().toISOString(),
+        itinerary_data: processedItinerary,
         updated_at: new Date().toISOString()
       })
       .select();
@@ -177,7 +181,7 @@ export async function POST(
       
       // Save each location to the locations table
       for (const location of locations) {
-        const { error: locationError } = await supabase
+        const { error: locationError } = await supabaseAdmin
           .from('locations')
           .insert({
             itinerary_id: itineraryId,
@@ -197,9 +201,7 @@ export async function POST(
     
     if (saveError) {
       console.error('Error saving itinerary:', saveError);
-      console.error('Supabase connection details:', {
-        url: supabaseUrl ? 'Set' : 'Not set',
-        key: supabaseKey ? 'Set' : 'Not set',
+      console.error('Supabase connection error:', {
         error: typeof saveError === 'object' ? (saveError as any).message : String(saveError)
       });
       
@@ -213,7 +215,7 @@ export async function POST(
     }
     
     // Update trip status to 'planned'
-    await supabase
+    await supabaseAdmin
       .from('trips')
       .update({ status: 'planned' })
       .eq('id', trip.id);
@@ -240,64 +242,138 @@ export async function GET(
     const tripId = params.id;
     console.log(`Fetching itinerary for trip with ID: ${tripId}`);
     
-    // Get the authenticated user
-    const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id;
-    
-    if (!userId) {
+    if (!tripId) {
       return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
+        { error: 'Trip ID is required' },
+        { status: 400 }
       );
     }
+
+    // Get itinerary items for the trip
+    const { data: itinerary, error } = await supabaseAdmin
+      .from('itinerary_items')
+      .select(`
+        id,
+        trip_id,
+        day_number,
+        time,
+        activity_type,
+        title,
+        description,
+        location,
+        address,
+        coordinates,
+        duration_minutes,
+        cost_estimate,
+        booking_info,
+        notes,
+        created_at,
+        updated_at
+      `)
+      .eq('trip_id', tripId)
+      .order('day_number', { ascending: true })
+      .order('time', { ascending: true });
     
-    // First, verify trip ownership
-    const { data: trip, error: tripError } = await supabase
-      .from('trips')
-      .select('id, user_id')
-      .eq('id', tripId.replace('trip-', ''))
-      .single();
-    
-    if (tripError || !trip) {
-      console.error('Error fetching trip:', tripError);
+    if (error) {
+      console.error('Error fetching itinerary:', error);
       return NextResponse.json(
-        { error: 'Trip not found' },
-        { status: 404 }
+        { error: 'Failed to fetch itinerary' },
+        { status: 500 }
       );
     }
-    
-    if (trip.user_id !== userId) {
-      return NextResponse.json(
-        { error: 'Not authorized to view this trip' },
-        { status: 403 }
-      );
-    }
-    
-    // Fetch the itinerary
-    const { data: itinerary, error: itineraryError } = await supabase
-      .from('trip_itineraries')
-      .select('*')
-      .eq('trip_id', trip.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-    
-    if (itineraryError) {
-      console.error('Error fetching itinerary:', itineraryError);
-      return NextResponse.json(
-        { error: 'Itinerary not found' },
-        { status: 404 }
-      );
-    }
-    
+
     return NextResponse.json({
-      success: true,
-      itinerary: itinerary.itinerary_data
+      itinerary: itinerary || [],
+      success: true
     });
   } catch (error: any) {
     console.error('Unexpected error in fetch itinerary API:', error);
     return NextResponse.json(
       { error: `Server error: ${error.message}` },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const tripId = params.id;
+    const body = await request.json();
+    const { itemId, ...updateData } = body;
+
+    if (!tripId || !itemId) {
+      return NextResponse.json(
+        { error: 'Trip ID and Item ID are required' },
+        { status: 400 }
+      );
+    }
+
+    // Update itinerary item
+    const { data: itineraryItem, error } = await supabaseAdmin
+      .from('itinerary_items')
+      .update(updateData)
+      .eq('id', itemId)
+      .eq('trip_id', tripId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating itinerary item:', error);
+      return NextResponse.json(
+        { error: 'Failed to update itinerary item' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ itineraryItem, success: true });
+  } catch (error: any) {
+    console.error('Unexpected error updating itinerary item:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const tripId = params.id;
+    const { searchParams } = new URL(request.url);
+    const itemId = searchParams.get('itemId');
+
+    if (!tripId || !itemId) {
+      return NextResponse.json(
+        { error: 'Trip ID and Item ID are required' },
+        { status: 400 }
+      );
+    }
+
+    // Delete itinerary item
+    const { error } = await supabaseAdmin
+      .from('itinerary_items')
+      .delete()
+      .eq('id', itemId)
+      .eq('trip_id', tripId);
+
+    if (error) {
+      console.error('Error deleting itinerary item:', error);
+      return NextResponse.json(
+        { error: 'Failed to delete itinerary item' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true, message: 'Itinerary item deleted successfully' });
+  } catch (error: any) {
+    console.error('Unexpected error deleting itinerary item:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

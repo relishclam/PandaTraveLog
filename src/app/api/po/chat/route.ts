@@ -31,8 +31,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Messages array is required' }, { status: 400 });
     }
 
-    // Get context-aware system prompt
-    const systemPrompt = getContextualSystemPrompt(context, tripId, userId);
+    // Load trip context if tripId is provided
+    let tripContext = null;
+    if (tripId && userId) {
+      try {
+        // Fetch trip details, companions, and itinerary
+        const [tripResponse, companionsResponse, itineraryResponse] = await Promise.all([
+          fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/trips/${tripId}`, {
+            headers: { 'Cookie': request.headers.get('cookie') || '' }
+          }),
+          fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/trips/${tripId}/companions`, {
+            headers: { 'Cookie': request.headers.get('cookie') || '' }
+          }),
+          fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/trips/${tripId}/itinerary`, {
+            headers: { 'Cookie': request.headers.get('cookie') || '' }
+          })
+        ]);
+
+        if (tripResponse.ok) {
+          const trip = await tripResponse.json();
+          const companions = companionsResponse.ok ? await companionsResponse.json() : { companions: [] };
+          const itinerary = itineraryResponse.ok ? await itineraryResponse.json() : { itinerary: [] };
+
+          tripContext = {
+            id: trip.id,
+            name: trip.name,
+            destination: trip.destination,
+            startDate: trip.start_date,
+            endDate: trip.end_date,
+            companions: companions.companions || [],
+            itinerary: itinerary.itinerary || [],
+            budget: trip.budget
+          };
+        }
+      } catch (error) {
+        console.error('Error loading trip context:', error);
+        // Continue without trip context
+      }
+    }
+
+    // Get context-aware system prompt with trip data
+    const systemPrompt = getContextualSystemPrompt(context, tripId, userId, tripContext);
 
     // Call OpenRouter API for AI response
     const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -112,7 +151,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function getContextualSystemPrompt(context: string, tripId?: string, userId?: string): string {
+function getContextualSystemPrompt(context: string, tripId?: string, userId?: string, tripContext?: any): string {
   const basePersonality = `You are PO, a friendly and enthusiastic travel assistant panda for PandaTraveLog! 🐼✈️
 
 PERSONALITY:
@@ -185,7 +224,19 @@ TRIP_DATA_END`,
     diary: `${basePersonality}
 
 CURRENT CONTEXT: Trip Diary
-${tripId ? `- This conversation is about trip ID: ${tripId}` : ''}
+${tripContext ? `
+CURRENT TRIP DETAILS:
+- Trip Name: ${tripContext.name}
+- Destination: ${tripContext.destination}
+- Dates: ${tripContext.startDate} to ${tripContext.endDate}
+- Companions: ${tripContext.companions.map((c: any) => c.name).join(', ') || 'Solo trip'}
+- Days Planned: ${tripContext.itinerary.length}
+- Budget: ${tripContext.budget ? `${tripContext.budget.total} ${tripContext.budget.currency}` : 'Not set'}
+
+RECENT ITINERARY ITEMS:
+${tripContext.itinerary.slice(-5).map((item: any) => `Day ${item.day_number}: ${item.title} (${item.activity_type})`).join('\n')}
+` : tripId ? `- This conversation is about trip ID: ${tripId}` : ''}
+
 - The user is viewing their trip diary and may need help with:
   * Adding activities or places to visit
   * Finding restaurants or accommodations
@@ -195,7 +246,8 @@ ${tripId ? `- This conversation is about trip ID: ${tripId}` : ''}
   * Budget-friendly alternatives
 - Reference their existing trip details when possible
 - Provide specific, actionable suggestions with details
-- Help optimize their current plans`,
+- Help optimize their current plans
+- Use the trip context above to provide personalized recommendations`,
 
     manual_entry: `${basePersonality}
 

@@ -4,8 +4,10 @@ import React, { useState, useEffect, useRef, useCallback, memo, useMemo } from '
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IoClose, IoSend, IoContract, IoExpand } from 'react-icons/io5';
+import { Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
+import { AIDiaryAdoptionModal } from './AIDiaryAdoptionModal';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -40,6 +42,8 @@ function UnifiedPOAssistant({
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [showPreAuthNotice, setShowPreAuthNotice] = useState(false);
+  const [showAIDiaryModal, setShowAIDiaryModal] = useState(false);
+  const [canGenerateDiary, setCanGenerateDiary] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -113,6 +117,32 @@ Where would you like to go?`,
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Monitor conversation for trip planning content to enable diary generation
+  useEffect(() => {
+    if (!user || messages.length < 3) {
+      setCanGenerateDiary(false);
+      return;
+    }
+
+    // Check if conversation contains trip planning keywords
+    const conversationText = messages.map(m => m.content).join(' ').toLowerCase();
+    const tripPlanningKeywords = [
+      'destination', 'trip', 'travel', 'visit', 'itinerary', 'day 1', 'day 2', 'day 3',
+      'hotel', 'accommodation', 'restaurant', 'activity', 'sightseeing', 'budget',
+      'flight', 'transport', 'schedule', 'morning', 'afternoon', 'evening'
+    ];
+
+    const hasMultipleKeywords = tripPlanningKeywords.filter(keyword => 
+      conversationText.includes(keyword)
+    ).length >= 3;
+
+    const hasStructuredContent = conversationText.includes('day ') || 
+                                conversationText.includes('itinerary') ||
+                                conversationText.includes('schedule');
+
+    setCanGenerateDiary(hasMultipleKeywords && hasStructuredContent && !tripId);
+  }, [messages, user, tripId]);
 
   const loadConversationHistory = useCallback(async () => {
     if (!user || !tripId) return;
@@ -347,6 +377,19 @@ Where would you like to go?`,
         <div ref={messagesEndRef} />
       </div>
 
+      {/* AI Diary Generation Button */}
+      {canGenerateDiary && (
+        <div className="px-4 py-2 border-t border-gray-100 bg-orange-50">
+          <button
+            onClick={() => setShowAIDiaryModal(true)}
+            className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white py-2 px-4 rounded-lg font-medium transition-all duration-200 transform hover:scale-105"
+          >
+            <Sparkles className="h-4 w-4" />
+            <span>Create Trip Diary from Chat</span>
+          </button>
+        </div>
+      )}
+
       {/* Input - Optimized for mobile */}
       <div className="p-4 border-t border-gray-200 bg-white">
         <div className="flex space-x-2">
@@ -410,9 +453,19 @@ Where would you like to go?`,
 
   // Full-screen or embedded chat interface
   return (
-    <div className={`${className} ${isMinimized ? '' : 'h-full flex flex-col'}`}>
-      {ChatInterface}
-    </div>
+    <>
+      <div className={`${className} ${isMinimized ? '' : 'h-full flex flex-col'}`}>
+        {ChatInterface}
+      </div>
+      
+      {/* AI Diary Adoption Modal */}
+      <AIDiaryAdoptionModal
+        isOpen={showAIDiaryModal}
+        onClose={() => setShowAIDiaryModal(false)}
+        conversationId={conversationId}
+        tripId={tripId}
+      />
+    </>
   );
 }
 
