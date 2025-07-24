@@ -68,7 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setMounted(true);
       
       // ✅ ONLY use the auth listener - removed manual fetchSession
-      const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const { data: authListener } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
         console.log("🔄 AuthContext: Auth state changed", event);
         if (session?.user) {
           await updateUserState(session.user);
@@ -79,7 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       // ✅ Get initial session ONCE using the listener pattern
-      supabase.auth.getSession().then(({ data: { session } }) => {
+      supabase.auth.getSession().then(({ data: { session } }: { data: { session: any } }) => {
         if (session?.user) {
           updateUserState(session.user);
         } else {
@@ -120,7 +120,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw error;
       }
       
-      if (data?.user) {
+      if (data.session) {
+        const { session }: { session: any } = data;
         console.log("✅ AuthContext: Sign in successful");
         
         // Update user state first to ensure UI updates properly

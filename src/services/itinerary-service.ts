@@ -314,7 +314,7 @@ export const itineraryService = {
       }
       
       // Get activities and meals for each day
-      const daysWithDetails = await Promise.all(days.map(async (day) => {
+      const daysWithDetails = await Promise.all(days.map(async (day: any) => {
         // Get activities
         const { data: activities, error: activitiesError } = await supabase
           .from('activities')
@@ -338,9 +338,9 @@ export const itineraryService = {
         
         // Organize meals by type
         const organizedMeals = {
-          breakfast: meals?.find(m => m.type === 'breakfast'),
-          lunch: meals?.find(m => m.type === 'lunch'),
-          dinner: meals?.find(m => m.type === 'dinner')
+          breakfast: meals?.find((m: any) => m.type === 'breakfast'),
+          lunch: meals?.find((m: any) => m.type === 'lunch'),
+          dinner: meals?.find((m: any) => m.type === 'dinner')
         };
         
         return {

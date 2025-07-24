@@ -189,7 +189,7 @@ setTrip(tripData);  // ✅ CORRECT: Use tripData directly
 
         // Process day schedules
         if (schedulesResult.data) {
-          const schedules: DaySchedule[] = schedulesResult.data.map(item => ({
+          const schedules: DaySchedule[] = schedulesResult.data.map((item: any) => ({
             id: item.id,
             day: item.day_number,
             date: item.date || '',
@@ -201,7 +201,7 @@ setTrip(tripData);  // ✅ CORRECT: Use tripData directly
 
         // Process travel details
         if (travelResult.data) {
-          const travel: TravelDetails[] = travelResult.data.map(item => ({
+          const travel: TravelDetails[] = travelResult.data.map((item: any) => ({
             id: item.id,
             mode: item.mode,
             details: item.details || '',
@@ -215,7 +215,7 @@ setTrip(tripData);  // ✅ CORRECT: Use tripData directly
 
         // Process accommodations
         if (accommodationsResult.data) {
-          const hotels: AccommodationDetails[] = accommodationsResult.data.map(item => ({
+          const hotels: AccommodationDetails[] = accommodationsResult.data.map((item: any) => ({
             id: item.id,
             name: item.name,
             address: item.address || '',
