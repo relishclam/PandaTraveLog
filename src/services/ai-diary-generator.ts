@@ -1,5 +1,5 @@
 // src/services/ai-diary-generator.ts
-import { supabaseAdmin } from '../lib/supabase-admin';
+import { supabaseAdmin, validateSupabaseAdmin } from '../lib/supabase-admin';
 
 interface ChatMessage {
   id: string;
@@ -141,6 +141,9 @@ Return ONLY valid JSON, no additional text.`
     conversationId?: string
   ): Promise<string | null> {
     try {
+      // Validate Supabase admin client environment variables
+      validateSupabaseAdmin();
+      
       // Create the trip record
       const { data: trip, error: tripError } = await supabaseAdmin
         .from('trips')
