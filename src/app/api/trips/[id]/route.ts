@@ -43,18 +43,20 @@ export async function GET(
       );
     }
 
-    // Fetch additional trip data in parallel
-    const [destinationsResult, companionsResult, itineraryResult] = await Promise.all([
-      supabase.from('trip_destinations').select('*').eq('trip_id', tripId),
+    // Fetch additional trip data using unified schema
+    const [companionsResult, placesResult, itineraryResult] = await Promise.all([
       supabase.from('trip_companions').select('*').eq('trip_id', tripId),
+      supabase.from('trip_places').select('*').eq('trip_id', tripId).order('day_number').order('order_number'),
       supabase.from('trip_itinerary').select('*').eq('trip_id', tripId).order('day_number')
     ]);
 
     const tripResponse = {
       ...trip,
-      additional_destinations: destinationsResult.data || [],
       companions: companionsResult.data || [],
-      itinerary: itineraryResult.data || []
+      places: placesResult.data || [],
+      itinerary: itineraryResult.data || [],
+      // manual_entry_data is already included from the trips table
+      additional_destinations: [] // Kept for backward compatibility, will be empty
     };
 
     console.log(`✅ Successfully fetched trip: ${trip.name || trip.title}`);

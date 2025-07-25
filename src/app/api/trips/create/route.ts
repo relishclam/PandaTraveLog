@@ -77,84 +77,9 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Trip created successfully:', trip);
 
-    // If manual entry data exists, save the structured data
-    if (manual_entry_data) {
-      console.log('💾 Saving manual entry data...');
-      
-      // Save day schedules
-      if (manual_entry_data.daySchedules && manual_entry_data.daySchedules.length > 0) {
-        const dayScheduleInserts = manual_entry_data.daySchedules.map((schedule: any) => ({
-          id: uuidv4(),
-          trip_id: tripId,
-          day_number: schedule.day,
-          date: schedule.date,
-          activities: schedule.activities,
-          notes: schedule.notes || null,
-          created_at: new Date().toISOString()
-        }));
-
-        const { error: scheduleError } = await supabase
-          .from('trip_day_schedules')
-          .insert(dayScheduleInserts);
-
-        if (scheduleError) {
-          console.error('⚠️ Warning: Failed to save day schedules:', scheduleError);
-        } else {
-          console.log('✅ Day schedules saved');
-        }
-      }
-
-      // Save travel details
-      if (manual_entry_data.travelDetails && manual_entry_data.travelDetails.length > 0) {
-        const travelInserts = manual_entry_data.travelDetails.map((travel: any) => ({
-          id: uuidv4(),
-          trip_id: tripId,
-          mode: travel.mode,
-          details: travel.details,
-          departure_time: travel.departureTime || null,
-          arrival_time: travel.arrivalTime || null,
-          booking_reference: travel.bookingReference || null,
-          contact_info: travel.contactInfo || null,
-          created_at: new Date().toISOString()
-        }));
-
-        const { error: travelError } = await supabase
-          .from('trip_travel_details')
-          .insert(travelInserts);
-
-        if (travelError) {
-          console.error('⚠️ Warning: Failed to save travel details:', travelError);
-        } else {
-          console.log('✅ Travel details saved');
-        }
-      }
-
-      // Save accommodations
-      if (manual_entry_data.accommodations && manual_entry_data.accommodations.length > 0) {
-        const accommodationInserts = manual_entry_data.accommodations.map((accommodation: any) => ({
-          id: uuidv4(),
-          trip_id: tripId,
-          name: accommodation.name,
-          address: accommodation.address,
-          check_in: accommodation.checkIn,
-          check_out: accommodation.checkOut,
-          confirmation_number: accommodation.confirmationNumber || null,
-          contact_info: accommodation.contactInfo || null,
-          notes: accommodation.notes || null,
-          created_at: new Date().toISOString()
-        }));
-
-        const { error: accommodationError } = await supabase
-          .from('trip_accommodations')
-          .insert(accommodationInserts);
-
-        if (accommodationError) {
-          console.error('⚠️ Warning: Failed to save accommodations:', accommodationError);
-        } else {
-          console.log('✅ Accommodations saved');
-        }
-      }
-    }
+    // All manual entry data is now stored in the manual_entry_data JSON field
+    // No need to save to separate tables - unified schema approach
+    console.log('💾 Manual entry data stored in trips.manual_entry_data field');
 
     return NextResponse.json({
       success: true,
