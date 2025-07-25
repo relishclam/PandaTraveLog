@@ -141,7 +141,7 @@ export default function Home() {
       </footer>
 
       {/* Enhanced PO Assistant Integration */}
-      <UnifiedPOAssistant context="marketing" />
+      <UnifiedPOAssistant context="marketing" isMinimized={true} />
     </div>
   );
 }
