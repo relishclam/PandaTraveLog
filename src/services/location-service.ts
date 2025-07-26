@@ -34,7 +34,7 @@ export interface GeocodingResult {
 }
 
 export class LocationService {
-  private static readonly GEOAPIFY_API_KEY = process.env.GEOAPIFY_API_KEY;
+  private static readonly GEOAPIFY_API_KEY = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
   private static readonly CACHE_DURATION = 1800000; // 30 minutes in milliseconds
   private static locationCache = new Map<string, { data: LocationData; timestamp: number }>();
   private static geocodingCache = new Map<string, { data: GeocodingResult; timestamp: number }>();
