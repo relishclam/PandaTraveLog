@@ -76,7 +76,30 @@ function UnifiedPOAssistant({
   const getContextualGreeting = useCallback(() => {
     const greetings = {
       marketing: `Hi! I'm PO, your travel planning buddy! ✈️ Let's plan an amazing trip together!`,
-      trip_creation: `Hey there! Ready to plan an awesome trip? I'm PO, and I'll help you create the perfect itinerary! 🌟`,
+      trip_creation: `🌟 **Welcome to AI Trip Planning!** 🌟
+
+I'm PO, your personal travel assistant, and I'm excited to help you create the perfect trip! Let me ask you a few questions to understand what you're looking for:
+
+**1. Where would you like to go?** 
+Please tell me your dream destination(s) - it could be a specific city, country, or even just a type of experience you're looking for!
+
+**2. When are you planning to travel?**
+Let me know your preferred dates or time of year.
+
+**3. How long is your trip?**
+How many days will you be traveling?
+
+**4. What's your travel style?**
+- Adventure & outdoor activities
+- Cultural experiences & museums  
+- Relaxation & beaches
+- Food & nightlife
+- Mix of everything
+
+**5. What's your approximate budget?**
+This helps me suggest appropriate accommodations and activities.
+
+Just start by telling me where you'd like to go, and I'll guide you through the rest! 🗺️✈️`,
       diary: `Welcome back! I'm here to help you with any questions about your trip. Need suggestions for activities, restaurants, or places to visit? 🗺️`,
       manual_entry: `Hi! I'm PO, your travel assistant. I can help you find great places to visit, restaurants to try, and accommodations to book! 🏨✈️`,
       dashboard: `Hello! I'm PO, your personal travel assistant. Ready to plan your next adventure? 🌍`
