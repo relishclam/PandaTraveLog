@@ -51,4 +51,4 @@ const supabase = isBrowser
       }
     );
 
-export default supabase;
+export { supabase };

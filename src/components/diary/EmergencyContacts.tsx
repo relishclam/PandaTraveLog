@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { toast } from 'sonner';
-import supabase from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { openRouterService, EmergencyContact } from '@/services/openrouter-service';
 import { ScrollArea } from '@/components/ui/ScrollArea';
 import { Textarea } from '@/components/ui/Textarea';
