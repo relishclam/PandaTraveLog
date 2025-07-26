@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/Accordion';
-import { MapPin, Clock, DollarSign, Utensils, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
+import { MapPin, Clock, DollarSign, Utensils, ChevronDown, ChevronUp } from 'lucide-react';
 import { format, parse } from 'date-fns';
 import Image from 'next/image';
+import InteractiveMapModal from '@/components/maps/InteractiveMapModal';
 
 // Helper function to format time
 const formatTime = (timeString: string | null | undefined) => {
@@ -53,28 +54,6 @@ const ItineraryDayCard: React.FC<ItineraryDayCardProps> = ({ day }) => {
   
   const hasActivities = day.activities && day.activities.length > 0;
   const hasMeals = day.meals && (day.meals.breakfast || day.meals.lunch || day.meals.dinner);
-  
-  // Generate Google Maps URL for a location
-  const getGoogleMapsUrl = (activity: any) => {
-    if (activity.map_url) return activity.map_url;
-    
-    let query = '';
-    
-    if (activity.lat && activity.lng) {
-      query = `${activity.lat},${activity.lng}`;
-    } else if (activity.location_place_id) {
-      query = `place_id:${activity.location_place_id}`;
-    } else if (activity.location_name) {
-      query = encodeURIComponent(activity.location_name);
-      if (activity.location_address) {
-        query += `,+${encodeURIComponent(activity.location_address)}`;
-      }
-    } else {
-      return '';
-    }
-    
-    return `https://www.google.com/maps/search/?api=1&query=${query}`;
-  };
   
   // Determine cost level indicator
   const getCostIndicator = (cost: string | null | undefined) => {
@@ -136,6 +115,36 @@ const ItineraryDayCard: React.FC<ItineraryDayCardProps> = ({ day }) => {
     }
   };
   
+  const [isMapModalOpen, setMapModalOpen] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number; name: string } | null>(null);
+
+  const handleOpenMapModal = (lat: number, lng: number, name: string) => {
+    setSelectedLocation({ lat, lng, name });
+    setMapModalOpen(true);
+  };
+
+  const renderLocation = (activity: any) => {
+    if (activity.location_name) {
+      if (activity.lat && activity.lng) {
+        return (
+          <div className="flex items-center">
+            <span className="text-gray-600 font-medium">{activity.location_name}</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="ml-2"
+              onClick={() => handleOpenMapModal(activity.lat!, activity.lng!, activity.location_name!)}
+            >
+              <MapPin className="h-4 w-4 text-blue-500" />
+            </Button>
+          </div>
+        );
+      }
+      return <span className="text-gray-600 font-medium">{activity.location_name}</span>;
+    }
+    return null;
+  };
+
   return (
     <div ref={cardRef}>
       <MotionDiv
@@ -202,14 +211,7 @@ const ItineraryDayCard: React.FC<ItineraryDayCardProps> = ({ day }) => {
                         
                         <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2 text-sm">
                           {/* Location */}
-                          {activity.location_name && (
-                            <div className="flex items-center">
-                              <MapPin className="h-4 w-4 text-gray-500 mr-1" />
-                              <span className="text-gray-600">
-                                {activity.location_name}
-                              </span>
-                            </div>
-                          )}
+                          {renderLocation(activity)}
                           
                           {/* Time */}
                           {(activity.start_time || activity.duration) && (
@@ -233,22 +235,6 @@ const ItineraryDayCard: React.FC<ItineraryDayCardProps> = ({ day }) => {
                           <p className="mt-2 text-sm text-gray-600">
                             {activity.description}
                           </p>
-                        )}
-                        
-                        {/* Map link */}
-                        {(activity.location_name || activity.lat || activity.location_place_id) && (
-                          <div className="mt-3">
-                            <a 
-                              href={getGoogleMapsUrl(activity)} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center text-xs text-primary hover:text-primary/80"
-                            >
-                              <MapPin className="h-3 w-3 mr-1" />
-                              View on Google Maps
-                              <ExternalLink className="h-3 w-3 ml-1" />
-                            </a>
-                          </div>
                         )}
                       </div>
                     </div>
@@ -370,6 +356,15 @@ const ItineraryDayCard: React.FC<ItineraryDayCardProps> = ({ day }) => {
           )}
         </CardContent>
       </Card>
+      {selectedLocation && (
+        <InteractiveMapModal
+          isOpen={isMapModalOpen}
+          onClose={() => setMapModalOpen(false)}
+          lat={selectedLocation.lat}
+          lng={selectedLocation.lng}
+          locationName={selectedLocation.name}
+        />
+      )}
     </MotionDiv>
     </div>
   );

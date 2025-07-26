@@ -12,6 +12,7 @@ import { PoTripDiary } from '@/components/po/svg/PoTripDiary';
 import ItineraryDayCard from '@/components/diary/ItineraryDayCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@radix-ui/react-tabs';
 import { format } from 'date-fns';
+import InteractiveMapModal from '@/components/maps/InteractiveMapModal';
 import { 
   Calendar, 
   Map, 
@@ -23,7 +24,9 @@ import {
   Download, 
   Share2, 
   AlertCircle, 
-  CheckCircle 
+  CheckCircle, 
+  Hotel,
+  ExternalLink
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Image from 'next/image';
@@ -37,7 +40,18 @@ interface Trip {
   end_date: string;
   description?: string;
   image_url?: string;
+  accommodations: Accommodation[];
   days: TripDay[];
+}
+
+interface Accommodation {
+  id: string;
+  name: string;
+  address: string;
+  check_in_date: string;
+  check_out_date: string;
+  lat?: number;
+  lng?: number;
 }
 
 interface TripDay {
@@ -84,6 +98,13 @@ const TripDiary: React.FC<{ tripId?: string }> = ({ tripId }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isMapModalOpen, setMapModalOpen] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number; name: string } | null>(null);
+
+  const handleOpenMapModal = (lat: number, lng: number, name: string) => {
+    setSelectedLocation({ lat, lng, name });
+    setMapModalOpen(true);
+  };
   
   // Fetch trip data
   useEffect(() => {
@@ -102,6 +123,17 @@ const TripDiary: React.FC<{ tripId?: string }> = ({ tripId }) => {
           end_date: "2025-06-22",
           description: "Exploring the vibrant city of Tokyo with its blend of traditional culture and modern technology.",
           image_url: "https://images.unsplash.com/photo-1503899036084-c55cdd92da26",
+          accommodations: [
+            {
+              id: "hotel1",
+              name: "Park Hyatt Tokyo",
+              address: "3-7-1-2 Nishi-Shinjuku, Shinjuku-ku, Tokyo",
+              check_in_date: "2025-06-15",
+              check_out_date: "2025-06-22",
+              lat: 35.685,
+              lng: 139.6917
+            }
+          ],
           days: [
             {
               id: "day1",
@@ -398,49 +430,18 @@ const TripDiary: React.FC<{ tripId?: string }> = ({ tripId }) => {
         >
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
             <div className="border-b border-gray-200">
-              <TabsList className="flex">
-                <TabsTrigger 
-                  value="itinerary"
-                  className={`px-4 py-2 font-medium text-sm border-b-2 ${
-                    activeTab === 'itinerary' 
-                      ? 'border-primary text-primary' 
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  } transition-colors`}
-                >
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Itinerary
-                </TabsTrigger>
-                
-                <TabsTrigger 
-                  value="map"
-                  className={`px-4 py-2 font-medium text-sm border-b-2 ${
-                    activeTab === 'map'
-                      ? 'border-primary text-primary' 
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  } transition-colors`}
-                >
-                  <Map className="h-4 w-4 mr-2" />
-                  Map View
-                </TabsTrigger>
-                
-                <TabsTrigger 
-                  value="notes"
-                  className={`px-4 py-2 font-medium text-sm border-b-2 ${
-                    activeTab === 'notes' 
-                      ? 'border-primary text-primary' 
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  } transition-colors`}
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Notes
-                </TabsTrigger>
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="itinerary">Itinerary</TabsTrigger>
+                <TabsTrigger value="map">Map</TabsTrigger>
+                <TabsTrigger value="notes">Notes</TabsTrigger>
+                <TabsTrigger value="accommodation">Accommodation</TabsTrigger>
               </TabsList>
             </div>
             
             {/* Tab Content */}
             <div className="mt-4">
               {/* Search bar */}
-              <div className="relative mb-6">
+              <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Search className="h-5 w-5 text-gray-400" />
                 </div>
@@ -500,6 +501,35 @@ const TripDiary: React.FC<{ tripId?: string }> = ({ tripId }) => {
                 </ScrollArea>
               </TabsContent>
               
+              <TabsContent value="accommodation">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Accommodation</CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid gap-4">
+                    {trip.accommodations.map((hotel) => (
+                      <div key={hotel.id} className="flex items-center justify-between p-4 rounded-lg bg-gray-50">
+                        <div>
+                          <h4 className="font-semibold">{hotel.name}</h4>
+                          <p className="text-sm text-gray-500">{hotel.address}</p>
+                          <p className="text-sm text-gray-500">
+                            {format(new Date(hotel.check_in_date), 'PPP')} - {format(new Date(hotel.check_out_date), 'PPP')}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleOpenMapModal(hotel.lat!, hotel.lng!, hotel.name)}
+                          disabled={!hotel.lat || !hotel.lng}
+                        >
+                          <MapPin className="h-5 w-5 text-blue-500" />
+                        </Button>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
               <TabsContent value="map" className="focus:outline-none">
                 <Card>
                   <CardContent className="p-6">
@@ -540,6 +570,15 @@ const TripDiary: React.FC<{ tripId?: string }> = ({ tripId }) => {
           </Tabs>
         </MotionDiv>
       </div>
+      {selectedLocation && (
+        <InteractiveMapModal
+          isOpen={isMapModalOpen}
+          onClose={() => setMapModalOpen(false)}
+          lat={selectedLocation.lat}
+          lng={selectedLocation.lng}
+          locationName={selectedLocation.name}
+        />
+      )}
     </div>
   );
 };

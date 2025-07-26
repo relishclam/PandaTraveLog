@@ -9,10 +9,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { toast } from 'sonner';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-
-// Initialize Supabase client for this component
-const supabase = createClientComponentClient();
+import supabase from '@/lib/supabase';
+import { openRouterService, EmergencyContact } from '@/services/openrouter-service';
 import { ScrollArea } from '@/components/ui/ScrollArea';
 import { Textarea } from '@/components/ui/Textarea';
 import { PoGuide } from '@/components/po/svg/PoGuide';
@@ -150,75 +148,79 @@ const EmergencyContacts: React.FC<EmergencyContactsProps> = ({ tripId }) => {
   };
 
   const handleGenerateAIContacts = async () => {
-    setAiGenerating(true);
-    
-    try {
-      const response = await fetch(`/api/trips/${tripId}/emergency-contacts/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to generate emergency contacts');
-      }
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        toast.success(`Generated ${result.newContactsAdded} new emergency contacts for your destination!`);
-        fetchContacts();
-      } else {
-        throw new Error(result.error || 'Failed to generate contacts');
-      }
-      
-    } catch (err: any) {
-      console.error('Error generating AI contacts:', err);
-      toast.error(err.message || 'Failed to generate emergency contacts');
-    } finally {
-      setAiGenerating(false);
-    }
+    // This function can be implemented to suggest generic contacts based on location
+    toast.info('AI contact generation is not yet available.');
   };
-  
+
   const handleExtractFromTripData = async () => {
     setExtracting(true);
-    
+    setError(null);
+    const toastId = toast.loading('Extracting contacts from trip data...', {
+      description: 'PO is scanning your trip details for contact information. This might take a moment.',
+    });
+
     try {
-      const response = await fetch(`/api/trips/${tripId}/emergency-contacts/extract`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to extract contacts from trip data');
+      // 1. Fetch all related trip data
+      const {
+        data: tripData,
+        error: tripError
+      } = await supabase.from('trips').select(`
+        destination_name,
+        trip_accommodations(*),
+        trip_travel_details(*)
+      `).eq('id', tripId).single();
+
+      if (tripError) throw new Error(`Failed to fetch trip data: ${tripError.message}`);
+      if (!tripData) throw new Error('No trip data found.');
+
+      // 2. Prepare data for AI
+      const context = {
+        destination: tripData.destination_name,
+        accommodations: tripData.trip_accommodations,
+        transport: tripData.trip_travel_details,
+      };
+
+      // 3. Call AI service
+      const extractedContacts: EmergencyContact[] = await openRouterService.extractEmergencyContacts(context);
+
+      if (!extractedContacts || extractedContacts.length === 0) {
+        toast.info('No new contacts were found in your trip data.', { id: toastId });
+        return;
       }
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        if (result.newContactsAdded > 0) {
-          toast.success(`Extracted ${result.newContactsAdded} new contacts from your trip data!`);
-          fetchContacts();
-        } else {
-          toast.info('No new contacts found in your trip data. All relevant contacts may already be added.');
-        }
-      } else {
-        throw new Error(result.error || 'Failed to extract contacts');
-      }
-      
+
+      // 4. Prepare for batch insert
+      const contactsToInsert = extractedContacts.map((contact: EmergencyContact) => ({
+        ...contact,
+        user_id: user?.id,
+        trip_id: tripId, // Assuming you add a trip_id to your travel_contacts table
+      }));
+
+      // 5. Save to database
+      const { data: insertedData, error: insertError } = await supabase
+        .from('travel_contacts')
+        .insert(contactsToInsert)
+        .select();
+
+      if (insertError) throw new Error(`Failed to save extracted contacts: ${insertError.message}`);
+
+      toast.success(`Successfully extracted and saved ${insertedData.length} new contacts!`, { id: toastId });
+      fetchContacts(); // Refresh the list
+
     } catch (err: any) {
-      console.error('Error extracting contacts from trip data:', err);
-      toast.error(err.message || 'Failed to extract contacts from trip data');
+      console.error('Error extracting from trip data:', err);
+      setError(err.message);
+      toast.error('Failed to extract contacts.', {
+        description: err.message,
+        id: toastId,
+      });
     } finally {
       setExtracting(false);
     }
   };
-  
+
   const handleEditContact = (contact: EmergencyContactProps) => {
     setEditingContact(contact);
+    setNewContact(contact);
     setIsDialogOpen(true);
   };
   
@@ -379,19 +381,6 @@ const EmergencyContacts: React.FC<EmergencyContactsProps> = ({ tripId }) => {
             </CardDescription>
           </div>
           <div className="flex gap-2">
-            <Button 
-              onClick={handleExtractFromTripData}
-              disabled={extracting}
-              variant="outline"
-              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-            >
-              {extracting ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-              ) : (
-                <Plus className="w-4 h-4 mr-2" />
-              )}
-              Extract from Trip Data
-            </Button>
             <Button 
               onClick={openAddDialog}
               className="bg-backpack-orange hover:bg-backpack-orange/90 text-white"

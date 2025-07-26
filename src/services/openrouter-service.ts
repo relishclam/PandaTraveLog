@@ -130,6 +130,21 @@ interface ParsedActivityOption {
   dayNumber?: number;
 }
 
+export interface EmergencyContact {
+  name: string;
+  type: 'Accommodation' | 'Transport' | 'Embassy' | 'Local Authority' | 'Other';
+  phone?: string;
+  email?: string;
+  address?: string;
+  notes?: string;
+}
+
+export interface ExtractionContext {
+  destination: string;
+  accommodations: any[];
+  transport: any[];
+}
+
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 // Helper function to ensure activity type is one of the allowed values
@@ -761,6 +776,87 @@ export const openRouterService = {
         success: false,
         error: error.response?.data?.error?.message || error.message || 'Failed to generate final itinerary. Please try again.'
       };
+    }
+  },
+
+  async extractEmergencyContacts(context: ExtractionContext, apiKey?: string): Promise<EmergencyContact[]> {
+    const { destination, accommodations, transport } = context;
+
+    const systemPrompt = `
+      You are a highly intelligent travel assistant named PO, specialized in identifying and extracting emergency contact information from trip data.
+      Your task is to analyze the provided JSON data which contains hotel bookings and transportation details for a trip to ${destination}.
+      Extract any potential emergency contacts such as hotels, airlines, car rental agencies, train services, embassies, or local emergency services.
+
+      Rules:
+      1.  Extract the full name of the establishment (e.g., "Hilton Garden Inn").
+      2.  Categorize the contact correctly as 'Accommodation', 'Transport', 'Embassy', or 'Other'.
+      3.  Extract phone numbers, email addresses, and physical addresses if available.
+      4.  If the data contains confirmation numbers or booking references, add them to the 'notes' field.
+      5.  Do NOT invent information. Only extract data present in the provided JSON.
+      6.  If no contacts can be found, return an empty array.
+      7.  Your final output MUST be a valid JSON array of objects, where each object conforms to the specified EmergencyContact structure. Do not include any explanatory text or markdown formatting.
+
+      JSON Output Structure:
+      [
+        {
+          "name": "string",
+          "type": "'Accommodation' | 'Transport' | 'Embassy' | 'Other'",
+          "phone": "string | undefined",
+          "email": "string | undefined",
+          "address": "string | undefined",
+          "notes": "string | undefined"
+        }
+      ]
+    `;
+
+    const userMessage = `
+      Here is the trip data. Please extract the emergency contacts based on these details.
+
+      Destination: ${destination}
+
+      Accommodations:
+      ${JSON.stringify(accommodations, null, 2)}
+
+      Transport:
+      ${JSON.stringify(transport, null, 2)}
+    `;
+
+    try {
+      const response = await axios.post(
+        OPENROUTER_API_URL,
+        {
+          model: 'claude-3.5-sonnet',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage },
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.1,
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${apiKey || process.env.NEXT_PUBLIC_OPENROUTER_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const content = response.data.choices[0].message.content;
+      const parsedContent = JSON.parse(content);
+
+      // The AI might wrap the result in a key, e.g., { "contacts": [...] }
+      const contacts = parsedContent.contacts || parsedContent;
+      
+      if (!Array.isArray(contacts)) {
+        throw new Error('AI response is not a valid array of contacts.');
+      }
+
+      return contacts as EmergencyContact[];
+
+    } catch (error: any) {
+      console.error('Error extracting emergency contacts:', error.response ? error.response.data : error.message);
+      // In case of an error, return an empty array to prevent crashing the app
+      return [];
     }
   }
 };
