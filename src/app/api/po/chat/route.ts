@@ -154,31 +154,14 @@ export async function POST(request: NextRequest) {
     const tripDataMatch = aiMessage.match(/TRIP_DATA_START\s*([\s\S]*?)\s*TRIP_DATA_END/);
     const diaryWriteMatch = aiMessage.match(/DIARY_WRITE_START\s*([\s\S]*?)\s*DIARY_WRITE_END/);
     
-    // Handle diary writing if requested
-    if (diaryWriteMatch && tripId) {
+    // Prepare diary write data for frontend confirmation instead of executing it
+    if (diaryWriteMatch) {
       try {
-        const writeInstructions = JSON.parse(diaryWriteMatch[1]);
-        console.log('🔄 PO Assistant requesting diary write:', writeInstructions);
-        
-        // Call the diary write API
-        const writeResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/trips/${tripId}/diary/write`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Cookie': request.headers.get('cookie') || ''
-          },
-          body: JSON.stringify(writeInstructions)
-        });
-        
-        if (writeResponse.ok) {
-          const writeResult = await writeResponse.json();
-          diaryWriteData = writeResult;
-          console.log('✅ Successfully wrote to diary:', writeResult);
-        } else {
-          console.error('❌ Failed to write to diary:', await writeResponse.text());
-        }
+        diaryWriteData = JSON.parse(diaryWriteMatch[1]);
+        console.log('✅ PO Assistant prepared diary write data for confirmation:', diaryWriteData);
       } catch (error) {
-        console.error('❌ Error processing diary write:', error);
+        console.error('❌ Error parsing diary write data:', error);
+        diaryWriteData = null; // Reset on error
       }
     }
     
@@ -190,8 +173,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Clean the message (remove trip data markers)
-    const cleanMessage = aiMessage.replace(/TRIP_DATA_START[\s\S]*?TRIP_DATA_END/g, '').trim();
+    // Clean the message (remove data markers)
+    const cleanMessage = aiMessage
+      .replace(/TRIP_DATA_START[\s\S]*?TRIP_DATA_END/g, '')
+      .replace(/DIARY_WRITE_START[\s\S]*?DIARY_WRITE_END/g, '')
+      .trim();
 
     // Save conversation to database if user is authenticated
     let savedConversationId = conversationId;
@@ -208,9 +194,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       message: cleanMessage,
-      tripData: tripData,
       conversationId: savedConversationId,
-      hasAuth: !!userId
+      tripData,
+      diaryWriteData // Pass diary data to the frontend for confirmation
     });
 
   } catch (error) {

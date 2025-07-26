@@ -13,6 +13,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  diaryWriteData?: any; // To hold suggestions for the diary
 }
 
 interface POAssistantProps {
@@ -44,6 +45,8 @@ function UnifiedPOAssistant({
   const [showPreAuthNotice, setShowPreAuthNotice] = useState(false);
   const [showAIDiaryModal, setShowAIDiaryModal] = useState(false);
   const [canGenerateDiary, setCanGenerateDiary] = useState(false);
+  const [processedDiaryWrites, setProcessedDiaryWrites] = useState(new Set<number>());
+  const [isWritingToDiary, setIsWritingToDiary] = useState<number | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -184,91 +187,91 @@ Where would you like to go?`,
   const sendMessage = useCallback(async () => {
     if (!inputMessage.trim() || isLoading) return;
 
-    const userMessage: Message = {
+    const newMessage: Message = {
       role: 'user',
-      content: inputMessage.trim(),
-      timestamp: new Date()
+      content: inputMessage,
+      timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    const updatedMessages = [...messages, newMessage];
+    setMessages(updatedMessages);
     setInputMessage('');
     setIsLoading(true);
 
     try {
       const response = await fetch('/api/po/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages, userMessage],
-          userId: user?.id,
+          messages: updatedMessages.slice(-10), // Send last 10 messages for context
+          userId: user.id,
           tripId: tripId,
           context: currentContext,
-          conversationId: conversationId
-        })
+          conversationId: conversationId,
+        }),
       });
 
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        throw new Error('API Error');
       }
 
       const data = await response.json();
-      
+
       const assistantMessage: Message = {
         role: 'assistant',
         content: data.message,
-        timestamp: new Date()
+        timestamp: new Date(),
+        diaryWriteData: data.diaryWriteData, // Attach diary suggestions
       };
 
-      setMessages(prev => [...prev, assistantMessage]);
-      
-      // Update conversation ID if returned
+      setMessages(prevMessages => [...prevMessages, assistantMessage]);
       if (data.conversationId) {
         setConversationId(data.conversationId);
       }
-
-      // Handle trip creation
+      
       if (data.tripData && onTripCreated) {
-        // Show trip creation confirmation
-        const confirmMessage: Message = {
-          role: 'assistant',
-          content: `Perfect! I've created your trip: "${data.tripData.title}". Would you like me to add this to your Trip Diary?`,
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, confirmMessage]);
-        
-        // Create trip and redirect
-        const tripResponse = await fetch('/api/trips/create-ai-trip', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            tripData: data.tripData,
-            userId: user?.id,
-            conversationId: conversationId
-          })
-        });
-
-        if (tripResponse.ok) {
-          const tripResult = await tripResponse.json();
-          onTripCreated(tripResult.tripId);
-        }
+        onTripCreated(data.tripData.id);
       }
 
     } catch (error) {
       console.error('Error sending message:', error);
       const errorMessage: Message = {
         role: 'assistant',
-        content: "I'm having trouble responding right now. Please try again in a moment! 🤔",
-        timestamp: new Date()
+        content: "I'm having trouble connecting. Please try again later.",
+        timestamp: new Date(),
       };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prevMessages => [...prevMessages, errorMessage]);
     } finally {
       setIsLoading(false);
     }
-  }, [inputMessage, isLoading, messages, user, tripId, currentContext, conversationId, onTripCreated]);
+  }, [user, inputMessage, messages, tripId, currentContext, conversationId, onTripCreated]);
+
+  const handleAddToDiary = useCallback(async (diaryData: any, messageTimestamp: Date) => {
+    if (!tripId) return;
+    const timestamp = messageTimestamp.getTime();
+    setIsWritingToDiary(timestamp);
+
+    try {
+      const response = await fetch(`/api/trips/${tripId}/diary/write`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(diaryData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Failed to write to diary: ${errorData}`);
+      }
+
+      setProcessedDiaryWrites(prev => new Set(prev).add(timestamp));
+      console.log('Successfully added to diary!');
+
+    } catch (error) {
+      console.error('Error writing to diary:', error);
+    } finally {
+      setIsWritingToDiary(null);
+    }
+  }, [tripId]);
 
   const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -342,28 +345,36 @@ Where would you like to go?`,
           </div>
         )}
         
-        {memoizedMessages.map((message, index) => (
-          <div
-            key={index}
-            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-[80%] p-3 rounded-lg ${
-                message.role === 'user'
-                  ? 'bg-orange-500 text-white'
-                  : 'bg-gray-100 text-gray-900'
-              }`}
-            >
-              <p className="whitespace-pre-wrap">{message.content}</p>
-              <p className="text-xs opacity-70 mt-1">
-                {message.timestamp.toLocaleTimeString()}
-              </p>
+        {memoizedMessages.map((msg, index) => (
+          <div key={`${msg.timestamp.getTime()}-${index}`} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
+            <div className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl ${msg.role === 'user' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-800'}`}>
+              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+              {msg.role === 'assistant' && msg.diaryWriteData && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <button
+                    onClick={() => handleAddToDiary(msg.diaryWriteData, msg.timestamp)}
+                    disabled={processedDiaryWrites.has(msg.timestamp.getTime()) || isWritingToDiary === msg.timestamp.getTime()}
+                    className="w-full flex items-center justify-center space-x-2 bg-green-500 hover:bg-green-600 text-white py-2 px-3 rounded-lg font-medium text-sm transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isWritingToDiary === msg.timestamp.getTime() ? (
+                      <span>Adding...</span>
+                    ) : processedDiaryWrites.has(msg.timestamp.getTime()) ? (
+                      <span>Added to Diary!</span>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        <span>Add to My Trip Diary</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         ))}
-        
+
         {isLoading && (
-          <div className="flex justify-start">
+          <div className="flex justify-start mb-4">
             <div className="bg-gray-100 p-3 rounded-lg">
               <div className="flex space-x-1">
                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
