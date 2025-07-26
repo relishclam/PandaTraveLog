@@ -142,6 +142,7 @@ export default function Home() {
       </footer>
 
       {/* Enhanced PO Assistant Integration - Force rebuild to fix duplicate issue */}
+      {/* GitHub Actions test: Clean environment variables configured */}
       <UnifiedPOAssistant context="marketing" isMinimized={true} />
     </div>
   );
