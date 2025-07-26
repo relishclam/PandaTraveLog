@@ -129,6 +129,13 @@ export async function POST(
     // Create authenticated Supabase client
     const supabase = createAuthenticatedClient(request);
     
+    // Verify authentication using the user's token
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('❌ Authentication failed:', authError);
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     // First, verify trip ownership
     const { data: trip, error: tripError } = await supabase
       .from('trips')
@@ -137,15 +144,14 @@ export async function POST(
       .single();
     
     if (tripError || !trip) {
-      console.error('Error fetching trip:', tripError);
+      console.error('Trip not found:', tripError);
       return NextResponse.json(
         { error: 'Trip not found' },
         { status: 404 }
       );
     }
     
-    const userId = await supabase.auth.getUser(request.headers.get('cookie'));
-    if (!userId || trip.user_id !== userId.data.user.id) {
+    if (trip.user_id !== user.id) {
       return NextResponse.json(
         { error: 'Not authorized to modify this trip' },
         { status: 403 }
@@ -253,6 +259,13 @@ export async function GET(
     // Create authenticated Supabase client
     const supabase = createAuthenticatedClient(request);
     
+    // Verify authentication using the user's token
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('❌ Authentication failed:', authError);
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     // Get itinerary items for the trip
     const { data: itinerary, error } = await supabase
       .from('itinerary_items')
@@ -318,6 +331,13 @@ export async function PUT(
     // Create authenticated Supabase client
     const supabase = createAuthenticatedClient(request);
     
+    // Verify authentication using the user's token
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('❌ Authentication failed:', authError);
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     // Update itinerary item
     const { data: itineraryItem, error } = await supabase
       .from('itinerary_items')
@@ -363,6 +383,13 @@ export async function DELETE(
 
     // Create authenticated Supabase client
     const supabase = createAuthenticatedClient(request);
+    
+    // Verify authentication using the user's token
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('❌ Authentication failed:', authError);
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     
     // Delete itinerary item
     const { error } = await supabase
