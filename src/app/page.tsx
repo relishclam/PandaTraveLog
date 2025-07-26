@@ -58,7 +58,19 @@ export default function Home() {
           </div>
           
           {/* Hero Image */}
-          {/* Removed duplicate PO logo from hero image section */}
+          <div className="md:w-1/2 flex justify-center md:justify-end">
+            <div className="relative w-80 h-80 md:w-96 md:h-96">
+              <Image
+                src="/images/po/emotions/excited.png"
+                alt="PO the Travel Panda - Ready to Plan"
+                width={384}
+                height={384}
+                className="w-full h-full object-contain drop-shadow-lg"
+                priority
+                unoptimized
+              />
+            </div>
+          </div>
         </div>
       </section>
       
