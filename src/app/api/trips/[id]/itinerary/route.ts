@@ -1,17 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client with service role key for admin operations
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
+// Helper function to create authenticated Supabase client from request
+function createAuthenticatedClient(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    throw new Error('Missing or invalid authorization header');
   }
-);
+
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      global: {
+        headers: {
+          Authorization: authHeader,
+        },
+      },
+    }
+  );
+}
 
 // Helper function to ensure all coordinates in the itinerary are properly formatted
 function processItineraryCoordinates(itinerary: any): any {
@@ -118,19 +126,11 @@ export async function POST(
       );
     }
     
-    // Get the authenticated user to verify ownership
-    const { data: { session } } = await supabaseAdmin.auth.getSession();
-    const userId = session?.user?.id;
-    
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
+    // Create authenticated Supabase client
+    const supabase = createAuthenticatedClient(request);
     
     // First, verify trip ownership
-    const { data: trip, error: tripError } = await supabaseAdmin
+    const { data: trip, error: tripError } = await supabase
       .from('trips')
       .select('id, user_id, name, destination, start_date, end_date')
       .eq('id', tripId.replace('trip-', ''))
@@ -144,7 +144,8 @@ export async function POST(
       );
     }
     
-    if (trip.user_id !== userId) {
+    const userId = await supabase.auth.getUser(request.headers.get('cookie'));
+    if (!userId || trip.user_id !== userId.data.user.id) {
       return NextResponse.json(
         { error: 'Not authorized to modify this trip' },
         { status: 403 }
@@ -155,7 +156,7 @@ export async function POST(
     const processedItinerary = processItineraryCoordinates(itinerary);
     
     // Save the itinerary to the database
-    const { data: savedItinerary, error: saveError } = await supabaseAdmin
+    const { data: savedItinerary, error: saveError } = await supabase
       .from('trip_itineraries')
       .upsert({
         trip_id: trip.id,
@@ -181,7 +182,7 @@ export async function POST(
       
       // Save each location to the locations table
       for (const location of locations) {
-        const { error: locationError } = await supabaseAdmin
+        const { error: locationError } = await supabase
           .from('locations')
           .insert({
             itinerary_id: itineraryId,
@@ -215,7 +216,7 @@ export async function POST(
     }
     
     // Update trip status to 'planned'
-    await supabaseAdmin
+    await supabase
       .from('trips')
       .update({ status: 'planned' })
       .eq('id', trip.id);
@@ -249,8 +250,11 @@ export async function GET(
       );
     }
 
+    // Create authenticated Supabase client
+    const supabase = createAuthenticatedClient(request);
+    
     // Get itinerary items for the trip
-    const { data: itinerary, error } = await supabaseAdmin
+    const { data: itinerary, error } = await supabase
       .from('itinerary_items')
       .select(`
         id,
@@ -311,8 +315,11 @@ export async function PUT(
       );
     }
 
+    // Create authenticated Supabase client
+    const supabase = createAuthenticatedClient(request);
+    
     // Update itinerary item
-    const { data: itineraryItem, error } = await supabaseAdmin
+    const { data: itineraryItem, error } = await supabase
       .from('itinerary_items')
       .update(updateData)
       .eq('id', itemId)
@@ -354,8 +361,11 @@ export async function DELETE(
       );
     }
 
+    // Create authenticated Supabase client
+    const supabase = createAuthenticatedClient(request);
+    
     // Delete itinerary item
-    const { error } = await supabaseAdmin
+    const { error } = await supabase
       .from('itinerary_items')
       .delete()
       .eq('id', itemId)
