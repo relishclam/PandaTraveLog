@@ -20,6 +20,8 @@ export async function POST(
     const supabase = getSupabaseClient();
     const { id: tripId } = await params;
     
+    console.log('Extracting contacts for trip:', tripId);
+    
     // Fetch trip data including accommodations, travel details, and itinerary
     const [tripResult, accommodationsResult, travelResult, itineraryResult] = await Promise.all([
       supabase.from('trips').select('*').eq('id', tripId).single(),
@@ -28,25 +30,30 @@ export async function POST(
       supabase.from('trip_itinerary').select('*').eq('trip_id', tripId)
     ]);
 
-    if (tripResult.error) throw tripResult.error;
+    if (tripResult.error) {
+      console.error('Trip fetch error:', tripResult.error);
+      throw tripResult.error;
+    }
     
     const trip = tripResult.data;
     const accommodations = accommodationsResult.data || [];
     const travelDetails = travelResult.data || [];
     const itinerary = itineraryResult.data || [];
     
+    console.log('Trip data:', { trip: trip?.title, accommodations: accommodations.length, travelDetails: travelDetails.length, itinerary: itinerary.length });
+    
     // Extract contacts from trip data
     const extractedContacts = [];
     
     // Extract accommodation contacts
     for (const accommodation of accommodations) {
-      if (accommodation.hotel_name && (accommodation.phone || accommodation.contact_info)) {
+      if (accommodation.name && (accommodation.phone || accommodation.contact_info)) {
         extractedContacts.push({
-          name: accommodation.hotel_name,
+          name: accommodation.name,
           phone: accommodation.phone || extractPhoneFromText(accommodation.contact_info),
           type: 'accommodation',
           address: accommodation.address,
-          notes: `Hotel: ${accommodation.hotel_name}${accommodation.booking_reference ? ` - Booking: ${accommodation.booking_reference}` : ''}`,
+          notes: `Hotel: ${accommodation.name}${accommodation.booking_reference ? ` - Booking: ${accommodation.booking_reference}` : ''}`,
           priority: 2
         });
       }
@@ -59,15 +66,39 @@ export async function POST(
           name: travel.provider,
           phone: travel.contact_phone || extractPhoneFromText(travel.notes),
           type: 'transportation',
-          notes: `${travel.travel_type || 'Travel'}: ${travel.provider}${travel.booking_reference ? ` - Booking: ${travel.booking_reference}` : ''}`,
+          notes: `${travel.mode || 'Travel'}: ${travel.provider}${travel.booking_reference ? ` - Booking: ${travel.booking_reference}` : ''}`,
           priority: 2
         });
       }
     }
     
+    // Extract contacts from itinerary items (restaurants, attractions with phone numbers)
+    for (const item of itinerary) {
+      if (item.location && item.notes) {
+        const phone = extractPhoneFromText(item.notes);
+        if (phone) {
+          extractedContacts.push({
+            name: item.title || item.location,
+            phone: phone,
+            type: 'local_service',
+            address: item.location,
+            notes: `${item.activity_type || 'Activity'}: ${item.title}`,
+            priority: 3
+          });
+        }
+      }
+    }
+    
     // Add destination-specific emergency numbers using OpenRouter AI
-    const emergencyNumbers = await generateDestinationEmergencyContacts(trip.destination);
-    extractedContacts.push(...emergencyNumbers);
+    try {
+      const emergencyNumbers = await generateDestinationEmergencyContacts(trip.destination);
+      extractedContacts.push(...emergencyNumbers);
+    } catch (error) {
+      console.warn('Failed to generate AI emergency contacts:', error);
+      // Continue without AI-generated contacts
+    }
+    
+    console.log('Extracted contacts:', extractedContacts.length);
     
     // Check which contacts already exist to avoid duplicates
     const existingContacts = await supabase
@@ -84,39 +115,62 @@ export async function POST(
       contact.phone && !existingPhones.has(normalizePhone(contact.phone))
     );
     
+    console.log('New contacts to add:', newContacts.length);
+    
     let savedContacts = [];
     
     for (const contact of newContacts) {
-      const { data, error } = await supabase
-        .from('travel_contacts')
-        .insert({
-          user_id: trip.user_id,
-          name: contact.name,
-          phone: contact.phone,
-          relationship: contact.type,
-          address: contact.address,
-          notes: contact.notes,
-          priority: contact.priority || 3
-        })
-        .select()
-        .single();
-      
-      if (!error && data) {
-        savedContacts.push(data);
+      try {
+        const { data, error } = await supabase
+          .from('travel_contacts')
+          .insert({
+            user_id: trip.user_id,
+            name: contact.name,
+            phone: contact.phone,
+            relationship: contact.type,
+            address: contact.address,
+            notes: contact.notes,
+            priority: contact.priority || 3
+          })
+          .select()
+          .single();
+        
+        if (!error && data) {
+          savedContacts.push(data);
+        } else if (error) {
+          console.error('Error saving contact:', error);
+        }
+      } catch (contactError) {
+        console.error('Error inserting contact:', contactError);
       }
     }
+    
+    console.log('Saved contacts:', savedContacts.length);
     
     return NextResponse.json({
       success: true,
       extractedContacts: extractedContacts.length,
       newContactsAdded: savedContacts.length,
-      contacts: savedContacts
+      contacts: savedContacts,
+      debug: {
+        tripId,
+        accommodations: accommodations.length,
+        travelDetails: travelDetails.length,
+        itinerary: itinerary.length,
+        extractedTotal: extractedContacts.length,
+        newTotal: newContacts.length,
+        savedTotal: savedContacts.length
+      }
     });
     
   } catch (error) {
     console.error('Contact extraction error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to extract contacts from trip data' },
+      { 
+        success: false, 
+        error: 'Failed to extract contacts from trip data',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
@@ -126,13 +180,15 @@ export async function POST(
 function extractPhoneFromText(text: string): string | null {
   if (!text) return null;
   
-  // Regex to match various phone number formats
-  const phoneRegex = /(\+?[\d\s\-\(\)]{10,})/g;
+  // Enhanced regex to match various phone number formats
+  const phoneRegex = /(\+?[\d\s\-\(\)\.]{8,})/g;
   const matches = text.match(phoneRegex);
   
   if (matches && matches.length > 0) {
     // Return the first phone number found, cleaned up
-    return matches[0].replace(/[^\d+]/g, '');
+    const cleaned = matches[0].replace(/[^\d+]/g, '');
+    // Only return if it has at least 8 digits
+    return cleaned.length >= 8 ? cleaned : null;
   }
   
   return null;
@@ -172,7 +228,7 @@ async function generateDestinationEmergencyContacts(destination: string) {
     });
     
     if (!response.ok) {
-      throw new Error('AI service unavailable');
+      throw new Error(`AI service error: ${response.status}`);
     }
     
     const data = await response.json();

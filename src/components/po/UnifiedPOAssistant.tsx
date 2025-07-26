@@ -4,10 +4,14 @@ import React, { useState, useEffect, useRef, useCallback, memo, useMemo } from '
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IoClose, IoSend, IoContract, IoExpand } from 'react-icons/io5';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, MapPin, DollarSign } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { AIDiaryAdoptionModal } from './AIDiaryAdoptionModal';
+import { LocationCurrencyWidget } from './LocationCurrencyWidget';
+import { useLocationFeatures, useCurrencyConverter } from '@/hooks/useLocationCurrency';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -36,6 +40,8 @@ function UnifiedPOAssistant({
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const { userLocation, getLocationString } = useLocationFeatures();
+  const { preferredCurrency } = useCurrencyConverter();
   
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -47,6 +53,7 @@ function UnifiedPOAssistant({
   const [canGenerateDiary, setCanGenerateDiary] = useState(false);
   const [processedDiaryWrites, setProcessedDiaryWrites] = useState(new Set<number>());
   const [isWritingToDiary, setIsWritingToDiary] = useState<number | null>(null);
+  const [showLocationWidget, setShowLocationWidget] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -421,6 +428,17 @@ Where would you like to go?`,
             <Sparkles className="h-4 w-4" />
             <span>Create Trip Diary from Chat</span>
           </button>
+        </div>
+      )}
+
+      {/* Location Widget */}
+      {showLocationWidget && (
+        <div className="px-4 py-2 border-t border-gray-100 bg-orange-50">
+          <LocationCurrencyWidget 
+            compact={true}
+            onLocationDetected={() => setShowLocationWidget(false)}
+            onCurrencyConverted={() => {}}
+          />
         </div>
       )}
 

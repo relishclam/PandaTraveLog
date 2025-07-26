@@ -3,9 +3,12 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
-import { useCallback } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { MapPin, Calendar, Users, Star, ArrowRight, Plane, Camera, Map } from "lucide-react";
 import UnifiedPOAssistant from '@/components/po/UnifiedPOAssistant';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCallback } from 'react';
 
 export default function Home() {
   const { user } = useAuth();
@@ -141,9 +144,7 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* Enhanced PO Assistant Integration - Force rebuild to fix duplicate issue */}
       {/* GitHub Actions test: Clean environment variables configured and deleted workflow files*/}
-      <UnifiedPOAssistant context="marketing" isMinimized={true} />
     </div>
   );
 }
