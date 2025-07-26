@@ -204,7 +204,7 @@ Where would you like to go?`,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: updatedMessages.slice(-10), // Send last 10 messages for context
-          userId: user.id,
+          userId: user?.id, // Use optional chaining to prevent error
           tripId: tripId,
           context: currentContext,
           conversationId: conversationId,
