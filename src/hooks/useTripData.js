@@ -34,6 +34,14 @@ export function useTripData(tripId) {
         throw tripResponse.error;
       }
 
+      if (!tripResponse.data) {
+        throw new Error('Trip not found');
+      }
+
+      if (Array.isArray(tripResponse.data) && tripResponse.data.length > 1) {
+        throw new Error('Multiple trips found, please specify');
+      }
+
       setData({
         trip: tripResponse.data,
         accommodations: accResponse.data || [],

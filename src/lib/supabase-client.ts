@@ -14,7 +14,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-// Client-side Supabase client for components
+// Ensure only one Supabase client is used for client-side operations
 export const supabaseClient = createClientComponentClient();
 
 // Server-side Supabase client for non-auth operations
@@ -23,6 +23,3 @@ export const supabaseServer = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: false,
   },
 });
-
-// Default export for backward compatibility
-export default supabaseClient;

@@ -53,24 +53,25 @@ export default function PWAInstaller() {
     };
   }, []);
 
+  // Ensure prompt() is called after preventDefault()
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
+    if (deferredPrompt) {
+      // Show the install prompt
+      await deferredPrompt.prompt();
 
-    // Show the install prompt
-    deferredPrompt.prompt();
+      // Wait for the user to respond to the prompt
+      const { outcome } = await deferredPrompt.userChoice;
+      
+      if (outcome === 'accepted') {
+        console.log('User accepted the install prompt');
+      } else {
+        console.log('User dismissed the install prompt');
+      }
 
-    // Wait for the user to respond to the prompt
-    const { outcome } = await deferredPrompt.userChoice;
-    
-    if (outcome === 'accepted') {
-      console.log('User accepted the install prompt');
-    } else {
-      console.log('User dismissed the install prompt');
+      // Clear the deferredPrompt
+      setDeferredPrompt(null);
+      setShowInstallButton(false);
     }
-
-    // Clear the deferredPrompt
-    setDeferredPrompt(null);
-    setShowInstallButton(false);
   };
 
   if (!showInstallButton) {
@@ -89,6 +90,7 @@ export default function PWAInstaller() {
         </div>
         <div className="flex space-x-2">
           <button
+            id="install-button"
             onClick={handleInstallClick}
             className="bg-white text-orange-500 px-3 py-1 rounded text-xs font-medium hover:bg-gray-100 transition-colors"
           >
