@@ -1,10 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+import { supabaseClient as supabase } from '@/lib/supabase-client';
 
 export function useTripData(tripId) {
   const [data, setData] = useState({
@@ -23,30 +18,42 @@ export function useTripData(tripId) {
     setError(null);
     
     try {
+      // Get current user session to verify ownership
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Not authenticated');
+      }
+
       const [tripResponse, accResponse, travelResponse, scheduleResponse] = await Promise.all([
-        supabase.from('trips').select('*').eq('id', tripId).single(),
-        supabase.from('accommodations').select('*').eq('trip_id', tripId),
-        supabase.from('travel_details').select('*').eq('trip_id', tripId),
-        supabase.from('trip_day_schedules').select('*').eq('trip_id', tripId).order('day_number')
+        supabase.from('trips').select('*').eq('id', tripId).eq('user_id', user.id).single(),
+        supabase.from('trip_accommodations').select('*').eq('trip_id', tripId),
+        supabase.from('trip_travel_details').select('*').eq('trip_id', tripId),
+        supabase.from('trip_schedules').select('*').eq('trip_id', tripId).order('day_number')
       ]);
 
-      if (tripResponse.error && tripResponse.error.code !== 'PGRST116') {
+      if (tripResponse.error) {
+        if (tripResponse.error.code === 'PGRST116') {
+          throw new Error('Trip not found');
+        }
         throw tripResponse.error;
       }
 
-      if (!tripResponse.data) {
+      const tripData = tripResponse.data;
+      if (!tripData) {
         throw new Error('Trip not found');
       }
 
-      if (Array.isArray(tripResponse.data) && tripResponse.data.length > 1) {
-        throw new Error('Multiple trips found, please specify');
+      // Handle both array and single object responses
+      const trip = Array.isArray(tripData) ? tripData[0] : tripData;
+      if (!trip) {
+        throw new Error('Trip not found');
       }
 
       setData({
-        trip: tripResponse.data,
-        accommodations: accResponse.data || [],
-        travelDetails: travelResponse.data || [],
-        dailySchedules: scheduleResponse.data || []
+        trip: trip,
+        accommodations: accResponse.error ? [] : (accResponse.data || []),
+        travelDetails: travelResponse.error ? [] : (travelResponse.data || []),
+        dailySchedules: scheduleResponse.error ? [] : (scheduleResponse.data || [])
       });
     } catch (err) {
       setError(err.message);
