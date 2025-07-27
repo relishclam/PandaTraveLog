@@ -58,14 +58,17 @@ const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
         .from('trip_companions')
         .select('*')
         .eq('trip_id', tripId)
-        .order('name');
+        .order('created_at', { ascending: false });
       
       if (error) throw error;
       
-      setCompanions(data || []);
+      // Ensure we have fresh data
+      setCompanions([]);  // Clear first to trigger re-render
+      setTimeout(() => setCompanions(data || []), 0);  // Set in next tick
     } catch (err: any) {
       console.error('Error fetching companions:', err);
       setError(err.message || 'Failed to load companions');
+      toast.error('Failed to load companions');
     } finally {
       setIsLoading(false);
     }

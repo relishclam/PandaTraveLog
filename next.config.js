@@ -11,6 +11,15 @@ const nextConfig = {
       },
     ],
   },
+
+  async rewrites() {
+    return [
+      {
+        source: '/api/po/chat',
+        destination: '/api/assistant/chat',
+      }
+    ];
+  },
   
   experimental: {
     esmExternals: false,

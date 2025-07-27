@@ -231,10 +231,19 @@ Where would you like to go?`,
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/po/chat', {
+      const response = await fetch('/api/assistant/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: updatedMessages, userId: user?.id, tripId, context: currentContext, conversationId }),
+        body: JSON.stringify({
+          message: inputMessage,
+          context: currentContext,
+          tripId,
+          userId: user?.id,
+          conversationHistory: messages.map(m => ({
+            role: m.role,
+            content: m.content
+          }))
+        }),
       });
 
       if (!response.ok) {
@@ -245,7 +254,7 @@ Where would you like to go?`,
 
       const newAssistantMessage: Message = {
         role: 'assistant',
-        content: data.response,
+        content: data.message,
         timestamp: new Date(),
         diaryWriteData: data.diaryWriteData,
         searchResults: data.searchResults || [], // Store search results

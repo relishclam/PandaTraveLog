@@ -96,7 +96,7 @@ export function PersistentPOAssistant({
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/po/chat', {
+      const response = await fetch('/api/assistant/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -105,6 +105,7 @@ export function PersistentPOAssistant({
           message: inputMessage,
           context,
           tripId,
+          userId: user?.id,
           conversationHistory: messages.map(m => ({
             role: m.role,
             content: m.content
