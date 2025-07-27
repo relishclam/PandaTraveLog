@@ -25,7 +25,7 @@ interface MapProps {
 }
 
 // Dynamically import the Map component to prevent SSR issues with Leaflet
-const Map = dynamic<MapProps>(() => import('./Map').then((mod) => mod.default), { 
+const Map = dynamic(() => import('./Map').then((mod) => mod.default), { 
   ssr: false, 
   loading: () => (
     <div className="flex items-center justify-center h-full min-h-[500px]">
