@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS trip_locations (
 -- Add row level security (RLS) policies
 ALTER TABLE trip_locations ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Trip locations are viewable by owner" ON trip_locations;
 CREATE POLICY "Trip locations are viewable by owner" ON trip_locations
   FOR SELECT
   USING (

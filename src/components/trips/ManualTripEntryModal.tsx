@@ -354,12 +354,12 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start md:items-center justify-center z-60 p-4 overflow-y-auto">
       <MotionDiv
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden z-[61]"
+        className="bg-white rounded-lg shadow-xl max-w-4xl w-full my-4 relative z-[61]"
   >
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
@@ -390,7 +390,7 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
         )}
 
         {/* Content */}
-        <div className="p-6 max-h-[60vh] overflow-y-auto">
+        <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
           {/* Step 1: Trip Details */}
           {currentStep === 1 && (
             <div className="space-y-6">

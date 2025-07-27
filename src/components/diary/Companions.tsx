@@ -9,13 +9,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { toast } from 'sonner';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { ScrollArea } from '@/components/ui/ScrollArea';
 import { Textarea } from '@/components/ui/Textarea';
 import { PoGuide } from '@/components/po/svg/PoGuide';
-
-// Initialize Supabase client for this component
-const supabase = createClientComponentClient();
+import { supabaseClient } from '@/lib/supabase-client';
 
 interface CompanionProps {
   id: string;
@@ -83,10 +80,13 @@ const Companions: React.FC<CompanionsProps> = ({ tripId }) => {
         return;
       }
       
+      // Ensure we're sending trip_id for new companions
       const method = editingCompanion ? 'PUT' : 'POST';
       const body = editingCompanion 
         ? { companionId: editingCompanion.id, ...companionData }
-        : companionData;
+        : { ...companionData, trip_id: tripId };
+      
+      console.log('Sending companion data:', body); // Add logging for debugging
       
       const response = await fetch(`/api/trips/${tripId}/companions`, {
         method,

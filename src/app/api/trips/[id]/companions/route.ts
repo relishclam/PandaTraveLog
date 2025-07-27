@@ -52,11 +52,17 @@ export async function POST(
     const { id } = await params
     const body = await request.json()
     
+    // Log received data for debugging
+    console.log('API received:', { tripId: id, body });
+    
+    // Remove trip_id from body if it exists since we use the one from params
+    const { trip_id, ...companionData } = body;
+    
     const { data, error } = await supabase
       .from('trip_companions')
       .insert({
         trip_id: id,
-        ...body
+        ...companionData
       })
       .select()
       .single()

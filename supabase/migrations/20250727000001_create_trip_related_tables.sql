@@ -176,8 +176,7 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN
     RAISE NOTICE 'Error creating tables: %', SQLERRM;
     RAISE;
-    -- Create a view for missing contact information
-    CREATE OR REPLACE VIEW trip_contact_completeness AS
+END $$;
     WITH trip_summary AS (
         SELECT 
             t.id as trip_id,
@@ -275,4 +274,7 @@ EXCEPTION WHEN OTHERS THEN
     -- Grant execute permission on the function
     GRANT EXECUTE ON FUNCTION get_contact_recommendations TO authenticated;
 
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Error creating tables: %', SQLERRM;
+    RAISE;
 END $$;

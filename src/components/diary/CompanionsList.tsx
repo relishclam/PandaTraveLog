@@ -9,13 +9,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Plus, Edit2, Trash2, Copy, ExternalLink, UserPlus } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/Avatar';
 import { toast } from 'sonner';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-
-// Initialize Supabase client for this component
-const supabase = createClientComponentClient();
 import { useAuth } from '@/contexts/AuthContext';
 import { ScrollArea } from '@/components/ui/ScrollArea';
 import { PoGuide } from '@/components/po/svg/PoGuide';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+
+// Initialize Supabase client
+const supabase = createClientComponentClient();
 
 interface CompanionProps {
   id: string;
