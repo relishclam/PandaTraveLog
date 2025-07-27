@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { semanticSearch } from '@/services/embedding-service';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -37,6 +38,22 @@ export async function POST(request: NextRequest) {
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: 'Messages array is required' }, { status: 400 });
+    }
+
+    // Semantic Search Integration
+    let searchResults: any[] = [];
+    const lastUserMessage = messages[messages.length - 1]?.content.toLowerCase();
+    const searchTriggers = ['find', 'recommend', 'show me', 'search for', 'look for', 'what are some', 'where can i'];
+
+    if (lastUserMessage && searchTriggers.some(trigger => lastUserMessage.includes(trigger))) {
+      console.log(`🔍 Semantic search triggered for query: "${lastUserMessage}"`);
+      try {
+        searchResults = await semanticSearch(lastUserMessage, 5);
+        console.log(`✅ Found ${searchResults.length} results from semantic search.`);
+      } catch (error) {
+        console.error('❌ Error during semantic search:', error);
+        // Continue without search results if it fails
+      }
     }
 
     // Load trip context if tripId is provided
@@ -110,8 +127,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get context-aware system prompt with trip data
-    const systemPrompt = getContextualSystemPrompt(context, tripId, tripContext);
+    const systemPrompt = await getContextualSystemPrompt(context, tripId, tripContext);
+
+    // Prepare messages for the AI
+    let processedMessages = messages.map((msg: ChatMessage) => ({
+      role: msg.role,
+      content: msg.content
+    }));
+
+    // Add search results to the context for the AI
+    if (searchResults.length > 0) {
+      const searchContext = `
+        Based on your query, I found these relevant results. Please use them to formulate your response:
+        ${searchResults.map(r => `- ${r.metadata?.originalText} (Match Score: ${r.score?.toFixed(2)})`).join('\n')}
+      `;
+      // Add it as a system message before the user's last message
+      processedMessages.splice(processedMessages.length - 1, 0, { role: 'assistant', content: searchContext });
+    }
 
     // Call OpenRouter API for AI response
     const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -128,10 +160,7 @@ export async function POST(request: NextRequest) {
             role: 'system',
             content: systemPrompt
           },
-          ...messages.map((msg: ChatMessage) => ({
-            role: msg.role,
-            content: msg.content
-          }))
+          ...processedMessages,
         ],
         temperature: 0.7,
         max_tokens: 1500
@@ -196,7 +225,8 @@ export async function POST(request: NextRequest) {
       message: cleanMessage,
       conversationId: savedConversationId,
       tripData,
-      diaryWriteData // Pass diary data to the frontend for confirmation
+      diaryWriteData, // Pass diary data to the frontend for confirmation
+      searchResults: searchResults // Include search results in the response
     });
 
   } catch (error) {

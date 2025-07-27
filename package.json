@@ -9,7 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.2.0",
+    "@google/generative-ai": "^0.2.1",
+    "@pinecone-database/pinecone": "^6.1.2",
     "@radix-ui/react-accordion": "^1.2.10",
     "@radix-ui/react-avatar": "^1.1.9",
     "@radix-ui/react-dialog": "^1.1.13",
@@ -22,7 +23,8 @@
     "@supabase/supabase-js": "^2.49.8",
     "@twilio-labs/serverless-runtime-types": "^4.0.1",
     "@types/node": "^22.15.18",
-    "@types/react": "^19.1.4",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
     "@types/uuid": "^10.0.0",
     "autoprefixer": "^10.4.7",
     "class-variance-authority": "^0.7.1",

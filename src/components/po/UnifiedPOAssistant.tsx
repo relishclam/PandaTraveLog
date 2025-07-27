@@ -12,12 +12,14 @@ import { LocationCurrencyWidget } from './LocationCurrencyWidget';
 import { useLocationFeatures, useCurrencyConverter } from '@/hooks/useLocationCurrency';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { SearchResultCard } from './SearchResultCard';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
   diaryWriteData?: any; // To hold suggestions for the diary
+  searchResults?: any[]; // To hold semantic search results
 }
 
 interface POAssistantProps {
@@ -215,7 +217,7 @@ Where would you like to go?`,
   }, [user, tripId, getContextualGreeting]);
 
   const sendMessage = useCallback(async () => {
-    if (!inputMessage.trim() || isLoading) return;
+    if (!inputMessage.trim()) return;
 
     const newMessage: Message = {
       role: 'user',
@@ -232,13 +234,7 @@ Where would you like to go?`,
       const response = await fetch('/api/po/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: updatedMessages.slice(-10), // Send last 10 messages for context
-          userId: user?.id, // Use optional chaining to prevent error
-          tripId: tripId,
-          context: currentContext,
-          conversationId: conversationId,
-        }),
+        body: JSON.stringify({ messages: updatedMessages, userId: user?.id, tripId, context: currentContext, conversationId }),
       });
 
       if (!response.ok) {
@@ -247,21 +243,16 @@ Where would you like to go?`,
 
       const data = await response.json();
 
-      const assistantMessage: Message = {
+      const newAssistantMessage: Message = {
         role: 'assistant',
-        content: data.message,
+        content: data.response,
         timestamp: new Date(),
-        diaryWriteData: data.diaryWriteData, // Attach diary suggestions
+        diaryWriteData: data.diaryWriteData,
+        searchResults: data.searchResults || [], // Store search results
       };
 
-      setMessages(prevMessages => [...prevMessages, assistantMessage]);
-      if (data.conversationId) {
-        setConversationId(data.conversationId);
-      }
-      
-      if (data.tripData && onTripCreated) {
-        onTripCreated(data.tripData.id);
-      }
+      setMessages(prevMessages => [...prevMessages, newAssistantMessage]);
+      setConversationId(data.conversationId);
 
     } catch (error) {
       console.error('Error sending message:', error);
@@ -274,7 +265,7 @@ Where would you like to go?`,
     } finally {
       setIsLoading(false);
     }
-  }, [user, inputMessage, messages, tripId, currentContext, conversationId, onTripCreated]);
+  }, [user, inputMessage, messages, tripId, currentContext, conversationId]);
 
   const handleAddToDiary = useCallback(async (diaryData: any, messageTimestamp: Date) => {
     if (!tripId) return;
@@ -379,6 +370,14 @@ Where would you like to go?`,
           <div key={`${msg.timestamp.getTime()}-${index}`} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
             <div className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl ${msg.role === 'user' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-800'}`}>
               <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+              {msg.role === 'assistant' && msg.searchResults && msg.searchResults.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  <h4 className="text-sm font-semibold text-gray-700">I also found these for you:</h4>
+                  {msg.searchResults.map((result, idx) => (
+                    <SearchResultCard key={result.id || `search-result-${idx}`} result={result} index={idx} />
+                  ))}
+                </div>
+              )}
               {msg.role === 'assistant' && msg.diaryWriteData && (
                 <div className="mt-3 pt-3 border-t border-gray-200">
                   <button
