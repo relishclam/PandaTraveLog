@@ -59,29 +59,43 @@ export async function updateSession(request: NextRequest) {
 
   const {
     data: { session },
+    error: sessionError
   } = await supabase.auth.getSession();
   
   // Log session status for debugging
-  console.log(`[MIDDLEWARE] Session check: ${!!session}`);
+  console.log(`[MIDDLEWARE] Session check: ${!!session}`, sessionError ? `Error: ${sessionError.message}` : '');
   if (session) {
     console.log(`[MIDDLEWARE] User authenticated: ${session.user.email}`);
+    console.log(`[MIDDLEWARE] Session expires at: ${session.expires_at}`);
     
-    // Check for auth cookies after session verification
-    const authCookies = request.cookies.getAll().filter(cookie => cookie.name.startsWith('sb-'));
-    console.log(`[MIDDLEWARE] Auth cookies after session check: ${authCookies.length}`, 
-      authCookies.map(c => ({ name: c.name, exists: !!c.value })));
+    // Verify session is not expired
+    const now = Math.floor(Date.now() / 1000);
+    const expiresAt = session.expires_at || 0;
+    const isExpired = expiresAt < now;
     
-    // Ensure cookies are properly set on the response
-    authCookies.forEach(cookie => {
-      if (cookie.value) {
-        response.cookies.set(cookie.name, cookie.value, {
-          sameSite: 'lax',
-          secure: process.env.NODE_ENV === 'production',
-          path: '/',
-          maxAge: 60 * 60 * 24 * 7, // 1 week
-        });
-      }
-    });
+    console.log(`[MIDDLEWARE] Session expired: ${isExpired} (now: ${now}, expires: ${expiresAt})`);
+    
+    if (!isExpired) {
+      // Check for auth cookies after session verification
+      const authCookies = request.cookies.getAll().filter(cookie => cookie.name.startsWith('sb-'));
+      console.log(`[MIDDLEWARE] Auth cookies after session check: ${authCookies.length}`, 
+        authCookies.map(c => ({ name: c.name, exists: !!c.value })));
+      
+      // Ensure cookies are properly set on the response
+      authCookies.forEach(cookie => {
+        if (cookie.value) {
+          response.cookies.set(cookie.name, cookie.value, {
+            sameSite: 'lax',
+            secure: process.env.NODE_ENV === 'production',
+            path: '/',
+            maxAge: 60 * 60 * 24 * 7, // 1 week
+            httpOnly: false, // Allow client-side access for auth state
+          });
+        }
+      });
+    }
+  } else if (sessionError) {
+    console.error(`[MIDDLEWARE] Session error: ${sessionError.message}`);
   }
 
   return response;

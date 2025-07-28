@@ -90,26 +90,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const initAuth = async () => {
       setMounted(true);
+      console.log("🔄 AuthContext: Initializing auth...");
       
-      // ✅ ONLY use the auth listener - removed manual fetchSession
+      // Set up auth state listener
       const { data: authListener } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
-        console.log("🔄 AuthContext: Auth state changed", event);
+        console.log("🔄 AuthContext: Auth state changed", event, !!session);
+        
+        if (event === 'SIGNED_OUT') {
+          console.log("🚪 AuthContext: User signed out");
+          setUser(null);
+          setIsLoading(false);
+          return;
+        }
+        
         if (session?.user) {
+          console.log("👤 AuthContext: Session found, updating user state");
           await updateUserState(session.user);
         } else {
+          console.log("❌ AuthContext: No session found");
           setUser(null);
-          setIsLoading(false); // ✅ Make sure to set loading false
-        }
-      });
-      
-      // ✅ Get initial session ONCE using the listener pattern
-      supabase.auth.getSession().then(({ data: { session } }: { data: { session: any } }) => {
-        if (session?.user) {
-          updateUserState(session.user);
-        } else {
           setIsLoading(false);
         }
       });
+      
+      // Get initial session with better error handling
+      try {
+        console.log("🔍 AuthContext: Getting initial session...");
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error("❌ AuthContext: Error getting initial session:", error);
+          setIsLoading(false);
+          return authListener;
+        }
+        
+        if (session?.user) {
+          console.log("✅ AuthContext: Initial session found");
+          await updateUserState(session.user);
+        } else {
+          console.log("ℹ️ AuthContext: No initial session");
+          setIsLoading(false);
+        }
+      } catch (err) {
+        console.error("❌ AuthContext: Exception getting initial session:", err);
+        setIsLoading(false);
+      }
       
       return authListener;
     };
@@ -119,6 +144,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     initAuth().then(listener => {
       authListenerCleanup = listener;
+    }).catch(err => {
+      console.error("❌ AuthContext: Error initializing auth:", err);
+      setIsLoading(false);
     });
     
     return () => {

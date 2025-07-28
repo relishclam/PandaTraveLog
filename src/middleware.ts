@@ -19,23 +19,20 @@ export async function middleware(request: NextRequest) {
     // First update the session using the new middleware pattern
     const response = await updateSession(request);
     
-    // Get the session from the response cookies - check for both old and new cookie names
-    const supabaseCookie = response.cookies.get('sb-auth-token') || response.cookies.get('sb-access-token');
-    const hasSession = !!supabaseCookie;
+    // Check for Supabase auth cookies with correct naming pattern
+    const allCookies = request.cookies.getAll();
+    const authCookies = allCookies.filter(cookie => 
+      cookie.name.startsWith('sb-') && 
+      (cookie.name.includes('access-token') || cookie.name.includes('refresh-token'))
+    );
+    
+    // More reliable session check - look for any valid auth cookies
+    const hasSession = authCookies.length > 0 && authCookies.some(cookie => cookie.value && cookie.value.length > 10);
     
     // Debug cookie information
-    console.log(`[MIDDLEWARE] Cookie check: auth token exists: ${!!supabaseCookie}`);
-    
-    // Check for other auth-related cookies
-    const allCookies = request.cookies.getAll();
-    const authCookies = allCookies.filter(cookie => cookie.name.startsWith('sb-'));
     console.log(`[MIDDLEWARE] Auth cookies found: ${authCookies.length}`, 
-      authCookies.map(c => ({ name: c.name, exists: !!c.value })));
-    
-    // Additional session check
-    const accessToken = response.cookies.get('sb-access-token');
-    const refreshToken = response.cookies.get('sb-refresh-token');
-    console.log(`[MIDDLEWARE] Token check: access=${!!accessToken}, refresh=${!!refreshToken}`);
+      authCookies.map(c => ({ name: c.name, hasValue: !!c.value, length: c.value?.length || 0 })));
+    console.log(`[MIDDLEWARE] Session detected: ${hasSession}`);
     
     // Check if the current path is protected
     const isProtectedPath = protectedPaths.some(path => 

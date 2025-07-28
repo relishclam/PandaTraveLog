@@ -23,18 +23,16 @@ export default function DashboardLayout({
       
       if (!user) {
         console.log("⚠️ Dashboard: No user detected, redirecting to login");
-        // Add a small delay before redirecting
-        setTimeout(() => {
-          window.location.href = '/login';
-        }, 100);
+        // Use Next.js router instead of window.location to avoid hard refresh
+        window.location.href = '/login';
       } else {
         console.log("✅ Dashboard: User authenticated:", user.email);
       }
     }
   }, [user, isLoading, authChecked]);
 
-  // Show loading spinner during initial load
-  if (isLoading || (!user && !authChecked)) {
+  // Show loading spinner during initial load or when auth is being checked
+  if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-bamboo-light p-4">
         <div className="text-center">
@@ -45,9 +43,28 @@ export default function DashboardLayout({
     );
   }
 
-  // Redirect is happening in useEffect
-  if (!user) {
-    return null;
+  // If auth check is complete and no user, show a brief loading state before redirect
+  if (!user && authChecked) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-bamboo-light p-4">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-gray-200 border-t-backpack-orange rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Redirecting to login...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If we don't have a user and haven't checked auth yet, show loading
+  if (!user && !authChecked) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-bamboo-light p-4">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-gray-200 border-t-backpack-orange rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking authentication...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
