@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 
 // Initialize Supabase client for this component
-const supabase = createClientComponentClient();
+const supabase = createClient();
 
 // Create a separate component that uses useSearchParams
 function ResetPasswordForm() {

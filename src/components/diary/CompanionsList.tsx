@@ -12,10 +12,10 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { ScrollArea } from '@/components/ui/ScrollArea';
 import { PoGuide } from '@/components/po/svg/PoGuide';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 
 // Initialize Supabase client
-const supabase = createClientComponentClient();
+const supabase = createClient();
 
 interface CompanionProps {
   id: string;

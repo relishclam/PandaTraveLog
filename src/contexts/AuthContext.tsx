@@ -2,10 +2,10 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 
 // Initialize Supabase client for client components
-const supabase = createClientComponentClient();
+const supabase = createClient();
 
 type User = {
   id: string;
@@ -38,28 +38,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Helper function to update user state from Supabase user
   const updateUserState = async (supabaseUser: any) => {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', supabaseUser.id)
-      .single();
+    try {
+      console.log("🔄 AuthContext: Updating user state for ID:", supabaseUser.id);
+      
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', supabaseUser.id)
+        .single();
+      
+      if (error) {
+        console.error("❌ AuthContext: Error fetching profile:", error);
+        // Continue with basic user info even if profile fetch fails
+      }
 
-    setUser({
-      id: supabaseUser.id,
-      email: supabaseUser.email!,
-      name: profile?.name || '',
-      phone: profile?.phone || '',
-      isPhoneVerified: profile?.is_phone_verified || false,
-      country: profile?.country || ''
-    });
-    
-    console.log("👤 AuthContext: User set", {
-      email: supabaseUser.email,
-      hasName: !!profile?.name,
-      hasPhone: !!profile?.phone
-    });
-    
-    setIsLoading(false);
+      const updatedUser = {
+        id: supabaseUser.id,
+        email: supabaseUser.email!,
+        name: profile?.name || '',
+        phone: profile?.phone || '',
+        isPhoneVerified: profile?.is_phone_verified || false,
+        country: profile?.country || ''
+      };
+      
+      console.log("👤 AuthContext: Setting user state:", {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        hasName: !!updatedUser.name,
+        hasPhone: !!updatedUser.phone
+      });
+      
+      // Update the user state
+      setUser(updatedUser);
+      
+      // Verify the state was updated
+      setTimeout(() => {
+        console.log("✅ AuthContext: User state verification:", {
+          isSet: !!user,
+          id: user?.id,
+          email: user?.email
+        });
+      }, 100);
+    } catch (err) {
+      console.error("❌ AuthContext: Error in updateUserState:", err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // This ensures we're only running this code on the client side
@@ -122,16 +146,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (data.session) {
         const { session }: { session: any } = data;
-        console.log("✅ AuthContext: Sign in successful");
+        console.log("✅ AuthContext: Sign in successful", { 
+          user: data.user?.id,
+          session: !!session,
+          sessionExpires: session?.expires_at
+        });
         
         // Update user state first to ensure UI updates properly
         await updateUserState(data.user);
         
+        // Check if user state was updated correctly
+        console.log("👤 AuthContext: User state after update:", { 
+          userExists: !!user,
+          userId: user?.id,
+          userEmail: user?.email
+        });
+        
         // Use Next.js router for navigation instead of emergency navigation
         console.log("🔄 AuthContext: Redirecting to trips page");
-        router.push('/trips');
+        
+        // Force a hard navigation to ensure proper page refresh
+        window.location.href = '/trips';
         
         return;
+      } else {
+        console.error("❌ AuthContext: No session data returned");
+        throw new Error("No session data returned from authentication");
       }
     } catch (error: any) {
       console.error('❌ AuthContext: Error signing in:', error);

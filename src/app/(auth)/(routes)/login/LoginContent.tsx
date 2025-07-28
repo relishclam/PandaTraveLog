@@ -8,10 +8,10 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 
 // Initialize Supabase client for this component
-const supabase = createClientComponentClient();
+const supabase = createClient();
 
 type LoginFormData = {
   email: string;
@@ -103,6 +103,13 @@ export default function LoginContent() {
       setPandaEmotion('thinking');
       setPandaMessage('Checking your credentials...');
 
+      // Check current auth state before login
+      const { data: sessionData } = await supabase.auth.getSession();
+      console.log("🔐 Current auth state before login:", {
+        hasSession: !!sessionData.session,
+        sessionExpiry: sessionData.session?.expires_at
+      });
+
       console.log("📲 Calling signIn function...");
       await signIn(data.email, data.password);
       
@@ -110,8 +117,21 @@ export default function LoginContent() {
       setPandaEmotion('excited');
       setPandaMessage("Welcome back! Let's continue planning your adventures!");
       
+      // Check auth state after login
+      const { data: newSessionData } = await supabase.auth.getSession();
+      console.log("🔐 Auth state after login:", {
+        hasSession: !!newSessionData.session,
+        sessionExpiry: newSessionData.session?.expires_at
+      });
+      
       // AuthContext will handle the redirection
       console.log("🧭 AuthContext will handle redirection...");
+      
+      // If we're still here after 2 seconds, try a manual redirect
+      setTimeout(() => {
+        console.log("⏱️ Manual redirect timeout triggered");
+        window.location.href = '/trips';
+      }, 2000);
          
     } catch (err: any) {
       console.error('❌ Login error:', err);

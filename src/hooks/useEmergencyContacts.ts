@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 
 export interface ContactStatus {
   status: 'complete' | 'partial' | 'incomplete';
@@ -9,7 +9,7 @@ export interface ContactStatus {
 
 export function useEmergencyContacts(tripId: string) {
   const [isGenerating, setIsGenerating] = useState(false);
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
 
   const generateContacts = async () => {
     try {

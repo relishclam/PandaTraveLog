@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 
 // Initialize Supabase client for this component
-const supabase = createClientComponentClient();
+const supabase = createClient();
 import { formatDate } from '@/lib/utils';
 import dynamic from 'next/dynamic';
 

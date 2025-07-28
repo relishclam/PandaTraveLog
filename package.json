@@ -18,7 +18,6 @@
     "@radix-ui/react-scroll-area": "^1.2.8",
     "@radix-ui/react-select": "^2.2.4",
     "@radix-ui/react-tabs": "^1.1.11",
-    "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.8",
     "@twilio-labs/serverless-runtime-types": "^4.0.1",

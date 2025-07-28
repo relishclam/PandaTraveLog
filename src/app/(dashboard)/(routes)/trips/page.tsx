@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 
 // Initialize Supabase client for this component
-const supabase = createClientComponentClient();
+const supabase = createClient();
 import { Button } from '@/components/ui/Button';
 import TripChoiceCard from '@/components/trips/TripChoiceCard';
 import ManualTripEntryModal from '@/components/trips/ManualTripEntryModal';

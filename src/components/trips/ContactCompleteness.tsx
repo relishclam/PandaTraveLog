@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert/index';
 import { Button } from '@/components/ui/Button';
 import {
@@ -59,7 +59,7 @@ export const ContactCompleteness: React.FC<ContactCompletenessProps> = ({
       .join(' ');
   };
 
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
 
   React.useEffect(() => {
     const checkContactStatus = async () => {

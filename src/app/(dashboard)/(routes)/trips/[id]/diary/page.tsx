@@ -38,10 +38,10 @@ import Link from 'next/link';
 import SimplifiedItineraryDay from '@/components/diary/SimplifiedItineraryDay';
 import Image from 'next/image';
 import { toast } from 'sonner';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 
 // Initialize Supabase client for this component
-const supabase = createClientComponentClient();
+const supabase = createClient();
 import { useAuth } from '@/contexts/AuthContext';
 
 // Manual trip data interfaces

@@ -3,7 +3,8 @@
  * Provides proper client/server-side Supabase instances
  */
 
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient as createBrowserClient } from '@/utils/supabase/client';
+import { createClient as createServerClient } from '@/utils/supabase/server';
 import { createClient } from '@supabase/supabase-js';
 
 // Environment variables
@@ -15,7 +16,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 // Ensure only one Supabase client is used for client-side operations
-export const supabaseClient = createClientComponentClient();
+export const supabaseClient = createBrowserClient();
 
 // Server-side Supabase client for non-auth operations
 export const supabaseServer = createClient(supabaseUrl, supabaseAnonKey, {

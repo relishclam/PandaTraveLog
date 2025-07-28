@@ -1,8 +1,8 @@
 // src/services/itinerary-service.ts
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 
 // Initialize Supabase client for this service
-const supabase = createClientComponentClient();
+const supabase = createClient();
 import { Itinerary, ItineraryDay, Activity } from './openrouter-service';
 
 export interface SaveItineraryParams {
