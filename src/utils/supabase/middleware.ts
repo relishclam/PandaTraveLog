@@ -65,6 +65,23 @@ export async function updateSession(request: NextRequest) {
   console.log(`[MIDDLEWARE] Session check: ${!!session}`);
   if (session) {
     console.log(`[MIDDLEWARE] User authenticated: ${session.user.email}`);
+    
+    // Check for auth cookies after session verification
+    const authCookies = request.cookies.getAll().filter(cookie => cookie.name.startsWith('sb-'));
+    console.log(`[MIDDLEWARE] Auth cookies after session check: ${authCookies.length}`, 
+      authCookies.map(c => ({ name: c.name, exists: !!c.value })));
+    
+    // Ensure cookies are properly set on the response
+    authCookies.forEach(cookie => {
+      if (cookie.value) {
+        response.cookies.set(cookie.name, cookie.value, {
+          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production',
+          path: '/',
+          maxAge: 60 * 60 * 24 * 7, // 1 week
+        });
+      }
+    });
   }
 
   return response;

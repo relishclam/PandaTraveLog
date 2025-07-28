@@ -127,10 +127,12 @@ export default function LoginContent() {
       // AuthContext will handle the redirection
       console.log("🧭 AuthContext will handle redirection...");
       
-      // If we're still here after 2 seconds, try a manual redirect
+      // If we're still here after 2 seconds, try a manual redirect with absolute URL
       setTimeout(() => {
         console.log("⏱️ Manual redirect timeout triggered");
-        window.location.href = '/trips';
+        const baseUrl = window.location.origin;
+        console.log("🔄 LoginContent: Redirecting to absolute URL: " + baseUrl + "/trips");
+        window.location.href = baseUrl + "/trips";
       }, 2000);
          
     } catch (err: any) {

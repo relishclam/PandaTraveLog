@@ -166,7 +166,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log("🔄 AuthContext: Redirecting to trips page");
         
         // Force a hard navigation to ensure proper page refresh
-        window.location.href = '/trips';
+        // Use absolute URL to avoid any path resolution issues
+        const baseUrl = window.location.origin;
+        console.log("🔄 AuthContext: Redirecting to absolute URL: " + baseUrl + "/trips");
+        window.location.href = baseUrl + "/trips";
         
         return;
       } else {

@@ -65,12 +65,20 @@ export async function middleware(request: NextRequest) {
       console.log('[MIDDLEWARE] Auth page accessed with active session, redirecting to trips');
       
       // Add a small delay to ensure cookies are properly set
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 300));
       
-      // Use a more direct approach for redirection
-      const redirectUrl = new URL('/trips', request.url);
-      console.log(`[MIDDLEWARE] Redirecting to: ${redirectUrl.toString()}`);
-      return NextResponse.redirect(redirectUrl);
+      // Use a more direct approach for redirection with absolute URL
+      const baseUrl = new URL(request.url).origin;
+      const redirectUrl = new URL('/trips', baseUrl);
+      console.log(`[MIDDLEWARE] Redirecting to absolute URL: ${redirectUrl.toString()}`);
+      
+      // Set cache control headers to prevent caching of the redirect
+      const redirectResponse = NextResponse.redirect(redirectUrl);
+      redirectResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      redirectResponse.headers.set('Pragma', 'no-cache');
+      redirectResponse.headers.set('Expires', '0');
+      
+      return redirectResponse;
     }
     
     return response;

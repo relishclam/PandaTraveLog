@@ -37,8 +37,18 @@ export async function GET(request: NextRequest) {
           // Don't fail the entire flow for profile errors
         }
 
-        // Redirect to trips page on successful verification
-        return NextResponse.redirect(`${requestUrl.origin}/trips?verified=true`)
+        // Redirect to trips page on successful verification with absolute URL
+        const redirectUrl = `${requestUrl.origin}/trips?verified=true`;
+        console.log(`[AUTH CALLBACK] Redirecting to: ${redirectUrl}`);
+        
+        const response = NextResponse.redirect(redirectUrl);
+        
+        // Set cache control headers to prevent caching of the redirect
+        response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        response.headers.set('Pragma', 'no-cache');
+        response.headers.set('Expires', '0');
+        
+        return response
       }
     } catch (err) {
       console.error('Verification callback error:', err)
