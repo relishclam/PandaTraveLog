@@ -1,13 +1,31 @@
 // Service Worker for PandaTraveLog PWA
-const CACHE_NAME = 'pandatravelog-v1';
+const CACHE_NAME = 'pandatravelog-v2'; // Increment cache version
 
-// Only cache static assets, not dynamic routes that require authentication
+// Debug mode
+const DEBUG = true;
+const log = DEBUG ? console.log.bind(console, '[SW]') : () => {};
+
+// Only cache essential static assets
 const urlsToCache = [
-  '/',
   '/manifest.json',
   '/images/logo/logo-icon.png',
-  '/favicon-32x32.png'
-  // Removed dynamic routes like /trips, /login, /account
+  '/favicon-32x32.png',
+  '/images/po/emotions/happy.png',
+  '/images/po/emotions/thinking.png',
+  '/images/po/emotions/excited.png',
+  '/images/po/emotions/confused.png'
+];
+
+// Critical paths that must bypass the service worker
+const BYPASS_PATHS = [
+  '/api/',
+  '/trips',
+  '/login',
+  '/register',
+  '/account',
+  '/_next/',
+  '/auth',
+  'callback'
 ];
 
 // Install event - cache resources with error handling
@@ -33,68 +51,96 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Fetch event - handle requests with proper redirect support
+// Helper to check if a request should be cached
+function shouldCache(url) {
+  // Never cache certain paths
+  if (neverCache.some(path => url.pathname.includes(path))) {
+    return false;
+  }
+
+  // Never cache query parameters or auth tokens
+  if (url.search || url.pathname.includes('token=')) {
+    return false;
+  }
+
+  // Cache static assets
+  if (
+    url.pathname.startsWith('/images/') ||
+    url.pathname.startsWith('/static/') ||
+    url.pathname.endsWith('.json') ||
+    url.pathname.endsWith('.png') ||
+    url.pathname.endsWith('.ico')
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+// Enhanced fetch event handler
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   
-  // Skip non-GET requests
-  if (event.request.method !== 'GET') {
+  // Early bypass for critical paths
+  if (BYPASS_PATHS.some(path => url.pathname.startsWith(path))) {
+    log('Bypassing service worker for:', url.pathname);
     return;
   }
-  
-  // Skip external URLs
-  if (url.origin !== self.location.origin) {
+
+  // Only handle GET requests from our origin
+  if (event.request.method !== 'GET' || url.origin !== self.location.origin) {
     return;
   }
-  
-  // Skip dynamic/auth routes - let browser handle these normally with redirects
-  if (
-    url.pathname.startsWith('/api/') ||
-    url.pathname.startsWith('/trips') ||
-    url.pathname.startsWith('/login') ||
-    url.pathname.startsWith('/register') ||
-    url.pathname.startsWith('/account') ||
-    url.pathname.startsWith('/_next/static/') ||
-    url.pathname.includes('auth') ||
-    url.pathname.includes('callback')
-  ) {
-    // Let the browser handle these requests normally
+
+  // Handle navigation requests differently
+  if (event.request.mode === 'navigate') {
+    log('Navigation request:', url.pathname);
+    // Don't cache navigation requests - let the browser handle them
     return;
   }
-  
-  // Only intercept and cache static assets and the homepage
+
+  // Only handle static assets
+  if (!url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|ico|json|woff2?)$/)) {
+    return;
+  }
+
+  log('Handling fetch for:', url.pathname);
+
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        if (response) {
-          return response;
-        }
+    (async () => {
+      try {
+        // Try network first for fresh content
+        const networkResponse = await fetch(event.request);
         
-        // Fetch with proper redirect handling
-        return fetch(event.request, {
-          redirect: 'follow',
-          credentials: 'same-origin'
-        }).then((fetchResponse) => {
-          // Don't cache redirect responses
-          if (fetchResponse.type === 'opaqueredirect') {
-            return fetchResponse;
-          }
-          
-          // Cache successful responses for static assets
-          if (fetchResponse.ok && fetchResponse.status === 200) {
-            const responseClone = fetchResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseClone);
-            });
-          }
-          
-          return fetchResponse;
-        }).catch(error => {
-          console.warn('Fetch failed for', event.request.url, error);
-          // Return cached version as fallback
-          return caches.match('/') || new Response('Offline', { status: 503 });
-        });
-      })
+        if (networkResponse.ok) {
+          // Cache successful responses
+          const cache = await caches.open(CACHE_NAME);
+          cache.put(event.request, networkResponse.clone());
+          log('Cached fresh response for:', url.pathname);
+          return networkResponse;
+        }
+
+        // If network fails, try cache
+        const cachedResponse = await caches.match(event.request);
+        if (cachedResponse) {
+          log('Serving from cache:', url.pathname);
+          return cachedResponse;
+        }
+
+        // If both fail, return network response anyway
+        return networkResponse;
+
+      } catch (error) {
+        log('Fetch error:', error);
+        // Last resort - check cache
+        const cachedResponse = await caches.match(event.request);
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        // If all fails, show offline response
+        return new Response('Offline', { status: 503 });
+      }
+    })()
   );
 });
 
