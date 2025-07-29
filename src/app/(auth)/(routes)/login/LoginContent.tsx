@@ -27,7 +27,7 @@ export default function LoginContent() {
   const [isMounted, setIsMounted] = useState(false);
   
   // Get auth context (will be handled safely with the isMounted check)
-  const { signIn, resetPassword, isLoading: authLoading } = useAuth();
+  const { signIn, resetPassword, isLoading: authLoading, user } = useAuth();
   
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -37,6 +37,24 @@ export default function LoginContent() {
   const [showResetModal, setShowResetModal] = useState(false);
   const [pandaEmotion, setPandaEmotion] = useState<'happy' | 'thinking' | 'excited' | 'confused'>('happy');
   const [pandaMessage, setPandaMessage] = useState('Welcome back! Sign in to continue your adventures.');
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user && !authLoading) {
+      router.push('/trips');
+    }
+  }, [user, authLoading, router]);
+
+  // Debug auth state
+  useEffect(() => {
+    console.log("=== LOGIN DIAGNOSTICS START ===");
+    console.log("LoginContent component loaded");
+    console.log("API Keys available:", {
+      supabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+      supabaseAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    });
+    console.log("Current auth state:", user ? "Authenticated" : "Unauthenticated");
+  }, [user]);
 
   const searchParams = useSearchParams();
   const verified = searchParams?.get('verified') === 'false';
@@ -97,44 +115,48 @@ export default function LoginContent() {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      console.log("🔍 Login started with email:", data.email);
       setIsLoading(true);
       setError(null);
       setPandaEmotion('thinking');
       setPandaMessage('Checking your credentials...');
 
-      // Check current auth state before login
-      const { data: sessionData } = await supabase.auth.getSession();
-      console.log("🔐 Current auth state before login:", {
-        hasSession: !!sessionData.session,
-        sessionExpiry: sessionData.session?.expires_at
+      console.log('🔄 Starting login process...');
+
+      // Clear any existing session first
+      await supabase.auth.signOut();
+      console.log('✅ Cleared existing session');
+      
+      // Attempt to sign in
+      console.log('🔄 Attempting to sign in...');
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
       });
 
-      console.log("📲 Calling signIn function...");
-      await signIn(data.email, data.password);
-      
-      console.log("✅ signIn completed successfully");
+      if (signInError) {
+        console.error('❌ Sign in error:', signInError);
+        throw signInError;
+      }
+
+      if (!signInData?.session) {
+        console.error('❌ No session after sign in');
+        throw new Error('Failed to get session after login');
+      }
+
+      console.log('✅ Login successful, session established');
       setPandaEmotion('excited');
       setPandaMessage("Welcome back! Let's continue planning your adventures!");
       
-      // Check auth state after login
-      const { data: newSessionData } = await supabase.auth.getSession();
-      console.log("🔐 Auth state after login:", {
-        hasSession: !!newSessionData.session,
-        sessionExpiry: newSessionData.session?.expires_at
-      });
+      // Construct the absolute URL for redirection
+      const baseUrl = window.location.origin;
+      const redirectUrl = `${baseUrl}/trips`;
+      console.log("🔄 Redirecting to:", redirectUrl);
       
-      // AuthContext will handle the redirection
-      console.log("🧭 AuthContext will handle redirection...");
-      
-      // If we're still here after 2 seconds, try a manual redirect with absolute URL
+      // Use a slight delay to allow state updates to complete
       setTimeout(() => {
-        console.log("⏱️ Manual redirect timeout triggered");
-        const baseUrl = window.location.origin;
-        console.log("🔄 LoginContent: Redirecting to absolute URL: " + baseUrl + "/trips");
-        window.location.href = baseUrl + "/trips";
-      }, 2000);
-         
+        window.location.href = redirectUrl;
+      }, 500);
+
     } catch (err: any) {
       console.error('❌ Login error:', err);
       setError(err.message || 'Invalid email or password');

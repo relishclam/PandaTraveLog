@@ -20,26 +20,13 @@ const nextConfig = {
     ],
   },
 
-  // Configure middleware to run on edge runtime
-  experimental: {
-    middleware: true,
-  },
-
-  // Optimize CSS
+  // Optimize CSS and fonts
   optimizeFonts: true,
 
-  async rewrites() {
-    return [
-      {
-        source: '/api/po/chat',
-        destination: '/api/assistant/chat',
-      }
-    ];
-  },
-  
+  // All experimental features consolidated
   experimental: {
-    esmExternals: false,
     optimizeCss: true,
+    esmExternals: false,
     turbo: {
       rules: {
         '*.js': ['swc-loader'],
@@ -47,6 +34,20 @@ const nextConfig = {
         '*.tsx': ['swc-loader'],
       },
     },
+    // Edge runtime configuration
+    runtime: 'nodejs',
+    serverActions: true,
+    serverComponentsExternalPackages: ['@supabase/supabase-js'],
+  },
+
+  // API rewrites
+  async rewrites() {
+    return [
+      {
+        source: '/api/po/chat',
+        destination: '/api/assistant/chat',
+      }
+    ];
   },
 };
 
