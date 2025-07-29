@@ -1,15 +1,23 @@
 // Service Worker for PandaTraveLog PWA
-const CACHE_NAME = 'pandatravelog-v3'; // Increment cache version
+const CACHE_NAME = 'pandatravelog-v4';
+const ASSETS_CACHE = 'assets-v4';
+const API_CACHE = 'api-v4';
 
 // Debug mode
 const DEBUG = true;
 const log = DEBUG ? console.log.bind(console, '[SW]') : () => {};
 
-// Only cache essential static assets that are NOT auth-related
-const urlsToCache = [
+// Critical assets that must be cached immediately
+const PRECACHE_ASSETS = [
+  '/',
   '/manifest.json',
+  '/apple-touch-icon.png',
   '/images/logo/logo-icon.png',
+  '/images/logo/apple-icon-180x180.png',
+  '/images/logo/android-icon-192x192.png',
+  '/favicon.ico',
   '/favicon-32x32.png',
+  '/favicon-16x16.png',
   '/images/po/emotions/happy.png',
   '/images/po/emotions/thinking.png',
   '/images/po/emotions/excited.png',

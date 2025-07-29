@@ -15,14 +15,29 @@ export const metadata: Metadata = {
   title: "PandaTraveLog - Your AI Travel Planner",
   description: "Plan your trips with PO, your friendly travel panda assistant",
   manifest: "/manifest.json",
+  applicationName: "PandaTraveLog",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "PandaTraveLog"
+    title: "PandaTraveLog",
+    startupImage: [
+      '/images/logo/apple-icon-180x180.png'
+    ]
   },
+  formatDetection: {
+    telephone: true
+  },
+  themeColor: "#f97316",
+  viewport: "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover",
   icons: {
-    icon: "/images/logo/logo-icon.png",
-    apple: "/apple-touch-icon.png"
+    icon: [
+      { url: "/images/logo/logo-icon.png", sizes: "256x256", type: "image/png" },
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }
+    ],
+    shortcut: ["/images/logo/logo-icon.png"]
   }
 };
 
