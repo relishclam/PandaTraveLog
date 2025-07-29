@@ -58,6 +58,7 @@
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/typography": "^0.5.16",
     "@types/leaflet": "^1.9.12",
-    "@types/maplibre-gl": "^1.14.0"
+    "@types/maplibre-gl": "^1.14.0",
+    "critters": "^0.0.25"
   }
 }
