@@ -168,7 +168,10 @@ export class LocationService {
   /**
    * Geocode an address or place name to coordinates
    */
-  static async geocodeAddress(address: string): Promise<GeocodingResult> {
+  /**
+ * Geocode an address or place name to coordinates
+ */
+static async geocodeAddress(address: string): Promise<GeocodingResult> {
     const defaultResult: GeocodingResult = {
       latitude: 0,
       longitude: 0,
@@ -183,12 +186,11 @@ export class LocationService {
       const cacheKey = address.toLowerCase().trim();
       const cached = this.geocodingCache.get(cacheKey);
     
-    // Return cached result if still valid
-    if (cached && (Date.now() - cached.timestamp) < this.CACHE_DURATION) {
-      return cached.data;
-    }
+      // Return cached result if still valid
+      if (cached && (Date.now() - cached.timestamp) < this.CACHE_DURATION) {
+        return cached.data;
+      }
 
-    try {
       if (!this.GEOAPIFY_API_KEY) {
         throw new Error('Geoapify API key not configured');
       }
@@ -200,54 +202,54 @@ export class LocationService {
       let attempt = 0;
 
       while (attempt < MAX_RETRIES) {
-        try {
-          const response = await fetch(
-            `https://api.geoapify.com/v1/geocode/search?text=${encodedAddress}&apiKey=${this.GEOAPIFY_API_KEY}`
-          );
+      try {
+        const response = await fetch(
+          `https://api.geoapify.com/v1/geocode/search?text=${encodedAddress}&apiKey=${this.GEOAPIFY_API_KEY}`
+        );
 
-          if (!response.ok) {
-            throw new Error(`Geocoding API error: ${response.status}`);
-          }
-
-          const data = await response.json();
-
-          if (!data.features || data.features.length === 0) {
-            throw new Error(`No results found for address: ${address}`);
-          }
-
-          const feature = data.features[0];
-          const properties = feature.properties;
-          const coordinates = feature.geometry.coordinates;
-
-          const result: GeocodingResult = {
-            latitude: coordinates[1],
-            longitude: coordinates[0],
-            city: properties.city || properties.town || properties.village || '',
-            country: properties.country || '',
-            countryCode: properties.country_code?.toUpperCase() || '',
-            region: properties.state || properties.region || '',
-            formattedAddress: properties.formatted || address
-          };
-
-          // Cache the result
-          this.geocodingCache.set(cacheKey, { data: result, timestamp: Date.now() });
-
-          return result;
-        } catch (error) {
-          attempt++;
-          console.warn(`Retrying geocoding API call (${attempt}/${MAX_RETRIES})`, error);
-          if (attempt === MAX_RETRIES) {
-            throw new Error(`Failed to geocode address: ${address} after maximum retries`);
-          }
-          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        if (!response.ok) {
+          throw new Error(`Geocoding API error: ${response.status}`);
         }
+
+        const data = await response.json();
+
+        if (!data.features || data.features.length === 0) {
+          throw new Error(`No results found for address: ${address}`);
+        }
+
+        const feature = data.features[0];
+        const properties = feature.properties;
+        const coordinates = feature.geometry.coordinates;
+
+        const result: GeocodingResult = {
+          latitude: coordinates[1],
+          longitude: coordinates[0],
+          city: properties.city || properties.town || properties.village || '',
+          country: properties.country || '',
+          countryCode: properties.country_code?.toUpperCase() || '',
+          region: properties.state || properties.region || '',
+          formattedAddress: properties.formatted || address
+        };
+
+        // Cache the result
+        this.geocodingCache.set(cacheKey, { data: result, timestamp: Date.now() });
+
+        return result;
+      } catch (error) {
+        attempt++;
+        console.warn(`Retrying geocoding API call (${attempt}/${MAX_RETRIES})`, error);
+        if (attempt === MAX_RETRIES) {
+          throw error; // Re-throw the error to be caught by outer catch
+        }
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
       }
-      
-      // Return default result if we reach this point (though we should never get here)
-      return defaultResult;
+    }
+    
+    // This line should never be reached, but TypeScript needs it
+    return defaultResult;
     } catch (error) {
       console.error('Geocoding failed:', error);
-      return defaultResult; // Return default result instead of throwing
+      return defaultResult;
     }
   }
 
