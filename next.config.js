@@ -25,17 +25,8 @@ const nextConfig = {
 
   // All experimental features consolidated
   experimental: {
-    optimizeCss: true,
-    esmExternals: false,
-    turbo: {
-      rules: {
-        '*.js': ['swc-loader'],
-        '*.ts': ['swc-loader'],
-        '*.tsx': ['swc-loader'],
-      },
-    },
-    // Edge runtime configuration
-    runtime: 'nodejs',
+    optimizeCss: false, // Disable CSS optimization which can cause issues
+    esmExternals: true, // Enable proper ESM handling
     serverActions: true,
     serverComponentsExternalPackages: ['@supabase/supabase-js'],
   },

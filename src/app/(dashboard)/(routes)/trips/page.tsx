@@ -114,10 +114,46 @@ export default function TripsPage() {
     setShowManualEntry(false);
   };
 
+  // Enhanced loading and auth check logic
+  useEffect(() => {
+    if (authLoading) return;
+    
+    const checkAuthAndFetch = async () => {
+      try {
+        // Double-check session status
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          console.log("No active session found, redirecting to login");
+          router.push('/login');
+          return;
+        }
+        
+        // If we have a session but no user in context, wait briefly and retry
+        if (!user) {
+          console.log("Session found but no user in context, waiting...");
+          setTimeout(() => {
+            if (!user) router.push('/login');
+          }, 2000);
+          return;
+        }
+        
+        // We have both session and user, fetch trips
+        await fetchTrips();
+      } catch (err) {
+        console.error("Error in auth check:", err);
+        router.push('/login');
+      }
+    };
+    
+    checkAuthAndFetch();
+  }, [user, authLoading]);
+
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mb-4"></div>
+        <div className="text-gray-600">Loading your trips...</div>
       </div>
     );
   }
@@ -125,7 +161,15 @@ export default function TripsPage() {
   if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">Please sign in to view your trips.</div>
+        <div className="text-center">
+          <div className="text-xl font-semibold mb-4">Please sign in to view your trips</div>
+          <Button
+            onClick={() => router.push('/login')}
+            className="bg-blue-500 hover:bg-blue-600 text-white"
+          >
+            Sign In
+          </Button>
+        </div>
       </div>
     );
   }
