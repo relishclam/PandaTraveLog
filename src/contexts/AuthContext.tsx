@@ -68,17 +68,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         hasPhone: !!updatedUser.phone
       });
       
-      // Update the user state
-      setUser(updatedUser);
-      
-      // Verify the state was updated
-      setTimeout(() => {
-        console.log("✅ AuthContext: User state verification:", {
-          isSet: !!user,
-          id: user?.id,
-          email: user?.email
+      // Update the user state using a callback to ensure we have the latest state
+      setUser(currentUser => {
+        // Log the state transition
+        console.log("🔄 AuthContext: User state transition:", {
+          from: currentUser?.id,
+          to: updatedUser.id
         });
-      }, 100);
+        return updatedUser;
+      });
     } catch (err) {
       console.error("❌ AuthContext: Error in updateUserState:", err);
     } finally {
@@ -180,24 +178,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           sessionExpires: session?.expires_at
         });
         
-        // Update user state first to ensure UI updates properly
-        await updateUserState(data.user);
-        
-        // Check if user state was updated correctly
-        console.log("👤 AuthContext: User state after update:", { 
-          userExists: !!user,
-          userId: user?.id,
-          userEmail: user?.email
-        });
-        
-        // Use Next.js router for navigation instead of emergency navigation
-        console.log("🔄 AuthContext: Redirecting to trips page");
-        
-        // Force a hard navigation to ensure proper page refresh
-        // Use absolute URL to avoid any path resolution issues
-        const baseUrl = window.location.origin;
-        console.log("🔄 AuthContext: Redirecting to absolute URL: " + baseUrl + "/trips");
-        window.location.href = baseUrl + "/trips";
+        try {
+          // Update user state and wait for it to complete
+          await new Promise(async (resolve) => {
+            await updateUserState(data.user);
+            // Give React a chance to update the state
+            setTimeout(resolve, 0);
+          });
+          
+          // Verify the user state after update
+          if (!user?.id) {
+            console.error("❌ AuthContext: User state not updated properly after sign in");
+            throw new Error("Failed to update user state");
+          }
+          
+          // Log successful state update
+          console.log("✅ AuthContext: User state successfully updated", { 
+            userId: user.id,
+            email: user.email
+          });
+          
+          // Use Next.js router for navigation
+          console.log("🔄 AuthContext: Redirecting to trips page");
+          router.push('/trips');
+        } catch (err) {
+          console.error("❌ AuthContext: Error in sign in process:", err);
+          throw err;
+        }
         
         return;
       } else {
