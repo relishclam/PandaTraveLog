@@ -24,8 +24,17 @@ const BYPASS_PATHS = [
   '/register',
   '/account',
   '/_next/',
-  '/auth',
-  'callback'
+  '/auth/',
+  'callback',
+  'token',
+  'logout'
+];
+
+// Additional auth-related patterns to bypass
+const AUTH_PATTERNS = [
+  /^\/auth\/v\d+\//,  // Match any versioned auth endpoints
+  /\/(login|logout|token|callback)/,  // Match auth-related paths
+  /\?token=/  // Match URLs with auth tokens
 ];
 
 // Install event - cache resources with error handling
@@ -87,6 +96,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Check for auth-related patterns
+  if (AUTH_PATTERNS.some(pattern => pattern.test(url.pathname) || pattern.test(url.search))) {
+    log('Bypassing service worker for auth request:', url.pathname);
+    return;
+  }
+
   // Only handle GET requests from our origin
   if (event.request.method !== 'GET' || url.origin !== self.location.origin) {
     return;
@@ -144,21 +159,27 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Activate event - clean up old caches
+// Activate event - clean up old caches and claim clients immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    Promise.all([
+      // Clean up old caches
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheName !== CACHE_NAME) {
+              console.log('Deleting old cache:', cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      }),
+      // Clear auth-related caches specifically
+      caches.delete('auth-cache'),
+      // Claim clients without waiting
+      self.clients.claim()
+    ])
   );
-  self.clients.claim();
 });
 
 // Push notification support (for future travel reminders)
