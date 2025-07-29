@@ -1,11 +1,11 @@
 // Service Worker for PandaTraveLog PWA
-const CACHE_NAME = 'pandatravelog-v2'; // Increment cache version
+const CACHE_NAME = 'pandatravelog-v3'; // Increment cache version
 
 // Debug mode
 const DEBUG = true;
 const log = DEBUG ? console.log.bind(console, '[SW]') : () => {};
 
-// Only cache essential static assets
+// Only cache essential static assets that are NOT auth-related
 const urlsToCache = [
   '/manifest.json',
   '/images/logo/logo-icon.png',
@@ -15,6 +15,21 @@ const urlsToCache = [
   '/images/po/emotions/excited.png',
   '/images/po/emotions/confused.png'
 ];
+
+// Function to check if a URL is auth-related
+const isAuthRelated = (url) => {
+  const authPaths = ['/login', '/register', '/auth', '/callback', '/token', '/logout'];
+  const authPatterns = [
+    /^\/auth\/v\d+\//,
+    /\/(login|logout|token|callback)/,
+    /\?token=/,
+    /\.auth\./,
+    /auth/i
+  ];
+  
+  return authPaths.some(path => url.pathname.includes(path)) ||
+         authPatterns.some(pattern => pattern.test(url.href));
+};
 
 // Critical paths that must bypass the service worker
 const BYPASS_PATHS = [
@@ -89,21 +104,32 @@ function shouldCache(url) {
 // Enhanced fetch event handler
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  
-  // Early bypass for critical paths
-  if (BYPASS_PATHS.some(path => url.pathname.startsWith(path))) {
-    log('Bypassing service worker for:', url.pathname);
+
+  // First, check if this is an auth-related request
+  if (isAuthRelated(url)) {
+    log('🔒 Auth-related request detected, bypassing service worker for:', url.pathname);
     return;
   }
 
-  // Check for auth-related patterns
-  if (AUTH_PATTERNS.some(pattern => pattern.test(url.pathname) || pattern.test(url.search))) {
-    log('Bypassing service worker for auth request:', url.pathname);
-    return;
-  }
-
-  // Only handle GET requests from our origin
+  // For non-GET requests or cross-origin requests, bypass the service worker
   if (event.request.method !== 'GET' || url.origin !== self.location.origin) {
+    return;
+  }
+
+  // For navigation requests to auth pages, unregister the service worker
+  if (event.request.mode === 'navigate' && isAuthRelated(url)) {
+    log('🔒 Navigation to auth page detected, unregistering service worker');
+    self.registration.unregister()
+      .then(() => {
+        // Reload the page without service worker
+        self.clients.matchAll().then(clients => {
+          clients.forEach(client => {
+            if (client.url === event.request.url) {
+              client.navigate(event.request.url);
+            }
+          });
+        });
+      });
     return;
   }
 
@@ -163,22 +189,27 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     Promise.all([
-      // Clean up old caches
+      // Clean up ALL caches first
       caches.keys().then((cacheNames) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
-            if (cacheName !== CACHE_NAME) {
-              console.log('Deleting old cache:', cacheName);
-              return caches.delete(cacheName);
-            }
+            console.log('Deleting cache:', cacheName);
+            return caches.delete(cacheName);
           })
         );
       }),
-      // Clear auth-related caches specifically
-      caches.delete('auth-cache'),
-      // Claim clients without waiting
-      self.clients.claim()
-    ])
+      // Then open our new cache
+      caches.open(CACHE_NAME).then(cache => {
+        console.log('Creating new cache:', CACHE_NAME);
+        return cache.addAll(urlsToCache);
+      }),
+      // Finally claim clients
+      self.clients.claim().then(() => {
+        console.log('Service worker claimed all clients');
+      })
+    ]).catch(error => {
+      console.error('Service worker activation error:', error);
+    })
   );
 });
 
