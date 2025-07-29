@@ -40,25 +40,11 @@ export default function LoginContent() {
 
   // Enhanced redirect logic with session check
   useEffect(() => {
-    const redirectIfAuthenticated = async () => {
-      try {
-        // Check if we have an active session
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session?.user && user && !authLoading) {
-          console.log("✅ Authenticated user detected, redirecting to trips page");
-          
-          // Use window.location for a hard redirect
-          const baseUrl = window.location.origin;
-          window.location.href = `${baseUrl}/trips`;
-        }
-      } catch (err) {
-        console.error("❌ Error checking authentication:", err);
-      }
-    };
-    
-    redirectIfAuthenticated();
-  }, [user, authLoading]);
+    if (user && !authLoading) {
+      console.log("✅ Authenticated user detected, redirecting to trips page");
+      router.push('/trips');
+    }
+  }, [user, authLoading, router]);
 
   // Debug auth state
   useEffect(() => {
@@ -162,15 +148,9 @@ export default function LoginContent() {
       setPandaEmotion('excited');
       setPandaMessage("Welcome back! Let's continue planning your adventures!");
       
-      // Construct the absolute URL for redirection
-      const baseUrl = window.location.origin;
-      const redirectUrl = `${baseUrl}/trips`;
-      console.log("🔄 Redirecting to:", redirectUrl);
-      
-      // Use a slight delay to allow state updates to complete
-      setTimeout(() => {
-        window.location.href = redirectUrl;
-      }, 500);
+      // Use Next.js router for client-side navigation
+      console.log("🔄 Redirecting to trips page");
+      router.push('/trips');
 
     } catch (err: any) {
       console.error('❌ Login error:', err);
