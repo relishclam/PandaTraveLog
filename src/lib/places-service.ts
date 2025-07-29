@@ -84,11 +84,14 @@ export const getPlaceSuggestions = async (
   input: string,
   options?: { country?: string; restrictToCities?: boolean }
 ): Promise<PlaceSuggestion[]> => {
-  if (!input || input.trim().length < 2) {
-    return [];
-  }
-
+  // Initialize empty array for suggestions
+  const suggestions: PlaceSuggestion[] = [];
+  
   try {
+    // Early return for invalid input
+    if (!input || input.trim().length < 2) {
+      return suggestions;
+    }
     // Use environment variable for API key
     const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
 
@@ -112,38 +115,56 @@ export const getPlaceSuggestions = async (
 
     console.log("Geocoding API URL being called:", url.replace(apiKey, '****'));
 
-    const res = await fetch(url);
+    // Retry logic for geocoding API calls
+    const MAX_RETRIES = 3;
+    let attempt = 0;
 
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      console.error(`❌ Geoapify Geocoding API error: ${res.status} ${res.statusText}`, errorData);
-      return [];
+    while (attempt < MAX_RETRIES) {
+      try {
+        const res = await fetch(url);
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          console.error(`\u274c Geoapify Geocoding API error: ${res.status} ${res.statusText}`, errorData);
+          throw new Error(`Geocoding API error: ${res.status}`);
+        }
+
+        const data = await res.json();
+
+        // Log the first result for debugging
+        if (data.features && data.features.length > 0) {
+          console.log('Sample geocode data:', JSON.stringify(data.features[0].properties, null, 2));
+        }
+
+        return (data.features || []).map((feature: any) => {
+          const props = feature.properties;
+          const coordinates = feature.geometry.coordinates;
+          return {
+            placeId: props.place_id || props.osm_id || props.datasource?.raw?.place_id || '',
+            description: props.formatted || props.name,
+            mainText: props.name || props.city || props.state || props.country,
+            secondaryText: props.country || (props.state ? `${props.state}, ${props.country || ''}` : ''),
+            types: [props.result_type || 'location'],
+            lat: coordinates[1],
+            lng: coordinates[0],
+          };
+        });
+      } catch (error) {
+        attempt++;
+        console.warn(`Retrying geocoding API call (${attempt}/${MAX_RETRIES})`, error);
+        if (attempt === MAX_RETRIES) {
+          throw new Error('Geocoding API failed after maximum retries');
+        }
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
     }
-
-    const data = await res.json();
-
-    // Log the first result for debugging
-    if (data.features && data.features.length > 0) {
-      console.log('Sample geocode data:', JSON.stringify(data.features[0].properties, null, 2));
-    }
-
-    return (data.features || []).map((feature: any) => {
-      const props = feature.properties;
-      const coordinates = feature.geometry.coordinates;
-      return {
-        placeId: props.place_id || props.place_id || props.osm_id || props.datasource?.raw?.place_id || '',
-        description: props.formatted || props.name,
-        mainText: props.name || props.city || props.state || props.country,
-        secondaryText: props.country || (props.state ? `${props.state}, ${props.country || ''}` : ''),
-        types: [props.result_type || 'location'],
-        lat: coordinates[1],
-        lng: coordinates[0],
-      };
-    });
   } catch (error) {
     console.error('Error getting place suggestions from Geoapify:', error);
     return [];
   }
+
+  // Default return in case no suggestions are found
+  return suggestions;
 };
 
 export async function getPlaceDetails(placeId: string) {
@@ -218,3 +239,5 @@ export async function getPlaceDetails(placeId: string) {
     return null;
   }
 };
+
+// Ensure a default return in case of unexpected errors

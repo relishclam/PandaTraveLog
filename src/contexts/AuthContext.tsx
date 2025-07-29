@@ -278,6 +278,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const initAuth = async () => {
       try {
+        if (mounted) {
+          console.warn("🔄 AuthContext: initAuth called multiple times");
+          return;
+        }
+
         setMounted(true);
         console.log("🔄 AuthContext: Initializing auth...");
 
@@ -311,7 +316,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log("🔄 AuthContext: Cleaning up auth listener...");
       // Clean up logic if needed
     };
-  }, []);
+  }, [mounted]);
 
   const signIn = async (email: string, password: string) => {
     console.log("🔐 AuthContext: signIn called with email:", email);
