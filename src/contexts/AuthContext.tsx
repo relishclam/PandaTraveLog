@@ -7,6 +7,8 @@ import { createClient } from '@/utils/supabase/client';
 // Initialize Supabase client for client components
 const supabase = createClient();
 
+import type { User as SupabaseUser } from '@supabase/supabase-js';
+
 type User = {
   id: string;
   email: string;
@@ -14,6 +16,18 @@ type User = {
   phone?: string;
   isPhoneVerified?: boolean;
   country?: string; // Add country of origin
+};
+
+// Helper to convert Supabase User to our User type
+function convertSupabaseUser(supabaseUser: SupabaseUser): User {
+  if (!supabaseUser.email) {
+    throw new Error('User must have an email');
+  }
+  
+  return {
+    id: supabaseUser.id,
+    email: supabaseUser.email,
+  };
 };
 
 type AuthContextType = {
@@ -29,29 +43,209 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+// Add useAuth hook
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  // This flag helps us avoid hydration mismatches
   const [mounted, setMounted] = useState(false);
+  const [authError, setAuthError] = useState<Error | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRIES = 3;
 
-  // Helper function to update user state from Supabase user
-  const updateUserState = async (supabaseUser: any) => {
-    if (!supabaseUser?.id) {
-      console.error("❌ AuthContext: Invalid user data received");
+  // Make sure we return something from the component
+  if (!mounted) {
+    return null;
+  }
+
+  // Circuit breaker state
+  const [circuitBreakerOpen, setCircuitBreakerOpen] = useState(false);
+  const [lastFailureTime, setLastFailureTime] = useState(0);
+  const CIRCUIT_BREAKER_TIMEOUT = 5000; // 5 seconds
+
+  // Function to check and reset circuit breaker
+  const checkCircuitBreaker = () => {
+    if (circuitBreakerOpen && Date.now() - lastFailureTime > CIRCUIT_BREAKER_TIMEOUT) {
+      setCircuitBreakerOpen(false);
+      setRetryCount(0);
+      return true;
+    }
+    return !circuitBreakerOpen;
+  };
+
+  // Enhanced error handling with circuit breaker
+  const handleAuthError = (error: Error) => {
+    setAuthError(error);
+    setRetryCount(prev => prev + 1);
+    
+    if (retryCount >= MAX_RETRIES) {
+      setCircuitBreakerOpen(true);
+      setLastFailureTime(Date.now());
+      console.error("🔌 Circuit breaker opened due to repeated failures:", error);
+    }
+  };
+
+  // Track auth state changes across tabs with improved sync
+  useEffect(() => {
+    if (!mounted) return;
+
+    const broadcastChannel = new BroadcastChannel('auth-sync');
+    const channel = supabase.channel('auth-sync');
+
+    // Listen for auth changes from Supabase
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log("🔄 Auth state change:", event);
+        
+        // Broadcast auth state change to other tabs
+        broadcastChannel.postMessage({ event, session });
+
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          router.push('/login');
+        } else if (event === 'SIGNED_IN' && session) {
+          await updateUserState(session.user);
+        }
+      }
+    );
+
+    // Listen for auth changes from other tabs
+    broadcastChannel.onmessage = (event) => {
+      console.log("📡 Received auth sync from another tab:", event.data);
+      if (event.data.event === 'SIGNED_OUT') {
+        setUser(null);
+      } else if (event.data.event === 'SIGNED_IN' && event.data.session) {
+        updateUserState(event.data.session.user);
+      }
+    };
+
+    return () => {
+      subscription.unsubscribe();
+      broadcastChannel.close();
+      channel.unsubscribe();
+    };
+  }, [mounted, router]);
+
+  // Enhanced user state update with retries and rollback
+  const updateUserStateInternal = async (supabaseUser: SupabaseUser) => {
+    if (!checkCircuitBreaker()) {
+      console.warn("🔌 Circuit breaker is open, skipping operation");
+      return;
+    }
+
+    // Convert the Supabase user to our User type
+    let user: User;
+    try {
+      user = convertSupabaseUser(supabaseUser);
+    } catch (err) {
+      console.error("❌ AuthContext: Invalid user data received:", err);
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
+
+    // Store previous state for rollback
+    const previousUser = user;
+    let retryAttempt = 0;
+
+    try {
+      while (retryAttempt < MAX_RETRIES) {
+        try {
+          // Optimistic update
+          setUser({
+            id: supabaseUser.id,
+            email: supabaseUser.email!,
+            name: '',
+            isPhoneVerified: false
+          });
+
+          // Fetch full profile data
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', supabaseUser.id)
+            .single();
+
+          if (profileError) throw profileError;
+
+          // Update with complete profile data
+          const updatedUser = {
+            id: supabaseUser.id,
+            email: supabaseUser.email!,
+            name: profile?.name || '',
+            phone: profile?.phone || '',
+            isPhoneVerified: profile?.is_phone_verified || false,
+            country: profile?.country || ''
+          };
+
+          setUser(updatedUser);
+          setAuthError(null);
+          setRetryCount(0);
+          console.log("✅ User state updated successfully:", {
+            id: updatedUser.id,
+            email: updatedUser.email,
+            hasProfile: !!profile
+          });
+          
+          return updatedUser;
+        } catch (error) {
+          retryAttempt++;
+          const delay = Math.min(1000 * Math.pow(2, retryAttempt), 5000);
+          
+          console.warn(`⚠️ Retry attempt ${retryAttempt}/${MAX_RETRIES} in ${delay}ms`, error);
+          
+          if (retryAttempt === MAX_RETRIES) {
+            throw error;
+          }
+          
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    } catch (error) {
+      console.error("❌ Failed to update user state:", error);
+      // Rollback to previous state
+      setUser(previousUser);
+      handleAuthError(error as Error);
+      return previousUser;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const updateUserState = async (supabaseUser: SupabaseUser) => {
+    if (!supabaseUser) {
+      console.warn("⚠️ AuthContext: No user provided to updateUserState");
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
+
+    let user: User;
+    try {
+      user = convertSupabaseUser(supabaseUser);
+    } catch (error) {
+      console.error("❌ AuthContext: Invalid user data:", error);
       setUser(null);
       setIsLoading(false);
       return;
     }
 
     try {
-      console.log("🔄 AuthContext: Updating user state for ID:", supabaseUser.id);
+      console.log("🔄 AuthContext: Updating user state for ID:", user.id);
       
+      // Fetch additional profile data
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', supabaseUser.id)
+        .eq('id', user.id)
         .single();
       
       if (error) {
@@ -59,9 +253,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Continue with basic user info even if profile fetch fails
       }
 
-      const updatedUser = {
-        id: supabaseUser.id,
-        email: supabaseUser.email!,
+      // Combine basic user info with profile data
+      const updatedUser: User = {
+        ...user,
         name: profile?.name || '',
         phone: profile?.phone || '',
         isPhoneVerified: profile?.is_phone_verified || false,
@@ -75,17 +269,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         hasPhone: !!updatedUser.phone
       });
       
-      // Update the user state using a callback to ensure we have the latest state
-      setUser(currentUser => {
-        // Log the state transition
-        console.log("🔄 AuthContext: User state transition:", {
-          from: currentUser?.id,
-          to: updatedUser.id
-        });
-        return updatedUser;
-      });
+      setUser(updatedUser);
     } catch (err) {
       console.error("❌ AuthContext: Error in updateUserState:", err);
+      setUser(null);
+      throw err; // Propagate error to allow proper error handling upstream
     } finally {
       setIsLoading(false);
     }
@@ -94,32 +282,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // This ensures we're only running this code on the client side
   useEffect(() => {
     const initAuth = async () => {
-      setMounted(true);
-      console.log("🔄 AuthContext: Initializing auth...");
-      
-      // Set up auth state listener
-      const { data: authListener } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
-        console.log("🔄 AuthContext: Auth state changed", event, !!session);
-        
-        if (event === 'SIGNED_OUT') {
-          console.log("🚪 AuthContext: User signed out");
-          setUser(null);
-          setIsLoading(false);
-          return;
-        }
-        
-        if (session?.user) {
-          console.log("👤 AuthContext: Session found, updating user state");
-          await updateUserState(session.user);
-        } else {
-          console.log("❌ AuthContext: No session found");
-          setUser(null);
-          setIsLoading(false);
-        }
-      });
-      
-      // Get initial session with better error handling
       try {
+        setMounted(true);
+        console.log("🔄 AuthContext: Initializing auth...");
+        
+        // Set up auth state listener
+        const { data: authListener } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
+          try {
+            console.log("🔄 AuthContext: Auth state changed", event, !!session);
+            
+            if (event === 'SIGNED_OUT') {
+              console.log("🚪 AuthContext: User signed out");
+              setUser(null);
+              setIsLoading(false);
+              return;
+            }
+            
+            if (session?.user) {
+              console.log("👤 AuthContext: Session found, updating user state");
+              await updateUserState(session.user);
+            } else {
+              console.log("❌ AuthContext: No session found");
+              setUser(null);
+              setIsLoading(false);
+            }
+          } catch (err) {
+            console.error("❌ AuthContext: Error in auth state change handler:", err);
+            setUser(null);
+            setIsLoading(false);
+          }
+        });
+
+        // Get initial session
         console.log("🔍 AuthContext: Getting initial session...");
         const { data: { session }, error } = await supabase.auth.getSession();
         
@@ -136,19 +330,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log("ℹ️ AuthContext: No initial session");
           setIsLoading(false);
         }
+
+        return authListener;
       } catch (err) {
-        console.error("❌ AuthContext: Exception getting initial session:", err);
+        console.error("❌ AuthContext: Exception in initAuth:", err);
         setIsLoading(false);
+        return null;
       }
-      
-      return authListener;
     };
     
     // Start the auth initialization process
-    let authListenerCleanup: any;
+    // Track auth listener for cleanup
+    let subscription: { unsubscribe: () => void } | null = null;
     
     initAuth().then(listener => {
-      authListenerCleanup = listener;
+      if (listener?.subscription) {
+        subscription = listener.subscription;
+      }
     }).catch(err => {
       console.error("❌ AuthContext: Error initializing auth:", err);
       setIsLoading(false);
@@ -156,8 +354,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     return () => {
       // Clean up the auth listener when the component unmounts
-      if (authListenerCleanup) {
-        authListenerCleanup.subscription.unsubscribe();
+      if (subscription) {
+        try {
+          subscription.unsubscribe();
+        } catch (error) {
+          console.error("❌ AuthContext: Error cleaning up auth listener:", error);
+        }
       }
     };
   }, []);
@@ -166,14 +368,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log("🔐 AuthContext: signIn called with email:", email);
     setIsLoading(true);
     
-    // Clear any existing session first
-    await supabase.auth.signOut();
-    
     try {
       console.log("📡 AuthContext: Calling Supabase auth...");
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password,
+        password
       });
       
       if (error) {
@@ -403,12 +602,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 };

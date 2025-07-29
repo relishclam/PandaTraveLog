@@ -40,11 +40,30 @@ export default function LoginContent() {
 
   // Enhanced redirect logic with session check
   useEffect(() => {
+    const checkAndRedirect = async () => {
+      try {
+        // Check if we already have a valid session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Session check error:', error);
+          return;
+        }
+
+        if (session?.user && !authLoading) {
+          console.log("✅ Valid session detected, redirecting to trips page");
+          // Use window.location.href for a clean navigation
+          window.location.href = '/trips';
+        }
+      } catch (err) {
+        console.error('Error checking session:', err);
+      }
+    };
+
     if (user && !authLoading) {
-      console.log("✅ Authenticated user detected, redirecting to trips page");
-      router.push('/trips');
+      checkAndRedirect();
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading]);
 
   // Debug auth state
   useEffect(() => {
@@ -122,16 +141,12 @@ export default function LoginContent() {
       setPandaMessage('Checking your credentials...');
 
       console.log('🔄 Starting login process...');
-
-      // Clear any existing session first
-      await supabase.auth.signOut();
-      console.log('✅ Cleared existing session');
       
-      // Attempt to sign in
+      // Attempt to sign in without clearing existing session
       console.log('🔄 Attempting to sign in...');
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email: data.email,
-        password: data.password,
+        password: data.password
       });
 
       if (signInError) {
