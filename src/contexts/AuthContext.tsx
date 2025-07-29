@@ -61,11 +61,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [retryCount, setRetryCount] = useState(0);
   const MAX_RETRIES = 3;
 
-  // Make sure we return something from the component
-  if (!mounted) {
-    return null;
-  }
-
   // Circuit breaker state
   const [circuitBreakerOpen, setCircuitBreakerOpen] = useState(false);
   const [lastFailureTime, setLastFailureTime] = useState(0);
@@ -313,21 +308,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }
         });
 
-        // Get initial session
-        console.log("🔍 AuthContext: Getting initial session...");
-        const { data: { session }, error } = await supabase.auth.getSession();
+        // Get authenticated user instead of session
+        console.log("🔍 AuthContext: Getting authenticated user...");
+        const { data: { user: authUser }, error } = await supabase.auth.getUser();
         
         if (error) {
-          console.error("❌ AuthContext: Error getting initial session:", error);
+          console.error("❌ AuthContext: Error getting authenticated user:", error);
           setIsLoading(false);
           return authListener;
         }
         
-        if (session?.user) {
-          console.log("✅ AuthContext: Initial session found");
-          await updateUserState(session.user);
+        if (authUser) {
+          console.log("✅ AuthContext: Authenticated user found");
+          await updateUserState(authUser);
         } else {
-          console.log("ℹ️ AuthContext: No initial session");
+          console.log("ℹ️ AuthContext: No authenticated user");
           setIsLoading(false);
         }
 
@@ -585,7 +580,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   // Pass the real authentication state but prevent hydration mismatches
-  // We use the mounted flag just for client-side effects, not for altering the API
   const value = {
     user,
     isLoading, 
@@ -596,6 +590,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     updateUserCountry,
     resetPassword
   };
+
+  // Don't render children until client-side mount is complete
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <AuthContext.Provider value={value}>
