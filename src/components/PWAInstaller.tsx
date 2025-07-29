@@ -49,7 +49,8 @@ export default function PWAInstaller() {
 
     // Register service worker
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', async () => {
+      // Use an IIFE for async service worker registration
+      (async () => {
         try {
           const registration = await navigator.serviceWorker.register('/sw.js', {
             scope: '/'
@@ -58,7 +59,7 @@ export default function PWAInstaller() {
         } catch (error) {
           console.error('❌ SW registration failed: ', error);
         }
-      });
+      })();
     }
 
     // Listen for the beforeinstallprompt event
@@ -93,7 +94,12 @@ export default function PWAInstaller() {
       const shouldAutoPrompt = window.location.pathname === '/trips' || 
                               window.location.pathname === '/';
       
-      if (shouldAutoPrompt && deferredPromptRef.current && !recentlyDismissed) {
+      // Don't show prompt on auth-related pages to prevent loops
+      const isAuthPage = window.location.pathname.includes('/auth') || 
+                        window.location.pathname.includes('/login') ||
+                        window.location.pathname.includes('/signup');
+      
+      if (shouldAutoPrompt && !isAuthPage && deferredPromptRef.current && !recentlyDismissed) {
         console.log('Auto-showing installation prompt');
         handleInstallClick();
       }
