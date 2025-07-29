@@ -276,10 +276,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // This ensures we're only running this code on the client side
   useEffect(() => {
+    let isSubscribed = true;
+
     const initAuth = async () => {
       try {
+        // Skip if already mounted
         if (mounted) {
-          console.warn("🔄 AuthContext: initAuth called multiple times");
+          return;
+        }
+
+        // Skip if no longer subscribed
+        if (!isSubscribed) {
           return;
         }
 
@@ -313,10 +320,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     initAuth();
 
     return () => {
+      isSubscribed = false;
       console.log("🔄 AuthContext: Cleaning up auth listener...");
-      // Clean up logic if needed
     };
-  }, [mounted]);
+  }, []); // Remove mounted from dependencies
 
   const signIn = async (email: string, password: string) => {
     console.log("🔐 AuthContext: signIn called with email:", email);
