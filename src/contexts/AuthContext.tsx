@@ -280,42 +280,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         setMounted(true);
         console.log("🔄 AuthContext: Initializing auth...");
-        
-        // Set up auth state listener
-        const { data: authListener } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
-          try {
-            console.log("🔄 AuthContext: Auth state changed", event, !!session);
-            
-            if (event === 'SIGNED_OUT') {
-              console.log("🚪 AuthContext: User signed out");
-              setUser(null);
-              setIsLoading(false);
-              return;
-            }
-            
-            if (session?.user) {
-              console.log("👤 AuthContext: Session found, updating user state");
-              await updateUserState(session.user);
-            } else {
-              console.log("❌ AuthContext: No session found");
-              setUser(null);
-              setIsLoading(false);
-            }
-          } catch (err) {
-            console.error("❌ AuthContext: Error in auth state change handler:", err);
-            setUser(null);
-            setIsLoading(false);
-          }
-        });
 
         // Get authenticated user instead of session
-        console.log("🔍 AuthContext: Getting authenticated user...");
         const { data: { user: authUser }, error } = await supabase.auth.getUser();
         
         if (error) {
           console.error("❌ AuthContext: Error getting authenticated user:", error);
           setIsLoading(false);
-          return authListener;
+          return;
         }
         
         if (authUser) {
@@ -323,39 +295,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           await updateUserState(authUser);
         } else {
           console.log("ℹ️ AuthContext: No authenticated user");
+          setUser(null);
           setIsLoading(false);
         }
-
-        return authListener;
       } catch (err) {
         console.error("❌ AuthContext: Exception in initAuth:", err);
+        setUser(null);
         setIsLoading(false);
-        return null;
       }
     };
-    
-    // Start the auth initialization process
-    // Track auth listener for cleanup
-    let subscription: { unsubscribe: () => void } | null = null;
-    
-    initAuth().then(listener => {
-      if (listener?.subscription) {
-        subscription = listener.subscription;
-      }
-    }).catch(err => {
-      console.error("❌ AuthContext: Error initializing auth:", err);
-      setIsLoading(false);
-    });
-    
+
+    initAuth();
+
     return () => {
-      // Clean up the auth listener when the component unmounts
-      if (subscription) {
-        try {
-          subscription.unsubscribe();
-        } catch (error) {
-          console.error("❌ AuthContext: Error cleaning up auth listener:", error);
-        }
-      }
+      console.log("🔄 AuthContext: Cleaning up auth listener...");
+      // Clean up logic if needed
     };
   }, []);
 
