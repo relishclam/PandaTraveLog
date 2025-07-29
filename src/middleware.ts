@@ -72,30 +72,32 @@ export async function middleware(request: NextRequest) {
     
     // Enhanced redirect handling for authenticated users on auth pages
     if (isAuthPath && hasSession) {
-      console.log('[MIDDLEWARE] Auth page accessed with active session, redirecting to trips');
+      console.log('[MIDDLEWARE] Auth page accessed with active session');
       
       // Get the referrer to handle back navigation properly
       const referrer = request.headers.get('referer');
       const isFromProtectedPath = referrer && protectedPaths.some(path => referrer.includes(path));
       
-      // If coming from a protected path, don't redirect to prevent loops
-      if (isFromProtectedPath) {
-        console.log('[MIDDLEWARE] Request from protected path, skipping redirect');
-        return response;
+      // If this is a direct access to the login page and we have a session
+      if (!isFromProtectedPath && url.pathname === '/login') {
+        console.log('[MIDDLEWARE] Direct access to login with session, redirecting to trips');
+        
+        // Use a more direct approach for redirection with absolute URL
+        const baseUrl = new URL(request.url).origin;
+        const redirectUrl = new URL('/trips', baseUrl);
+        console.log(`[MIDDLEWARE] Redirecting to absolute URL: ${redirectUrl.toString()}`);
+        
+        // Set cache control headers to prevent caching of the redirect
+        const redirectResponse = NextResponse.redirect(redirectUrl);
+        redirectResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        redirectResponse.headers.set('Pragma', 'no-cache');
+        redirectResponse.headers.set('Expires', '0');
+        
+        // Add a custom header to track redirects
+        redirectResponse.headers.set('X-Auth-Redirect', 'true');
+        
+        return redirectResponse;
       }
-      
-      // Use a more direct approach for redirection with absolute URL
-      const baseUrl = new URL(request.url).origin;
-      const redirectUrl = new URL('/trips', baseUrl);
-      console.log(`[MIDDLEWARE] Redirecting to absolute URL: ${redirectUrl.toString()}`);
-      
-      // Set cache control headers to prevent caching of the redirect
-      const redirectResponse = NextResponse.redirect(redirectUrl);
-      redirectResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-      redirectResponse.headers.set('Pragma', 'no-cache');
-      redirectResponse.headers.set('Expires', '0');
-      
-      return redirectResponse;
     }
     
     return response;

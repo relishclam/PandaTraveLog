@@ -38,12 +38,27 @@ export default function LoginContent() {
   const [pandaEmotion, setPandaEmotion] = useState<'happy' | 'thinking' | 'excited' | 'confused'>('happy');
   const [pandaMessage, setPandaMessage] = useState('Welcome back! Sign in to continue your adventures.');
 
-  // Redirect if already logged in
+  // Enhanced redirect logic with session check
   useEffect(() => {
-    if (user && !authLoading) {
-      router.push('/trips');
-    }
-  }, [user, authLoading, router]);
+    const redirectIfAuthenticated = async () => {
+      try {
+        // Check if we have an active session
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user && user && !authLoading) {
+          console.log("✅ Authenticated user detected, redirecting to trips page");
+          
+          // Use window.location for a hard redirect
+          const baseUrl = window.location.origin;
+          window.location.href = `${baseUrl}/trips`;
+        }
+      } catch (err) {
+        console.error("❌ Error checking authentication:", err);
+      }
+    };
+    
+    redirectIfAuthenticated();
+  }, [user, authLoading]);
 
   // Debug auth state
   useEffect(() => {

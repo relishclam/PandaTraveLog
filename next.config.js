@@ -25,10 +25,20 @@ const nextConfig = {
 
   // All experimental features consolidated
   experimental: {
-    optimizeCss: false, // Disable CSS optimization which can cause issues
-    esmExternals: true, // Enable proper ESM handling
+    esmExternals: true,
     serverActions: true,
     serverComponentsExternalPackages: ['@supabase/supabase-js'],
+  },
+
+  // Enable SWC minification for better performance
+  swcMinify: true,
+
+  // Configure compiler options
+  compiler: {
+    // Remove console.logs in production
+    removeConsole: process.env.NODE_ENV === 'production' ? {
+      exclude: ['error', 'warn'],
+    } : false,
   },
 
   // API rewrites
