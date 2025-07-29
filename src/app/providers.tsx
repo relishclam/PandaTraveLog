@@ -30,32 +30,42 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}> {
   }
 }
 
+// Memoize providers to prevent unnecessary re-renders
+const MemoizedErrorBoundary = React.memo(ErrorBoundary);
+
 export function Providers({ children }: { children: React.ReactNode }) {
   // Add global error handler
   useEffect(() => {
-    // Set up error handler
     const handleError = (event: ErrorEvent) => {
       console.error("🔴 Global error:", event.error);
     };
 
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      console.error("🔴 Unhandled Promise rejection:", event.reason);
+    };
+
     window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
     console.log("🔧 Global error handlers installed");
     
     return () => {
       window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };
   }, []);
 
   // Only include the GlobalPOAssistant once at the root level
   // and make sure it's not duplicated in any child components
+  const memoizedChildren = React.useMemo(() => children, [children]);
+  
   return (
-    <ErrorBoundary>
+    <MemoizedErrorBoundary>
       <AuthProvider>
         <POAssistantProvider>
-          {children}
+          {memoizedChildren}
           <GlobalPOAssistant />
         </POAssistantProvider>
       </AuthProvider>
-    </ErrorBoundary>
+    </MemoizedErrorBoundary>
   );
 }

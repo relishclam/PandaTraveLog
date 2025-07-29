@@ -46,10 +46,12 @@ const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
   const [newCompanion, setNewCompanion] = useState<Partial<CompanionProps>>({});
   const [editingCompanion, setEditingCompanion] = useState<CompanionProps | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   
-  // 🔥 FIXED: Remove isLoading from dependencies to prevent infinite loop
+  // 🔥 FIXED: Remove isLoading from dependencies and add proper auth check
   const fetchCompanions = useCallback(async () => {
+    if (authLoading || !user) return;
+    
     setIsLoading(true);
     setError(null);
     
@@ -76,10 +78,11 @@ const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
   
   // 🔥 FIXED: Use fetchCompanions directly since it's properly memoized
   useEffect(() => {
-    if (tripId) {
+    // Only fetch if we have both tripId and authenticated user
+    if (tripId && user && !authLoading) {
       fetchCompanions();
     }
-  }, [tripId, fetchCompanions]); // 🔥 FIXED: Added fetchCompanions back since it's stable now
+  }, [tripId, fetchCompanions, user, authLoading]); // 🔥 FIXED: Added proper auth dependencies
   
   const handleAddOrUpdateCompanion = async () => {
     try {
@@ -188,7 +191,8 @@ const CompanionsList: React.FC<CompanionsListProps> = ({ tripId }) => {
     toast.success(`${label} copied to clipboard`);
   };
   
-  if (isLoading) {
+  // Show loading state for either auth or data loading
+  if (authLoading || isLoading) {
     return (
       <Card>
         <CardHeader>

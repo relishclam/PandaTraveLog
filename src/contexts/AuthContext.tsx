@@ -38,6 +38,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Helper function to update user state from Supabase user
   const updateUserState = async (supabaseUser: any) => {
+    if (!supabaseUser?.id) {
+      console.error("❌ AuthContext: Invalid user data received");
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       console.log("🔄 AuthContext: Updating user state for ID:", supabaseUser.id);
       
@@ -158,6 +165,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (email: string, password: string) => {
     console.log("🔐 AuthContext: signIn called with email:", email);
     setIsLoading(true);
+    
+    // Clear any existing session first
+    await supabase.auth.signOut();
+    
     try {
       console.log("📡 AuthContext: Calling Supabase auth...");
       const { data, error } = await supabase.auth.signInWithPassword({

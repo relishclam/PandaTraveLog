@@ -19,19 +19,32 @@ export async function middleware(request: NextRequest) {
     // First update the session using the new middleware pattern
     const response = await updateSession(request);
     
-    // Check for Supabase auth cookies with correct naming pattern
+    // Enhanced session detection with proper type safety
     const allCookies = request.cookies.getAll();
     const authCookies = allCookies.filter(cookie => 
       cookie.name.startsWith('sb-') && 
       (cookie.name.includes('access-token') || cookie.name.includes('refresh-token'))
     );
+
+    const accessTokenCookie = authCookies.find(cookie => 
+      cookie.name.includes('access-token')
+    );
+    const refreshTokenCookie = authCookies.find(cookie => 
+      cookie.name.includes('refresh-token')
+    );
     
-    // More reliable session check - look for any valid auth cookies
-    const hasSession = authCookies.length > 0 && authCookies.some(cookie => cookie.value && cookie.value.length > 10);
+    // Validate both access and refresh tokens exist and have valid lengths
+    const hasValidAccessToken = accessTokenCookie?.value && accessTokenCookie.value.length > 10;
+    const hasValidRefreshToken = refreshTokenCookie?.value && refreshTokenCookie.value.length > 10;
+    const hasSession = hasValidAccessToken && hasValidRefreshToken;
     
     // Debug cookie information
     console.log(`[MIDDLEWARE] Auth cookies found: ${authCookies.length}`, 
-      authCookies.map(c => ({ name: c.name, hasValue: !!c.value, length: c.value?.length || 0 })));
+      authCookies.map((c: { name: string; value: string }) => ({ 
+        name: c.name, 
+        hasValue: !!c.value, 
+        length: c.value?.length || 0 
+      })));
     console.log(`[MIDDLEWARE] Session detected: ${hasSession}`);
     
     // Check if the current path is protected
@@ -57,12 +70,19 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
     
-    // If the user is logged in and trying to access an auth page, redirect to trips
+    // Enhanced redirect handling for authenticated users on auth pages
     if (isAuthPath && hasSession) {
       console.log('[MIDDLEWARE] Auth page accessed with active session, redirecting to trips');
       
-      // Add a small delay to ensure cookies are properly set
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Get the referrer to handle back navigation properly
+      const referrer = request.headers.get('referer');
+      const isFromProtectedPath = referrer && protectedPaths.some(path => referrer.includes(path));
+      
+      // If coming from a protected path, don't redirect to prevent loops
+      if (isFromProtectedPath) {
+        console.log('[MIDDLEWARE] Request from protected path, skipping redirect');
+        return response;
+      }
       
       // Use a more direct approach for redirection with absolute URL
       const baseUrl = new URL(request.url).origin;
