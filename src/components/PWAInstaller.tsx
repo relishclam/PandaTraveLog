@@ -121,42 +121,42 @@ export default function PWAInstaller(): JSX.Element | null {
 
     // Handle installation prompt events in a separate effect
     const handleBeforeInstallPrompt = (e: Event) => {
-      console.log('🔔 beforeinstallprompt event fired');
-      
-      // Ensure event is the correct type
-      if (!(e instanceof Event && 'prompt' in e)) {
-        console.error('Invalid install prompt event received');
-        return;
-      }
-      
-      const beforeInstallPromptEvent = e as BeforeInstallPromptEvent;
-      
-      // Prevent Chrome 76+ from automatically showing the prompt
-      e.preventDefault();
-      
-      // Don't show if recently dismissed
-      if (isDismissed) {
-        console.log('Install prompt was dismissed recently, not showing');
-        return;
-      }
-      
-      // Save the event for later use
-      deferredPromptRef.current = beforeInstallPromptEvent;
-      setDeferredPrompt(beforeInstallPromptEvent);
-      
-      // Only show the install button if we're not on an auth page
-      const isAuthPage = window.location.pathname.includes('/auth') || 
-                        window.location.pathname.includes('/login') ||
-                        window.location.pathname.includes('/signup');
-      
-      if (!isAuthPage) {
-        setShowInstallButton(true);
-        // Delay auto-prompt to avoid interference with auth flows
-        if (window.location.pathname === '/trips') {
-          setTimeout(() => handleInstallClick(), 5000);
-        }
-      }
-    };
+  console.log('🔔 beforeinstallprompt event fired');
+  
+  // Ensure event is the correct type
+  if (!(e instanceof Event && 'prompt' in e)) {
+    console.error('Invalid install prompt event received');
+    return;
+  }
+  
+  const beforeInstallPromptEvent = e as BeforeInstallPromptEvent;
+  
+  // Prevent Chrome 76+ from automatically showing the prompt
+  e.preventDefault();
+  
+  // Don't show if recently dismissed
+  if (isDismissed) {
+    console.log('Install prompt was dismissed recently, not showing');
+    return;
+  }
+  
+  // Save the event for later use
+  deferredPromptRef.current = beforeInstallPromptEvent;
+  setDeferredPrompt(beforeInstallPromptEvent);
+  
+  // Only show the install button if we're not on an auth page
+  const isAuthPage = window.location.pathname.includes('/auth') || 
+                    window.location.pathname.includes('/login') ||
+                    window.location.pathname.includes('/signup');
+  
+  if (!isAuthPage) {
+    setShowInstallButton(true);
+    // Remove the auto-prompt that might be causing issues
+    // if (window.location.pathname === '/trips') {
+    //   setTimeout(() => handleInstallClick(), 5000);
+    // }
+  }
+};
     
     // Register the event listener
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);

@@ -151,42 +151,58 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Only setup once
     if (typeof window === 'undefined') return;
     
-    const broadcastChannel = new BroadcastChannel('auth-sync');
-    const channel = supabase.channel('auth-sync');
+    let broadcastChannel: BroadcastChannel | null = null;
+    let channel: any = null;
 
-    // Listen for auth changes from Supabase
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('🔄 Auth state change:', event);
-        
-        if (event === 'SIGNED_OUT') {
-          setUser(null);
-          // Only handle state update, signOut function handles navigation
-        } else if (event === 'SIGNED_IN' && session) {
-          // Just update the user state, signIn function handles navigation
-          await updateUserState(session.user);
+    try {
+      broadcastChannel = new BroadcastChannel('auth-sync');
+      channel = supabase.channel('auth-sync');
+
+      // Listen for auth changes from Supabase
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          console.log('🔄 Auth state change:', event);
+          
+          if (event === 'SIGNED_OUT') {
+            setUser(null);
+            // Only handle state update, signOut function handles navigation
+          } else if (event === 'SIGNED_IN' && session) {
+            // Just update the user state, signIn function handles navigation
+            await updateUserState(session.user);
+          }
+          
+          // Broadcast auth state change to other tabs
+          if (broadcastChannel) {
+            broadcastChannel.postMessage({ event, session });
+          }
         }
-        
-        // Broadcast auth state change to other tabs
-        broadcastChannel.postMessage({ event, session });
-      }
-    );
+      );
 
-    // Listen for auth changes from other tabs
-    broadcastChannel.onmessage = (event) => {
-      if (event.data.event === 'SIGNED_OUT') {
-        setUser(null);
-      } else if (event.data.event === 'SIGNED_IN' && event.data.session) {
-        updateUserState(event.data.session.user);
+      // Listen for auth changes from other tabs
+      if (broadcastChannel) {
+        broadcastChannel.onmessage = (event) => {
+          if (event.data.event === 'SIGNED_OUT') {
+            setUser(null);
+          } else if (event.data.event === 'SIGNED_IN' && event.data.session) {
+            updateUserState(event.data.session.user);
+          }
+        };
       }
-    };
 
-    return () => {
-      subscription.unsubscribe();
-      broadcastChannel.close();
-      channel.unsubscribe();
-    };
-  }, [router]);
+      return () => {
+        subscription.unsubscribe();
+        if (broadcastChannel) {
+          broadcastChannel.close();
+        }
+        if (channel) {
+          channel.unsubscribe();
+        }
+      };
+    } catch (error) {
+      console.error('Error setting up auth listeners:', error);
+      return () => {}; // Return empty cleanup function
+    }
+  }, []); // Remove router dependency to prevent re-initialization
 
   // Initialize auth once on component mount
   useEffect(() => {
@@ -194,64 +210,77 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (isInitialized.current || typeof window === 'undefined') return;
     
     const initAuth = async () => {
-      try {
-        // Mark as initialized immediately to prevent duplicate calls
-        isInitialized.current = true;
-        
-        const { data: { user: authUser }, error } = await supabase.auth.getUser();
-        
-        if (error) {
-          console.error("Error getting authenticated user:", error);
-          setIsLoading(false);
-          return;
-        }
-        
-        if (authUser) {
-          await updateUserState(authUser);
-        } else {
-          setUser(null);
-          setIsLoading(false);
-        }
-      } catch (err) {
-        console.error("Exception in initAuth:", err);
+  try {
+    // Mark as initialized immediately to prevent duplicate calls
+    isInitialized.current = true;
+    
+    // First check if we have a session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError) {
+      console.error("Error getting session:", sessionError);
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
+
+    if (session?.user) {
+      // We have a valid session
+      await updateUserState(session.user);
+    } else {
+      // No session - try to get user anyway (for cases where session might be stale)
+      const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError && userError.message !== 'Auth session missing!') {
+        console.error("Error getting authenticated user:", userError);
+      }
+      
+      if (authUser) {
+        await updateUserState(authUser);
+      } else {
         setUser(null);
         setIsLoading(false);
       }
-    };
+    }
+  } catch (err) {
+    console.error("Exception in initAuth:", err);
+    setUser(null);
+    setIsLoading(false);
+  }
+};
 
     initAuth();
   }, []); // Empty dependency array ensures this runs once
 
   const signIn = async (email: string, password: string) => {
-    setIsLoading(true);
+  setIsLoading(true);
+  
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
     
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+    if (error) throw error;
+    
+    if (data.session && data.user) {
+      console.log('🔐 Sign in successful, updating user state');
+      await updateUserState(data.user);
       
-      if (error) throw error;
-      
-      if (data.session) {
-        console.log('🔐 Sign in successful, updating user state');
-        await updateUserState(data.user);
-        // Ensure session persistence
-        await supabase.auth.setSession(data.session);
-        console.log('📍 Redirecting to dashboard');
-        // Use window.location for a full page reload to ensure clean state
-        window.location.href = '/trips';
-        return;
-      } else {
-        throw new Error("No session data returned from authentication");
-      }
-    } catch (error: any) {
-      console.error('Error signing in:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
+      // Use router.push instead of window.location to prevent hard refresh
+      console.log('📍 Redirecting to dashboard');
+      router.push('/trips');
+      return;
+    } else {
+      throw new Error("No session data returned from authentication");
     }
-  };
+  } catch (error: any) {
+    console.error('Error signing in:', error);
+    throw error;
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const signUp = async (email: string, password: string, name: string, phone?: string) => {
     setIsLoading(true);

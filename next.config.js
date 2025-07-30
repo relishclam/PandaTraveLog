@@ -26,7 +26,6 @@ const nextConfig = {
   // All experimental features consolidated
   experimental: {
     esmExternals: true,
-    // serverActions: true, ← REMOVED - Server Actions are enabled by default in Next.js 14+
     serverComponentsExternalPackages: ['@supabase/supabase-js'],
   },
 
