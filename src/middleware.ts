@@ -18,9 +18,17 @@ export async function middleware(request: NextRequest) {
     url.pathname.startsWith('/images/') ||
     url.pathname === '/favicon.ico' ||
     url.pathname === '/sw.js' ||
-    url.pathname === '/manifest.json'
+    url.pathname === '/manifest.json' ||
+    url.pathname.startsWith('/android-chrome-') ||
+    url.pathname.startsWith('/apple-touch-') ||
+    url.pathname.startsWith('/favicon-')
   ) {
-    return NextResponse.next();
+    const response = NextResponse.next();
+    // Ensure PWA assets are properly cached
+    if (url.pathname === '/sw.js' || url.pathname === '/manifest.json') {
+      response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
+    }
+    return response;
   }
 
   try {
@@ -92,26 +100,25 @@ export async function middleware(request: NextRequest) {
       if (process.env.NODE_ENV === 'development') {
         console.log('[MIDDLEWARE] Protected path accessed without session, redirecting to login');
       }
-      const redirectResponse = NextResponse.redirect(new URL('/login', request.url));
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('returnUrl', url.pathname);
+      const redirectResponse = NextResponse.redirect(loginUrl);
       redirectResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
       return redirectResponse;
     }
     
     // Enhanced redirect handling for authenticated users on auth pages
     if (isAuthPath && hasSession) {
-      // Prevent redirect loops by checking if we're already being redirected
-      const isRedirectRequest = request.headers.get('X-Auth-Redirect') === 'true';
+      // Get the return URL or default to /trips
+      const returnUrl = url.searchParams.get('returnUrl') || '/trips';
       
-      if (!isRedirectRequest) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[MIDDLEWARE] Auth page accessed with session, redirecting to trips');
-        }
-        
-        const redirectResponse = NextResponse.redirect(new URL('/trips', request.url));
-        redirectResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-        redirectResponse.headers.set('X-Auth-Redirect', 'true');
-        return redirectResponse;
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[MIDDLEWARE] Auth page accessed with session, redirecting to ${returnUrl}`);
       }
+      
+      const redirectResponse = NextResponse.redirect(new URL(returnUrl, request.url));
+      redirectResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+      return redirectResponse;
     }
     
     return response;
