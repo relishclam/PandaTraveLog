@@ -161,16 +161,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         if (event === 'SIGNED_OUT') {
           setUser(null);
-          // Only redirect to login if we're not already there
-          if (!window.location.pathname.includes('/login')) {
-            router.push('/login');
-          }
+          // Only handle state update, signOut function handles navigation
         } else if (event === 'SIGNED_IN' && session) {
+          // Just update the user state, signIn function handles navigation
           await updateUserState(session.user);
-          // If we're on the login page, redirect to trips
-          if (window.location.pathname.includes('/login')) {
-            router.push('/trips');
-          }
         }
         
         // Broadcast auth state change to other tabs
@@ -240,8 +234,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (error) throw error;
       
       if (data.session) {
+        console.log('🔐 Sign in successful, updating user state');
         await updateUserState(data.user);
-        router.push('/trips');
+        // Ensure session persistence
+        await supabase.auth.setSession(data.session);
+        console.log('📍 Redirecting to dashboard');
+        // Use window.location for a full page reload to ensure clean state
+        window.location.href = '/trips';
         return;
       } else {
         throw new Error("No session data returned from authentication");
@@ -356,12 +355,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       await supabase.auth.signOut();
       setUser(null);
-      router.push('/');
+      // Use window.location for consistent navigation behavior
+      window.location.href = '/login';
     } catch (error) {
       console.error('Error signing out:', error);
       // Even if sign out fails, clear user state and redirect
       setUser(null);
-      router.push('/');
+      window.location.href = '/login';
     } finally {
       setIsLoading(false);
     }
