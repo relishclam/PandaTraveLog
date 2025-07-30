@@ -166,25 +166,32 @@ export default function LoginContent() {
       // Enhanced redirect with session verification
       console.log('🔄 Starting redirect process...');
       
-      // Wait a moment for session to be fully established
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Verify session one more time
-      const { data: { session: verifiedSession } } = await supabase.auth.getSession();
-      if (!verifiedSession) {
-        console.error('❌ Session verification failed before redirect');
-        throw new Error('Session verification failed');
+      try {
+        // Verify session immediately after login
+        const { data: { session: verifiedSession } } = await supabase.auth.getSession();
+        if (!verifiedSession) {
+          console.error('❌ Session verification failed');
+          throw new Error('Session verification failed');
+        }
+        
+        console.log('✅ Session verified, preparing redirect');
+        
+        // Construct redirect URL with auth parameters
+        const returnUrl = searchParams?.get('returnUrl') || '/trips';
+        const redirectUrl = new URL(returnUrl, window.location.origin);
+        
+        // Add auth parameters
+        redirectUrl.searchParams.set('fromAuthAction', 'true');
+        redirectUrl.searchParams.set('auth_time', Date.now().toString());
+        
+        // Force reload to ensure fresh state
+        console.log("✈️ Redirecting to:", redirectUrl.toString());
+        window.location.replace(redirectUrl.toString());
+      } catch (redirectError) {
+        console.error('❌ Redirect error:', redirectError);
+        // Fallback to trips page on error
+        window.location.replace('/trips');
       }
-      
-      // Add fromAuthAction flag for middleware
-      const returnUrl = searchParams?.get('returnUrl') || '/trips';
-      const redirectUrl = new URL(returnUrl, window.location.origin);
-      redirectUrl.searchParams.set('fromAuthAction', 'true');
-      redirectUrl.searchParams.set('auth_time', Date.now().toString());
-      
-      // Use window.location for a clean navigation that will hit middleware
-      console.log("✈️ Redirecting to:", redirectUrl.toString());
-      window.location.href = redirectUrl.toString();
 
     } catch (err: any) {
       console.error('❌ Login error:', err);

@@ -29,51 +29,51 @@ export default function PWAInstaller(): JSX.Element | null {
     
     // Ensure we have a valid prompt event
     if (deferredPrompt) {
-    promptEvent = deferredPrompt;
-  } else if (deferredPromptRef.current) {
-    promptEvent = deferredPromptRef.current;
-    setDeferredPrompt(deferredPromptRef.current);
-  }
-  
-  if (!promptEvent) {
-    console.warn('No installation prompt available');
-    setShowInstallButton(false);
-    return;
-  }
-  
-  try {
-    console.log('📱 Showing installation prompt');
-    
-    // Show the installation prompt
-    await promptEvent.prompt();
-    
-    // Wait for the user to respond to the prompt
-    const { outcome } = await promptEvent.userChoice;
-    console.log(`📝 User ${outcome} the installation prompt`);
-    
-    if (outcome === 'dismissed') {
-      try {
-        localStorage.setItem(INSTALL_PROMPT_STATUS_KEY, JSON.stringify({
-          dismissed: true,
-          timestamp: Date.now()
-        }));
-        setRecentlyDismissed(true);
-      } catch (e) {
-        console.error('Failed to save install prompt status:', e);
-        // If we can't save the status, still hide the prompt
-        setShowInstallButton(false);
-      }
+      promptEvent = deferredPrompt;
+    } else if (deferredPromptRef.current) {
+      promptEvent = deferredPromptRef.current;
+      setDeferredPrompt(deferredPromptRef.current);
     }
     
-    // Always clean up after user interaction
-    deferredPromptRef.current = null;
-    setDeferredPrompt(null);
-    setShowInstallButton(false);
+    if (!promptEvent) {
+      console.warn('No installation prompt available');
+      setShowInstallButton(false);
+      return;
+    }
     
-  } catch (error) {
-    console.error('Error showing installation prompt:', error);
-    setShowInstallButton(false);
-  }
+    try {
+      console.log('📱 Showing installation prompt');
+      
+      // Show the installation prompt
+      await promptEvent.prompt();
+      
+      // Wait for the user to respond to the prompt
+      const { outcome } = await promptEvent.userChoice;
+      console.log(`📝 User ${outcome} the installation prompt`);
+      
+      if (outcome === 'dismissed') {
+        try {
+          localStorage.setItem(INSTALL_PROMPT_STATUS_KEY, JSON.stringify({
+            dismissed: true,
+            timestamp: Date.now()
+          }));
+          setRecentlyDismissed(true);
+        } catch (e) {
+          console.error('Failed to save install prompt status:', e);
+          // If we can't save the status, still hide the prompt
+          setShowInstallButton(false);
+        }
+      }
+      
+      // Always clean up after user interaction
+      deferredPromptRef.current = null;
+      setDeferredPrompt(null);
+      setShowInstallButton(false);
+      
+    } catch (error) {
+      console.error('Error showing installation prompt:', error);
+      setShowInstallButton(false);
+    }
   }, [deferredPrompt]);
 
   // Service Worker Registration - Separated into its own effect
@@ -121,44 +121,43 @@ export default function PWAInstaller(): JSX.Element | null {
       console.log('Install prompt was recently dismissed, not showing again yet');
     }
 
-    // Handle installation prompt events in a separate effect
     const handleBeforeInstallPrompt = (e: Event) => {
-  console.log('🔔 beforeinstallprompt event fired');
-  
-  // Ensure event is the correct type
-  if (!(e instanceof Event && 'prompt' in e)) {
-    console.error('Invalid install prompt event received');
-    return;
-  }
-  
-  const beforeInstallPromptEvent = e as BeforeInstallPromptEvent;
-  
-  // Prevent Chrome 76+ from automatically showing the prompt
-  e.preventDefault();
-  
-  // Don't show if recently dismissed
-  if (isDismissed) {
-    console.log('Install prompt was dismissed recently, not showing');
-    return;
-  }
-  
-  // Save the event for later use
-  deferredPromptRef.current = beforeInstallPromptEvent;
-  setDeferredPrompt(beforeInstallPromptEvent);
-  
-  // Only show the install button if we're not on an auth page
-  const isAuthPage = window.location.pathname.includes('/auth') || 
-                    window.location.pathname.includes('/login') ||
-                    window.location.pathname.includes('/signup');
-  
-  if (!isAuthPage) {
-    setShowInstallButton(true);
-    // Remove the auto-prompt that might be causing issues
-    // if (window.location.pathname === '/trips') {
-    //   setTimeout(() => handleInstallClick(), 5000);
-    // }
-  }
-};
+      console.log('🔔 beforeinstallprompt event fired');
+      
+      // Ensure event is the correct type
+      if (!(e instanceof Event && 'prompt' in e)) {
+        console.error('Invalid install prompt event received');
+        return;
+      }
+      
+      const beforeInstallPromptEvent = e as BeforeInstallPromptEvent;
+      
+      // Prevent Chrome 76+ from automatically showing the prompt
+      e.preventDefault();
+      
+      // Don't show if recently dismissed
+      if (isDismissed) {
+        console.log('Install prompt was dismissed recently, not showing');
+        return;
+      }
+      
+      // Save the event for later use
+      deferredPromptRef.current = beforeInstallPromptEvent;
+      setDeferredPrompt(beforeInstallPromptEvent);
+      
+      // Only show the install button if we're not on an auth page
+      const isAuthPage = window.location.pathname.includes('/auth') || 
+                        window.location.pathname.includes('/login') ||
+                        window.location.pathname.includes('/signup');
+      
+      if (!isAuthPage) {
+        setShowInstallButton(true);
+        // Remove the auto-prompt that might be causing issues
+        // if (window.location.pathname === '/trips') {
+        //   setTimeout(() => handleInstallClick(), 5000);
+        // }
+      }
+    };
     
     // Register the event listeners
     const handleAppInstalled = () => {
@@ -186,7 +185,7 @@ export default function PWAInstaller(): JSX.Element | null {
       window.removeEventListener('appinstalled', handleAppInstalled);
       delete (window as any).__showPWAInstallPrompt;
     };
-  }, [recentlyDismissed]);
+  }, [recentlyDismissed, handleInstallClick]); // Add handleInstallClick to dependencies
 
   // Clean up event listener when component unmounts
   useEffect(() => {
