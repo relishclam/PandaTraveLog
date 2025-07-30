@@ -32,15 +32,20 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
+    console.log('🔄 Middleware: Processing request for:', url.pathname);
+    
     // First update the session using the new middleware pattern
     const response = await updateSession(request);
     
     // Enhanced session detection with proper type safety
     const allCookies = request.cookies.getAll();
+    console.log('🍪 Cookies found:', allCookies.length);
+    
     const authCookies = allCookies.filter(cookie => 
       cookie.name.startsWith('sb-') && 
       (cookie.name.includes('access-token') || cookie.name.includes('refresh-token'))
     );
+    console.log('🔑 Auth cookies found:', authCookies.length);
 
     const accessTokenCookie = authCookies.find(cookie => 
       cookie.name.includes('access-token')
@@ -48,6 +53,13 @@ export async function middleware(request: NextRequest) {
     const refreshTokenCookie = authCookies.find(cookie => 
       cookie.name.includes('refresh-token')
     );
+    
+    // Log auth status
+    console.log('📝 Auth status:', {
+      hasAccessToken: !!accessTokenCookie,
+      hasRefreshToken: !!refreshTokenCookie,
+      fromAuthAction: url.searchParams.get('fromAuthAction') === 'true'
+    });
     
     // Validate both access and refresh tokens exist and have valid lengths
     const hasValidAccessToken = accessTokenCookie?.value && 

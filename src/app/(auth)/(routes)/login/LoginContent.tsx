@@ -163,13 +163,27 @@ export default function LoginContent() {
       setPandaEmotion('excited');
       setPandaMessage("Welcome back! Let's continue planning your adventures!");
       
+      // Enhanced redirect with session verification
+      console.log('🔄 Starting redirect process...');
+      
+      // Wait a moment for session to be fully established
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Verify session one more time
+      const { data: { session: verifiedSession } } = await supabase.auth.getSession();
+      if (!verifiedSession) {
+        console.error('❌ Session verification failed before redirect');
+        throw new Error('Session verification failed');
+      }
+      
       // Add fromAuthAction flag for middleware
       const returnUrl = searchParams?.get('returnUrl') || '/trips';
       const redirectUrl = new URL(returnUrl, window.location.origin);
       redirectUrl.searchParams.set('fromAuthAction', 'true');
+      redirectUrl.searchParams.set('auth_time', Date.now().toString());
       
       // Use window.location for a clean navigation that will hit middleware
-      console.log("🔄 Redirecting to:", redirectUrl.toString());
+      console.log("✈️ Redirecting to:", redirectUrl.toString());
       window.location.href = redirectUrl.toString();
 
     } catch (err: any) {
