@@ -81,6 +81,9 @@ export async function middleware(request: NextRequest) {
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     response.headers.set('Pragma', 'no-cache');
     response.headers.set('Expires', '0');
+
+    // Log auth state for debugging
+    console.log(`[MIDDLEWARE] Auth Check: Path=${url.pathname}, HasSession=${hasSession}, IsAuthPath=${isAuthPath}, IsProtectedPath=${isProtectedPath}`);
     
     // Handle root path redirection
     if (url.pathname === '/') {

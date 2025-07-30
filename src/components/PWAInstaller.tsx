@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -24,55 +24,57 @@ export default function PWAInstaller(): JSX.Element | null {
   // Track if user has dismissed the prompt recently
   const [recentlyDismissed, setRecentlyDismissed] = useState(false);
 
-  const handleInstallClick = async () => {
+  const handleInstallClick = useCallback(async () => {
     let promptEvent: BeforeInstallPromptEvent | null = null;
     
     // Ensure we have a valid prompt event
     if (deferredPrompt) {
-      promptEvent = deferredPrompt;
-    } else if (deferredPromptRef.current) {
-      promptEvent = deferredPromptRef.current;
-      setDeferredPrompt(deferredPromptRef.current);
-    }
+    promptEvent = deferredPrompt;
+  } else if (deferredPromptRef.current) {
+    promptEvent = deferredPromptRef.current;
+    setDeferredPrompt(deferredPromptRef.current);
+  }
+  
+  if (!promptEvent) {
+    console.warn('No installation prompt available');
+    setShowInstallButton(false);
+    return;
+  }
+  
+  try {
+    console.log('📱 Showing installation prompt');
     
-    if (!promptEvent) {
-      console.warn('No installation prompt available');
-      setShowInstallButton(false);
-      return;
-    }
+    // Show the installation prompt
+    await promptEvent.prompt();
     
-    try {
-      console.log('📱 Showing installation prompt');
-      
-      // Show the installation prompt
-      await promptEvent.prompt();
-      
-      // Wait for the user to respond to the prompt
-      const { outcome } = await promptEvent.userChoice;
-      console.log(`📝 User ${outcome} the installation prompt`);
-      
-      if (outcome === 'dismissed') {
-        try {
-          localStorage.setItem(INSTALL_PROMPT_STATUS_KEY, JSON.stringify({
-            dismissed: true,
-            timestamp: Date.now()
-          }));
-          setRecentlyDismissed(true);
-        } catch (e) {
-          console.error('Failed to save install prompt status:', e);
-          // If we can't save the status, still hide the prompt
-          setShowInstallButton(false);
-        }
+    // Wait for the user to respond to the prompt
+    const { outcome } = await promptEvent.userChoice;
+    console.log(`📝 User ${outcome} the installation prompt`);
+    
+    if (outcome === 'dismissed') {
+      try {
+        localStorage.setItem(INSTALL_PROMPT_STATUS_KEY, JSON.stringify({
+          dismissed: true,
+          timestamp: Date.now()
+        }));
+        setRecentlyDismissed(true);
+      } catch (e) {
+        console.error('Failed to save install prompt status:', e);
+        // If we can't save the status, still hide the prompt
+        setShowInstallButton(false);
       }
-      
-      // Always clean up after user interaction
-      deferredPromptRef.current = null;
-      setDeferredPrompt(null);
-      setShowInstallButton(false);
-    } catch (error) {
-      console.error('Error showing installation prompt:', error);
     }
-  };
+    
+    // Always clean up after user interaction
+    deferredPromptRef.current = null;
+    setDeferredPrompt(null);
+    setShowInstallButton(false);
+    
+  } catch (error) {
+    console.error('Error showing installation prompt:', error);
+    setShowInstallButton(false);
+  }
+  }, [deferredPrompt]);
 
   // Service Worker Registration - Separated into its own effect
   useEffect(() => {
@@ -158,11 +160,8 @@ export default function PWAInstaller(): JSX.Element | null {
   }
 };
     
-    // Register the event listener
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    
-    // Listen for the app installed event
-    window.addEventListener('appinstalled', () => {
+    // Register the event listeners
+    const handleAppInstalled = () => {
       console.log('🎉 PWA was installed');
       setShowInstallButton(false);
       setDeferredPrompt(null);
@@ -174,17 +173,20 @@ export default function PWAInstaller(): JSX.Element | null {
       } catch (e) {
         console.error('Failed to clear install prompt status:', e);
       }
-    });
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
 
     // Make handleInstallClick available globally for debugging
     (window as any).__showPWAInstallPrompt = () => handleInstallClick();
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', () => {});
+      window.removeEventListener('appinstalled', handleAppInstalled);
       delete (window as any).__showPWAInstallPrompt;
     };
-  }, [recentlyDismissed, handleInstallClick]);
+  }, [recentlyDismissed]);
 
   // Clean up event listener when component unmounts
   useEffect(() => {

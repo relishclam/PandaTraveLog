@@ -163,9 +163,14 @@ export default function LoginContent() {
       setPandaEmotion('excited');
       setPandaMessage("Welcome back! Let's continue planning your adventures!");
       
-      // Use Next.js router for client-side navigation
-      console.log("🔄 Redirecting to trips page");
-      router.push('/trips');
+      // Add fromAuthAction flag for middleware
+      const returnUrl = searchParams?.get('returnUrl') || '/trips';
+      const redirectUrl = new URL(returnUrl, window.location.origin);
+      redirectUrl.searchParams.set('fromAuthAction', 'true');
+      
+      // Use window.location for a clean navigation that will hit middleware
+      console.log("🔄 Redirecting to:", redirectUrl.toString());
+      window.location.href = redirectUrl.toString();
 
     } catch (err: any) {
       console.error('❌ Login error:', err);

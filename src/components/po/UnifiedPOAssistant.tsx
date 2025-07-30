@@ -58,12 +58,23 @@ function UnifiedPOAssistant({
   const [showLocationWidget, setShowLocationWidget] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [inputFocused, setInputFocused] = useState(false);
 
-  // Optimized input handler to prevent re-renders
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  // Optimized input handler with auto-resize support
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputMessage(e.target.value);
+    
+    // Auto-resize logic
+    const textarea = e.target;
+    const maxHeight = 120; // max height in pixels
+    
+    // Reset height to auto to get proper scrollHeight
+    textarea.style.height = 'auto';
+    
+    // Calculate new height
+    const newHeight = Math.min(textarea.scrollHeight, maxHeight);
+    textarea.style.height = `${newHeight}px`;
   }, []);
 
   // Memoize messages to prevent unnecessary re-renders
@@ -304,10 +315,23 @@ Where would you like to go?`,
   }, [tripId]);
 
   const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // Send message on Shift+Enter
+    if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
+    
+    // Adjust textarea height on input
+    const textarea = e.target as HTMLTextAreaElement;
+    const lineHeight = parseInt(window.getComputedStyle(textarea).lineHeight);
+    const maxHeight = 120; // max height in pixels
+    
+    // Reset height to auto to get proper scrollHeight
+    textarea.style.height = 'auto';
+    
+    // Calculate new height
+    const newHeight = Math.min(textarea.scrollHeight, maxHeight);
+    textarea.style.height = `${newHeight}px`;
   }, [sendMessage]);
 
   const handleFocus = useCallback(() => {
@@ -450,27 +474,27 @@ Where would you like to go?`,
         </div>
       )}
 
-      {/* Input - Optimized for mobile */}
+      {/* Input - Multi-line support for chat-like experience */}
       <div className="p-4 border-t border-gray-200 bg-white">
         <div className="flex space-x-2">
-          <input
+          <textarea
             ref={inputRef}
-            type="text"
             value={inputMessage}
             onChange={handleInputChange}
             onKeyDown={handleKeyPress}
             onFocus={handleFocus}
             onBlur={handleBlur}
-            placeholder="Ask PO anything about your trip..."
-            className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-base"
+            placeholder="Ask PO anything about your trip... (Shift+Enter to send)"
+            className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-base resize-none min-h-[45px] max-h-[120px] overflow-y-auto"
             disabled={isLoading}
-            autoComplete="off"
-            inputMode="text"
+            rows={1}
+            style={{ height: 'auto' }}
           />
           <button
             onClick={sendMessage}
             disabled={isLoading || !inputMessage.trim()}
             className="p-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+            title="Send message (Shift+Enter)"
           >
             <IoSend className="w-5 h-5" />
           </button>

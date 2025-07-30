@@ -20,16 +20,10 @@ export default function DashboardLayout({
     // Only check once when loading completes
     if (!isLoading && !authChecked) {
       setAuthChecked(true);
-      
-      if (!user) {
-        console.log("⚠️ Dashboard: No user detected, redirecting to login");
-        // Use Next.js router instead of window.location to avoid hard refresh
-        window.location.href = '/login';
-      } else {
-        console.log("✅ Dashboard: User authenticated:", user.email);
-      }
+      console.log("✅ Dashboard Layout: Auth check complete");
+      // No need to handle redirects here, middleware will handle it
     }
-  }, [user, isLoading, authChecked]);
+  }, [isLoading, authChecked]);
 
   // Show loading spinner during initial load or when auth is being checked
   if (isLoading) {
