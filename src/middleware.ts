@@ -11,6 +11,13 @@ const authPaths = ['/login', '/register', '/reset-password', '/auth'];
 export async function middleware(request: NextRequest) {
   const url = new URL(request.url);
   
+  // Debug: Log incoming request
+  console.log('🚀 Middleware processing:', {
+    url: url.pathname,
+    search: url.search,
+    referrer: request.headers.get('referer')
+  });
+  
   // Skip middleware for API routes, static assets, and other excluded paths
   if (
     url.pathname.startsWith('/api/') ||
@@ -29,6 +36,13 @@ export async function middleware(request: NextRequest) {
       response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
     }
     return response;
+  }
+  
+  // Prevent redirect loops
+  const redirectCount = parseInt(url.searchParams.get('rc') || '0');
+  if (redirectCount > 2) {
+    console.error('🚨 Redirect loop detected! Path:', url.pathname);
+    return NextResponse.next();
   }
 
   try {
@@ -118,8 +132,14 @@ export async function middleware(request: NextRequest) {
       }
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('returnUrl', url.pathname);
+      
+      // Add redirect counter to prevent loops
+      const newRedirectCount = redirectCount + 1;
+      loginUrl.searchParams.set('rc', newRedirectCount.toString());
+      
       const redirectResponse = NextResponse.redirect(loginUrl);
       redirectResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+      redirectResponse.headers.set('Pragma', 'no-cache');
       return redirectResponse;
     }
     
@@ -179,5 +199,9 @@ export const config = {
      * - manifest.json (PWA manifest)
      */
     '/((?!api|_next/static|_next/image|favicon.ico|images|sw.js|manifest.json).*)',
+    // Also match auth-related paths
+    '/login',
+    '/register',
+    '/auth/:path*'
   ],
 };
