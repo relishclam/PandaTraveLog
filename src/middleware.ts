@@ -84,12 +84,13 @@ export async function middleware(request: NextRequest) {
     
     // Handle root path redirection
     if (url.pathname === '/') {
+      // Allow the root path to render normally if we don't have a session
+      if (!hasSession) {
+        return response;
+      }
+      // Only redirect to trips if we have a valid session
       if (hasSession) {
         const redirectResponse = NextResponse.redirect(new URL('/trips', request.url));
-        redirectResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-        return redirectResponse;
-      } else {
-        const redirectResponse = NextResponse.redirect(new URL('/login', request.url));
         redirectResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
         return redirectResponse;
       }
@@ -109,16 +110,24 @@ export async function middleware(request: NextRequest) {
     
     // Enhanced redirect handling for authenticated users on auth pages
     if (isAuthPath && hasSession) {
-      // Get the return URL or default to /trips
-      const returnUrl = url.searchParams.get('returnUrl') || '/trips';
+      // Only redirect if coming from a specific auth action
+      const fromAuthAction = url.searchParams.get('fromAuthAction') === 'true';
       
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[MIDDLEWARE] Auth page accessed with session, redirecting to ${returnUrl}`);
+      if (fromAuthAction) {
+        // Get the return URL or default to /trips
+        const returnUrl = url.searchParams.get('returnUrl') || '/trips';
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[MIDDLEWARE] Auth page accessed with session, redirecting to ${returnUrl}`);
+        }
+        
+        const redirectResponse = NextResponse.redirect(new URL(returnUrl, request.url));
+        redirectResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+        return redirectResponse;
       }
       
-      const redirectResponse = NextResponse.redirect(new URL(returnUrl, request.url));
-      redirectResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-      return redirectResponse;
+      // Allow the auth page to render normally if not from an auth action
+      return response;
     }
     
     return response;
