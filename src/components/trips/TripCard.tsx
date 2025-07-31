@@ -2,25 +2,31 @@
 
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
-import { MapPin, Calendar, Book, ExternalLink, Loader2, Trash2 } from 'lucide-react';
+import { MapPin, Calendar, Book, ExternalLink, Loader2, Trash2, Home } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { useState } from 'react';
+
+interface Trip {
+  id: string;
+  title: string;
+  destination: string;
+  start_date: string;
+  end_date: string;
+  status: string;
+  accommodation?: string;
+}
 
 interface TripCardProps {
-  trip: {
-    id: string;
-    title: string;
-    destination: string;
-    start_date: string;
-    end_date: string;
-    status: string;
-  };
+  trip: Trip;  // Use the full Trip interface
+  onEnhance: () => void;
   onDelete: (id: string) => Promise<void>;
   isDeleting: boolean;
 }
 
-const TripCard = ({ trip, onDelete, isDeleting }: TripCardProps) => {
+export const TripCard = ({ trip, onEnhance, onDelete, isDeleting }: TripCardProps) => {
   const router = useRouter();
+  const [showActions, setShowActions] = useState(false);
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -61,6 +67,12 @@ const TripCard = ({ trip, onDelete, isDeleting }: TripCardProps) => {
             <Calendar className="w-4 h-4 mr-1" />
             {format(new Date(trip.start_date), 'MMM dd')} - {format(new Date(trip.end_date), 'MMM dd')}
           </div>
+          {trip.accommodation && (
+            <div className="flex items-center">
+              <Home className="w-4 h-4 mr-1" />
+              {trip.accommodation}
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent>
@@ -68,6 +80,26 @@ const TripCard = ({ trip, onDelete, isDeleting }: TripCardProps) => {
           {/* Optionally, you can add more trip details here */}
           {trip.status === 'completed' ? 'Trip Completed' : 'Trip In Progress'}
         </CardDescription>
+
+        <div className="flex gap-2 mt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push(`/trips/${trip.id}`)}
+          >
+            View Details
+          </Button>
+          
+          {/* Add AI Enhancement option */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onEnhance}
+            className="text-backpack-orange hover:text-backpack-orange/90"
+          >
+            Ask PO for Ideas
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

@@ -4,10 +4,19 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { useAuth } from './AuthContext';
 import { usePathname } from 'next/navigation';
 
+export type POContext = 
+  | 'marketing'
+  | 'trip_creation'
+  | 'diary'
+  | 'manual_entry'
+  | 'dashboard'
+  | 'trip_enhancement'  // Add new context type
+  | 'trip_planning';    // Add new context type
+
 interface POAssistantState {
   isVisible: boolean;
   isMinimized: boolean;
-  currentContext: 'marketing' | 'trip_creation' | 'diary' | 'manual_entry' | 'dashboard';
+  currentContext: POContext;
   currentTripId?: string;
   showPreAuthNotice: boolean;
   isModalOpen: boolean; // ✅ NEW: Track modal state

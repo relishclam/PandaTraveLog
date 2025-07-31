@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
@@ -13,11 +13,13 @@ import TripTabs from '@/components/trips/TripTabs';
 import { InteractiveMapModal } from '@/components/map/InteractiveMapModal';
 import { CreateTripModal } from '@/components/trips';
 import { usePOAssistant } from '@/contexts/POAssistantContext';
+import type { POContext } from '@/contexts/POAssistantContext';  // Import type properly
 import { PoGuide } from '@/components/po/svg/PoGuide';
 
 // Initialize Supabase client for this component
 const supabase = createClient();
 
+// Update Trip interface to match Supabase schema
 interface Trip {
   id: string;
   title: string;
@@ -25,11 +27,36 @@ interface Trip {
   start_date: string;
   end_date: string;
   description: string;
-  status: string;
+  accommodation: string;
+  transportation: string;
+  activities: string[];
+  notes: string;
+  status: 'planning' | 'active' | 'completed';
   user_id: string;
   created_at: string;
   updated_at: string;
+  is_ai_generated: boolean;
 }
+
+interface EmptyStateProps {
+  onCreateClick: () => void;
+}
+
+const EmptyState: React.FC<EmptyStateProps> = ({ onCreateClick }) => (
+  <div className="text-center py-12">
+    <PoGuide 
+      type="excited" 
+      message="Ready to plan your next adventure?"
+      size="large"
+    />
+    <Button
+      onClick={onCreateClick}
+      className="mt-4 bg-backpack-orange hover:bg-backpack-orange/90"
+    >
+      Create Your First Trip
+    </Button>
+  </div>
+);
 
 export default function TripsPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -66,11 +93,16 @@ export default function TripsPage() {
         .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        throw new Error(error.message);
-      }
+      if (error) throw error;
 
-      setTrips(data || []);
+      // Ensure we're getting all fields
+      setTrips(data?.map(trip => ({
+        ...trip,
+        activities: trip.activities || [],
+        accommodation: trip.accommodation || '',
+        transportation: trip.transportation || '',
+        notes: trip.notes || ''
+      })) || []);
     } catch (err) {
       console.error('Error fetching trips:', err);
       setError(err instanceof Error ? err.message : 'Failed to load trips');
@@ -159,23 +191,7 @@ export default function TripsPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-
-  // Add empty state component
-  const EmptyState = () => (
-    <div className="text-center py-12">
-      <PoGuide 
-        type="excited" 
-        message="Ready to plan your next adventure?"
-        size="large"
-      />
-      <Button
-        onClick={() => setShowCreateModal(true)}
-        className="mt-4 bg-backpack-orange hover:bg-backpack-orange/90"
-      >
-        Create Your First Trip
-      </Button>
-    </div>
-  );
+  const [showTripOptions, setShowTripOptions] = useState(false);
 
   // Add error state component
   const ErrorState = () => (
@@ -230,70 +246,107 @@ export default function TripsPage() {
     );
   }
 
+  // Trip creation options menu
+  const TripOptionsMenu = () => (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold">Create New Trip</h2>
+          <button onClick={() => setShowTripOptions(false)} className="text-gray-500">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <Button
+            onClick={() => {
+              setShowTripOptions(false);
+              setShowCreateModal(true);
+            }}
+            className="w-full justify-start text-left p-4 h-auto"
+          >
+            <div>
+              <div className="font-semibold">Manual Planning</div>
+              <div className="text-sm text-gray-500">Create and plan your trip yourself</div>
+            </div>
+          </Button>
+
+          <Button
+            onClick={() => {
+              setShowTripOptions(false);
+              setContext('trip_creation');
+              showPO();
+            }}
+            className="w-full justify-start text-left p-4 h-auto"
+          >
+            <div>
+              <div className="font-semibold">AI-Assisted Planning</div>
+              <div className="text-sm text-gray-500">Get help from PO to plan your trip</div>
+            </div>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
-        <div className="flex items-center gap-4">
-          <h1 className="text-3xl font-bold">My Trips</h1>
-          <PoGuide 
-            type="happy" 
-            message="Welcome back!" 
-            size="small"
-          />
-        </div>
+        <h1 className="text-3xl font-bold">My Trips</h1>
         <Button
-          onClick={() => setShowCreateModal(true)}
-          disabled={isCreating}
+          onClick={() => setShowTripOptions(true)}
           className="bg-backpack-orange hover:bg-backpack-orange/90"
         >
-          {isCreating ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Creating...
-            </>
-          ) : (
-            <>
-              <Plus className="w-4 h-4 mr-2" />
-              Create New Trip
-            </>
-          )}
+          <Plus className="w-4 h-4 mr-2" />
+          New Trip
         </Button>
       </div>
 
-      {/* Content */}
+      {/* Trip Filters */}
+      <div className="mb-6">
+        <TripTabs 
+          trips={trips}
+          onDeleteTrip={handleDeleteTrip}
+        />
+      </div>
+
+      {/* Trips Grid */}
       {loading ? (
         <LoadingState />
       ) : error ? (
         <ErrorState />
       ) : trips.length === 0 ? (
-        <EmptyState />
+        <EmptyState onCreateClick={() => setShowTripOptions(true)} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {trips.map((trip) => (
             <TripCard
               key={trip.id}
               trip={trip}
-              onDelete={async (tripId: string) => {  // Add type annotation
-                setIsDeleting(tripId);
-                await handleDeleteTrip(tripId);
-                setIsDeleting(null);
+              onEnhance={() => {
+                setContext('trip_enhancement' as POContext);
+                showPO();
               }}
+              onDelete={handleDeleteTrip}
               isDeleting={isDeleting === trip.id}
             />
           ))}
         </div>
       )}
 
-      {/* Create Trip Modal */}
-      <CreateTripModal 
-        open={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onSuccess={() => {
-          setShowCreateModal(false);
-          fetchTrips();
-        }}
-      />
+      {/* Modals */}
+      {showTripOptions && <TripOptionsMenu />}
+      {showCreateModal && (
+        <CreateTripModal
+          open={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={() => {
+            setShowCreateModal(false);
+            fetchTrips();
+          }}
+        />
+      )}
       
       {/* Trip Choice Modal */}
       {showTripChoice && (

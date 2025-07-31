@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { formatDate } from '@/lib/utils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 
 type Trip = {
   id: string;
@@ -16,7 +17,7 @@ type Trip = {
 
 interface TripTabsProps {
   trips: Trip[];
-  onDeleteTrip: (tripId: string) => void;
+  onDeleteTrip: (id: string) => Promise<void>;
 }
 
 export default function TripTabs({ trips, onDeleteTrip }: TripTabsProps) {
