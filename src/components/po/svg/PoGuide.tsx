@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 
 interface PoGuideProps {
-  message?: string;  // Make message optional
-  type?: 'happy' | 'thinking' | 'excited' | 'sad' | 'guide' | 'map' | 'assistant';
+  message?: string;
+  // Only include actual emotion types plus 'map' for the map icon
+  type?: 'happy' | 'thinking' | 'excited' | 'confused' | 'sad' | 'map';
   size?: 'small' | 'medium' | 'large';
   animated?: boolean;
-  className?: string; // Add className prop
+  className?: string;
 }
 
 export const PoGuide: React.FC<PoGuideProps> = ({ 
@@ -33,8 +34,15 @@ export const PoGuide: React.FC<PoGuideProps> = ({
     }
   }, [message, animated, type]);
   
-  // Image paths based on type
-  const imagePath = `/images/po/emotions/${type}.png`;
+  // Use maps icon for map type, emotions for others
+  const getImagePath = () => {
+    if (type === 'map') {
+      return '/panda-maps-icon.png';
+    }
+    return `/images/po/emotions/${type}.png`;
+  };
+
+  const imagePath = getImagePath();
   
   // Size classes
   const sizeClasses = {
@@ -76,15 +84,14 @@ export const PoGuide: React.FC<PoGuideProps> = ({
   // Speech bubble color
   const getBubbleColor = () => {
     switch (type) {
-      case 'guide':
       case 'map':
-      case 'assistant':
         return 'bg-backpack-orange/10 border-backpack-orange';
       case 'happy':
         return 'bg-bamboo-light border-green-500';
       case 'excited':
         return 'bg-backpack-orange/10 border-backpack-orange';
       case 'thinking':
+      case 'confused':
         return 'bg-blue-50 border-blue-300';
       case 'sad':
         return 'bg-gray-100 border-gray-300';
@@ -93,23 +100,21 @@ export const PoGuide: React.FC<PoGuideProps> = ({
     }
   };
   
-  // Add default messages based on type
+  // Map appropriate emotions to contexts
   const getDefaultMessage = () => {
     switch (type) {
-      case 'guide':
-        return "Let me help you explore!";
       case 'map':
-        return "Click to add locations";
-      case 'assistant':
-        return "I'm your travel buddy!";
-      case 'happy':
-        return "Ready for adventure!";
-      case 'thinking':
-        return "Hmm, let me think...";
+        return "Click on places you'd like to visit!";
       case 'excited':
-        return "This is exciting!";
+        return "I've got some great suggestions!";
+      case 'happy':
+        return "Welcome to your travel planner!";
+      case 'thinking':
+        return "Let me plan this for you...";
+      case 'confused':
+        return "Hmm, I need more details...";
       case 'sad':
-        return "Oh no...";
+        return "Oh no, something went wrong...";
       default:
         return "Hi, I'm PO!";
     }
@@ -154,33 +159,3 @@ export const PoGuide: React.FC<PoGuideProps> = ({
     </div>
   );
 };
-
-// Add the animation classes to tailwind
-// You would need to add these to your tailwind config
-/**
- * Add these to your tailwind.config.js:
- * 
- * extend: {
- *   animation: {
- *     'bounce': 'bounce 1s ease-in-out',
- *     'pulse': 'pulse 0.8s cubic-bezier(0.4, 0, 0.6, 1) infinite',
- *     'pulse-slow': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
- *     'shake-subtle': 'shake 2s ease-in-out infinite',
- *   },
- *   keyframes: {
- *     bounce: {
- *       '0%, 100%': { transform: 'translateY(0)' },
- *       '50%': { transform: 'translateY(-25%)' },
- *     },
- *     pulse: {
- *       '0%, 100%': { opacity: 1 },
- *       '50%': { opacity: 0.8 },
- *     },
- *     shake: {
- *       '0%, 100%': { transform: 'translateX(0)' },
- *       '25%': { transform: 'translateX(-5px)' },
- *       '75%': { transform: 'translateX(5px)' },
- *     },
- *   },
- * }
- */

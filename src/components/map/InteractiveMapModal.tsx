@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
@@ -20,6 +20,20 @@ export function InteractiveMapModal({ isOpen, onClose, destination }: Interactiv
     isLoading
   } = useOpenRouter();
 
+  // Track PO's state
+  const [poState, setPoState] = useState<'excited' | 'thinking' | 'confused'>('excited');
+
+  // Update PO's state based on user actions
+  useEffect(() => {
+    if (selectedLocations.length === 0) {
+      setPoState('excited');
+    } else if (isLoading) {
+      setPoState('thinking');
+    } else if (selectedLocations.length > 5) {
+      setPoState('confused');
+    }
+  }, [selectedLocations.length, isLoading]);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto">
@@ -28,7 +42,7 @@ export function InteractiveMapModal({ isOpen, onClose, destination }: Interactiv
           <div className="p-4 border-b">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-3">
-                <PoGuide type="guide" size="small" message="Let's plan your trip!" />
+                <PoGuide type="excited" size="small" message="Let's explore!" />
                 <h2 className="text-xl font-bold">Explore {destination}</h2>
               </div>
               <Button variant="ghost" size="icon" onClick={onClose}>
@@ -42,7 +56,7 @@ export function InteractiveMapModal({ isOpen, onClose, destination }: Interactiv
             <div className="w-full h-[40vh] bg-gradient-to-br from-blue-100 via-green-50 to-blue-100 rounded-lg relative">
               {/* Map content */}
               <PoGuide 
-                type="map" 
+                type="map"
                 size="small" 
                 message="Click anywhere to add a location!"
                 className="absolute top-3 left-3 z-10" 
@@ -84,7 +98,15 @@ export function InteractiveMapModal({ isOpen, onClose, destination }: Interactiv
           {/* Trip Configuration - Stepped Form */}
           <div className="p-4">
             <div className="flex items-center gap-3 mb-4">
-              <PoGuide type="assistant" size="small" message="Tell me about your trip!" />
+              <PoGuide 
+                type={poState}
+                size="small" 
+                message={
+                  poState === 'excited' ? "Let's plan your trip!" :
+                  poState === 'thinking' ? "Processing your selections..." :
+                  "That's quite a lot of places! Are you sure?"
+                }
+              />
               <h3 className="font-semibold">Trip Details</h3>
             </div>
 

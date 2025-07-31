@@ -24,6 +24,17 @@ const PRECACHE_ASSETS = [
   '/images/po/emotions/confused.png'
 ];
 
+const urlsToCache = [
+  '/',
+  '/manifest.json',
+  '/panda-maps-icon.png',
+  '/images/po/emotions/happy.png',
+  '/images/po/emotions/thinking.png',
+  '/images/po/emotions/excited.png',
+  '/images/po/emotions/confused.png',
+  '/images/po/emotions/sad.png'
+];
+
 // Function to check if a URL is auth-related
 const isAuthRelated = (url) => {
   const authPaths = ['/login', '/register', '/auth', '/callback', '/token', '/logout'];
@@ -66,17 +77,9 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('Opened cache');
-        // Cache each URL individually to handle 404s gracefully
-        return Promise.allSettled(
-          urlsToCache.map(url => 
-            cache.add(url).catch(error => {
-              console.warn(`Failed to cache ${url}:`, error);
-              return null; // Continue with other URLs
-            })
-          )
-        );
+        return cache.addAll(urlsToCache);
       })
-      .catch(error => {
+      .catch((error) => {
         console.error('Failed to open cache:', error);
       })
   );
@@ -122,12 +125,24 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    caches.match(event.request)
-      .then(response => response || fetch(event.request))
-      .catch(() => {
-        if (event.request.mode === 'navigate') {
-          return caches.match('/offline.html');
+    fetch(event.request)
+      .then((response) => {
+        // Clone response
+        const responseToCache = response.clone();
+        
+        // Cache successful responses
+        if (response.ok) {
+          caches.open(CACHE_NAME)
+            .then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
         }
+        
+        return response;
+      })
+      .catch(() => {
+        // Fallback to cache if network fails
+        return caches.match(event.request);
       })
   );
 });

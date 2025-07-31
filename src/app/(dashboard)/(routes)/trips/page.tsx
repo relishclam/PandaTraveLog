@@ -1,18 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Plus, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
-
-// Initialize Supabase client for this component
-const supabase = createClient();
 import { Button } from '@/components/ui/Button';
+import TripCard from '@/components/trips/TripCard';  // Use default import
 import TripChoiceCard from '@/components/trips/TripChoiceCard';
 import ManualTripEntryModal from '@/components/trips/ManualTripEntryModal';
 import TripTabs from '@/components/trips/TripTabs';
-import { usePOAssistant } from '@/contexts/POAssistantContext';
 import { InteractiveMapModal } from '@/components/map/InteractiveMapModal';
+import { CreateTripModal } from '@/components/trips';
+import { usePOAssistant } from '@/contexts/POAssistantContext';
+import { PoGuide } from '@/components/po/svg/PoGuide';
+
+// Initialize Supabase client for this component
+const supabase = createClient();
 
 interface Trip {
   id: string;
@@ -152,6 +156,55 @@ export default function TripsPage() {
     checkAuthAndFetch();
   }, [user, authLoading]);
 
+  const [isCreating, setIsCreating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // Add empty state component
+  const EmptyState = () => (
+    <div className="text-center py-12">
+      <PoGuide 
+        type="excited" 
+        message="Ready to plan your next adventure?"
+        size="large"
+      />
+      <Button
+        onClick={() => setShowCreateModal(true)}
+        className="mt-4 bg-backpack-orange hover:bg-backpack-orange/90"
+      >
+        Create Your First Trip
+      </Button>
+    </div>
+  );
+
+  // Add error state component
+  const ErrorState = () => (
+    <div className="text-center py-12">
+      <PoGuide 
+        type="sad" 
+        message={error || "Something went wrong"}
+        size="medium"
+      />
+      <Button
+        onClick={() => fetchTrips()}
+        variant="outline"
+        className="mt-4"
+      >
+        Try Again
+      </Button>
+    </div>
+  );
+
+  const LoadingState = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="animate-pulse">
+          <div className="h-48 bg-gray-200 rounded-lg"></div>
+        </div>
+      ))}
+    </div>
+  );
+
   if (authLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
@@ -179,47 +232,68 @@ export default function TripsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Header */}
       <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">My Trips</h1>
-          <p className="text-gray-600 mt-2">Plan and manage your travel adventures</p>
+        <div className="flex items-center gap-4">
+          <h1 className="text-3xl font-bold">My Trips</h1>
+          <PoGuide 
+            type="happy" 
+            message="Welcome back!" 
+            size="small"
+          />
         </div>
         <Button
-          onClick={() => setShowTripChoice(true)}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium"
+          onClick={() => setShowCreateModal(true)}
+          disabled={isCreating}
+          className="bg-backpack-orange hover:bg-backpack-orange/90"
         >
-          Create New Trip
+          {isCreating ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Creating...
+            </>
+          ) : (
+            <>
+              <Plus className="w-4 h-4 mr-2" />
+              Create New Trip
+            </>
+          )}
         </Button>
       </div>
 
+      {/* Content */}
       {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-        </div>
+        <LoadingState />
       ) : error ? (
-        <div className="text-center py-16">
-          <div className="text-red-600 mb-4">Error: {error}</div>
-          <Button onClick={fetchTrips} className="bg-blue-500 hover:bg-blue-600 text-white">
-            Try Again
-          </Button>
-        </div>
+        <ErrorState />
       ) : trips.length === 0 ? (
-        <div className="py-16">
-          <TripChoiceCard
-            onManualEntry={() => {
-              setShowTripChoice(false);
-              setShowManualEntry(true);
-            }}
-            onAiPlanning={() => {
-              setShowTripChoice(false);
-              setContext('trip_creation');
-              showPO();
-            }}
-          />
-        </div>
+        <EmptyState />
       ) : (
-        <TripTabs trips={trips} onDeleteTrip={handleDeleteTrip} />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {trips.map((trip) => (
+            <TripCard
+              key={trip.id}
+              trip={trip}
+              onDelete={async (tripId: string) => {  // Add type annotation
+                setIsDeleting(tripId);
+                await handleDeleteTrip(tripId);
+                setIsDeleting(null);
+              }}
+              isDeleting={isDeleting === trip.id}
+            />
+          ))}
+        </div>
       )}
+
+      {/* Create Trip Modal */}
+      <CreateTripModal 
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={() => {
+          setShowCreateModal(false);
+          fetchTrips();
+        }}
+      />
       
       {/* Trip Choice Modal */}
       {showTripChoice && (
