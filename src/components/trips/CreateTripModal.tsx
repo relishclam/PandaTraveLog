@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -8,6 +9,7 @@ import { Label } from '@/components/ui/Label';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
+import { PoGuide } from '@/components/po/svg/PoGuide';
 
 interface CreateTripModalProps {
   open: boolean;
@@ -19,6 +21,7 @@ const supabase = createClient();
 
 const CreateTripModal = ({ open, onClose, onSuccess }: CreateTripModalProps) => {
   const { user } = useAuth();
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -27,6 +30,14 @@ const CreateTripModal = ({ open, onClose, onSuccess }: CreateTripModalProps) => 
     end_date: '',
     description: ''
   });
+
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!user && open) {
+      toast.error('Please log in to create a trip');
+      router.push('/login');
+    }
+  }, [user, open, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,11 +74,34 @@ const CreateTripModal = ({ open, onClose, onSuccess }: CreateTripModalProps) => 
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Create New Trip</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            Create New Trip
+            <PoGuide 
+              type="excited" 
+              message="Let's plan your adventure!"
+              size="small"
+            />
+          </DialogTitle>
         </DialogHeader>
         
+        <div className="mb-4 bg-orange-50 p-4 rounded-lg">
+          <div className="flex items-start gap-3">
+            <PoGuide 
+              type="thinking"
+              message="Here's how to get started:"
+              size="small"
+            />
+            <ul className="list-disc list-inside text-sm space-y-1 text-gray-600">
+              <li>First, give your trip a memorable name</li>
+              <li>Tell me where you're heading</li>
+              <li>Pick your travel dates</li>
+              <li>Then I'll help you plan the perfect itinerary!</li>
+            </ul>
+          </div>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="title">Trip Title</Label>
@@ -114,7 +148,7 @@ const CreateTripModal = ({ open, onClose, onSuccess }: CreateTripModalProps) => 
             </div>
           </div>
           
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button 
               type="button" 
               variant="outline" 
@@ -128,7 +162,7 @@ const CreateTripModal = ({ open, onClose, onSuccess }: CreateTripModalProps) => 
               disabled={isSubmitting}
               className="bg-backpack-orange hover:bg-backpack-orange/90"
             >
-              {isSubmitting ? 'Creating...' : 'Create Trip'}
+              {isSubmitting ? 'Creating...' : 'Create Trip & Plan Itinerary'}
             </Button>
           </DialogFooter>
         </form>
