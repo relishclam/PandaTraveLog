@@ -2,7 +2,7 @@
 /* This file uses Tailwind CSS directives - IDE warnings can be ignored */
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap');
 
-/* Tailwind directives */
+/* Tailwind directives - these warnings are expected and can be ignored */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

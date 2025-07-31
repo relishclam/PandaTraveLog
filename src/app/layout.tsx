@@ -12,7 +12,7 @@ if (typeof window !== 'undefined') {
 
 export const metadata: Metadata = {
   title: "PandaTraveLog - Your AI Travel Planner",
-  description: "Plan your trips with PO, your friendly travel panda assistant",
+  description: "Plan your trips with PO, your friendly Travel Panda",
   manifest: "/manifest.json",
   applicationName: "PandaTraveLog",
   appleWebApp: {

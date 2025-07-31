@@ -79,10 +79,4 @@ The application uses the following database tables:
 
 The application is configured for deployment on Netlify. A `netlify.toml` configuration file is included in the repository.
 
-## 🤝 Contributing
 
-Contributions, issues, and feature requests are welcome! Feel free to check the issues page.
-
-## 📄 License
-
-This project is licensed under the MIT License.
