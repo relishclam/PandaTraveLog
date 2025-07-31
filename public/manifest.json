@@ -1,5 +1,5 @@
 {
-  "name": "PandaTraveLog - AI Travel Assistant",
+  "name": "PandaTraveLog",
   "short_name": "PandaTraveLog",
   "description": "Your AI-powered travel companion for planning amazing trips with PO Assistant",
   "start_url": "/",
@@ -12,10 +12,16 @@
   "categories": ["travel", "lifestyle", "productivity"],
   "icons": [
     {
+      "src": "/images/logo/logo-icon.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
       "src": "/apple-touch-icon.png",
       "sizes": "180x180",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/images/logo/android-icon-192x192.png",
@@ -64,12 +70,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
-    },
-    {
-      "src": "/images/logo/logo-icon.png",
-      "sizes": "256x256",
-      "type": "image/png",
-      "purpose": "any maskable"
     },
     {
       "src": "/images/logo/logo-full.png",

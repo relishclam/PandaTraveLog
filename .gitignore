@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+.env.local
+.env*.local
 
 # vercel
 .vercel
@@ -46,3 +48,8 @@ netlify.toml
 
 # VS Code settings
 .vscode/
+
+# Supabase
+**/supabase/.temp
+**/supabase/.branches
+**/supabase/.backups

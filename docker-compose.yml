@@ -1,0 +1,18 @@
+services:
+  db:
+    platform: windows/amd64
+    image: postgres:14
+    container_name: supabase_postgres
+    ports:
+      - "54322:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=Phes0061$$123
+      - POSTGRES_DB=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    name: supabase_postgres_data

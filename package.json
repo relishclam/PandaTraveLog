@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "supabase:start": "docker-compose up -d && supabase start",
+    "supabase:stop": "supabase stop && docker-compose down",
+    "supabase:types": "docker ps && supabase gen types typescript --local > src/types/database.types.ts",
+    "supabase:status": "docker ps"
   },
   "dependencies": {
     "@google/generative-ai": "^0.2.1",
@@ -60,6 +64,7 @@
     "@tailwindcss/typography": "^0.5.16",
     "@types/leaflet": "^1.9.12",
     "@types/maplibre-gl": "^1.14.0",
-    "critters": "^0.0.25"
+    "critters": "^0.0.25",
+    "supabase": "^2.33.7"
   }
 }

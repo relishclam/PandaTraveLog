@@ -48,11 +48,13 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    // Create a response that we'll modify
     let response = NextResponse.next()
     
-    // Create supabase client with the response
-    const supabase = createMiddlewareSupabaseClient({ req: request, res: response })
+    // Create supabase client without options parameter
+    const supabase = createMiddlewareSupabaseClient({ 
+      req: request, 
+      res: response 
+    })
     
     // Get the session
     const { data: { session } } = await supabase.auth.getSession()
@@ -116,5 +118,7 @@ export const config = {
     '/login',
     '/register',
     '/auth/:path',
+    '/api/:path*',
+    '/manifest.json',
   ]
 }
