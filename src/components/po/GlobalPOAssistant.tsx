@@ -4,6 +4,7 @@ import React from 'react';
 import { usePOAssistant } from '@/contexts/POAssistantContext';
 import UnifiedPOAssistant from './UnifiedPOAssistant';
 import { useRouter } from 'next/navigation';
+import type { POContext } from '@/contexts/POAssistantContext';
 
 export const GlobalPOAssistant: React.FC = () => {
   const { state, minimizePO, expandPO, hidePO } = usePOAssistant();
@@ -71,7 +72,7 @@ export const GlobalPOAssistant: React.FC = () => {
   return (
     <UnifiedPOAssistant
       tripId={state.currentTripId}
-      context={state.currentContext}
+      context={state.currentContext as POContext}
       isMinimized={state.isMinimized}
       onMinimize={handleMinimize}
       onTripCreated={handleTripCreated}

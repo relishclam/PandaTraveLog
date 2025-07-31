@@ -5,13 +5,13 @@ import { useAuth } from './AuthContext';
 import { usePathname } from 'next/navigation';
 
 export type POContext = 
-  | 'marketing'
-  | 'trip_creation'
-  | 'diary'
-  | 'manual_entry'
-  | 'dashboard'
-  | 'trip_enhancement'  // Add new context type
-  | 'trip_planning';    // Add new context type
+  | 'marketing'      // For landing/pre-auth
+  | 'trip_creation'  // For new trip creation
+  | 'diary'         // For trip diary viewing/editing
+  | 'manual_entry'  // For manual trip entry
+  | 'dashboard'     // For trips dashboard
+  | 'trip_enhancement' // For enhancing existing trips
+  | 'trip_planning'; // For trip planning/itinerary
 
 interface POAssistantState {
   isVisible: boolean;
