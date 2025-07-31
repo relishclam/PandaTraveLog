@@ -9,12 +9,18 @@ const log = (...args: any[]) => {
   }
 }
 
+// Removed diary path from protected
 const protectedPaths = ['/dashboard', '/trips', '/profile']
 const authPaths = ['/login', '/register', '/reset-password', '/auth']
 
 export async function middleware(request: NextRequest) {
   const url = new URL(request.url)
   const pathname = url.pathname
+
+  // Skip diary routes
+  if (pathname.includes('/diary')) {
+    return NextResponse.next()
+  }
 
   log('Processing request for:', pathname)
   log('User-Agent:', request.headers.get('user-agent') || 'Unknown')

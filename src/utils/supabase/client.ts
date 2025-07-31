@@ -1,39 +1,49 @@
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database.types';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// Create the client with default config
-const defaultClient = createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    storage: typeof window !== 'undefined' ? {
-      getItem: (key) => {
-        try {
-          const itemStr = localStorage.getItem(key);
-          if (!itemStr) return null;
-          return JSON.parse(itemStr);
-        } catch (e) {
-          console.error('Failed to parse stored session:', e);
-          localStorage.removeItem(key);
-          return null;
-        }
-      },
-      setItem: (key, value) => {
-        localStorage.setItem(key, JSON.stringify(value));
-      },
-      removeItem: (key) => {
-        localStorage.removeItem(key);
-      }
-    } : undefined
-  }
-});
+// Single instance to prevent multiple client warnings
+let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
 
-// Export both the default client and a function to create new clients
-export const supabase = defaultClient;
-export const createClient = () => defaultClient;
-export default defaultClient;
+const createSingletonClient = () => {
+  if (supabaseInstance) return supabaseInstance;
+
+  supabaseInstance = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      storageKey: 'panda-auth-token',
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storage: typeof window !== 'undefined' ? {
+        getItem: (key) => {
+          try {
+            const itemStr = localStorage.getItem(key);
+            if (!itemStr) return null;
+            // Handle both string and object session data
+            return typeof itemStr === 'string' ? itemStr : JSON.stringify(itemStr);
+          } catch (e) {
+            console.error('Session parse error:', e);
+            return null;
+          }
+        },
+        setItem: (key, value) => {
+          const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
+          localStorage.setItem(key, stringValue);
+        },
+        removeItem: (key) => {
+          localStorage.removeItem(key);
+        }
+      } : undefined
+    }
+  });
+
+  return supabaseInstance;
+};
+
+export const supabase = createSingletonClient();
+export default supabase;
 
 // Additional type helpers (optional)
 export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];

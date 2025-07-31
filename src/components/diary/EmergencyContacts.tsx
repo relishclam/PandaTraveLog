@@ -14,6 +14,7 @@ import { openRouterService, EmergencyContact } from '@/services/openrouter-servi
 import { ScrollArea } from '@/components/ui/ScrollArea';
 import { Textarea } from '@/components/ui/Textarea';
 import { PoGuide } from '@/components/po/svg/PoGuide';
+import { useOpenRouter } from '@/hooks/useOpenRouter';
 
 interface EmergencyContactProps {
   id: string;
@@ -23,6 +24,8 @@ interface EmergencyContactProps {
   address?: string;
   notes?: string;
   priority?: number;
+  user_id?: string;
+  trip_id?: string;
 }
 
 interface EmergencyContactsProps {
@@ -42,6 +45,7 @@ const EmergencyContacts: React.FC<EmergencyContactsProps> = ({ tripId }) => {
   const [editingContact, setEditingContact] = useState<EmergencyContactProps | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { user } = useAuth();
+  const openRouter = useOpenRouter();
   
   // Add useCallback to prevent infinite re-renders
   // Fix the fetchContacts function in EmergencyContacts.tsx
@@ -325,6 +329,76 @@ const EmergencyContacts: React.FC<EmergencyContactsProps> = ({ tripId }) => {
         return type.charAt(0).toUpperCase() + type.slice(1);
     }
   };
+
+  // Emergency Contacts data extraction
+  const extractContacts = async (tripData: any) => {
+    const extractedContacts: EmergencyContactProps[] = [];
+
+    // Extract from travel details
+    if (tripData.manual_entry_data?.travelDetails) {
+      tripData.manual_entry_data.travelDetails.forEach((travel: any) => {
+        if (travel.contactInfo) {
+          extractedContacts.push({
+            id: `temp-${Date.now()}-${Math.random()}`, // Add unique ID
+            name: `${travel.mode.toUpperCase()} Service`,
+            phone: formatPhoneNumber(travel.contactInfo),
+            type: 'transportation',
+            user_id: user?.id,
+            trip_id: tripId,
+          });
+        }
+      });
+    }
+
+    // Extract from accommodations
+    if (tripData.manual_entry_data?.accommodations) {
+      tripData.manual_entry_data.accommodations.forEach((acc: any) => {
+        if (acc.contactInfo) {
+          extractedContacts.push({
+            id: `temp-${Date.now()}-${Math.random()}`,
+            name: acc.name,
+            phone: formatPhoneNumber(acc.contactInfo),
+            type: 'accommodation',
+            user_id: user?.id,
+            trip_id: tripId,
+          });
+        }
+      });
+    }
+
+    setContacts(extractedContacts);
+  };
+
+  const formatPhoneNumber = (number: string): string => {
+    // Remove non-numeric characters
+    const cleaned = number.replace(/\D/g, '');
+    // Ensure number starts with + if international
+    return cleaned.startsWith('00') ? `+${cleaned.slice(2)}` : cleaned;
+  };
+
+  useEffect(() => {
+    const fetchTripData = async () => {
+      setIsLoading(true);
+      try {
+        const { data: tripData, error } = await supabase
+          .from('trips')
+          .select('*')
+          .eq('id', tripId)
+          .single();
+
+        if (error) throw error;
+        if (tripData) {
+          await extractContacts(tripData);
+        }
+      } catch (error) {
+        console.error('Error fetching trip data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTripData();
+  }, [tripId]);
 
   if (isLoading) {
     return (

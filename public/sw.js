@@ -111,85 +111,24 @@ function shouldCache(url) {
 
 // Enhanced fetch event handler
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+  // Skip non-GET requests
+  if (event.request.method !== 'GET') return;
 
-  // First, check if this is an auth-related request
-  if (isAuthRelated(url)) {
-    log('🔒 Auth-related request detected, bypassing service worker for:', url.pathname);
+  // Skip auth-related requests
+  if (event.request.url.includes('/auth/') || 
+      event.request.url.includes('/login') || 
+      event.request.url.includes('/register')) {
     return;
   }
-
-  // For non-GET requests or cross-origin requests, bypass the service worker
-  if (event.request.method !== 'GET' || url.origin !== self.location.origin) {
-    return;
-  }
-
-  // For navigation requests to auth pages, unregister the service worker
-  if (event.request.mode === 'navigate' && isAuthRelated(url)) {
-    log('🔒 Navigation to auth page detected, unregistering service worker');
-    self.registration.unregister()
-      .then(() => {
-        // Reload the page without service worker
-        self.clients.matchAll().then(clients => {
-          clients.forEach(client => {
-            if (client.url === event.request.url) {
-              client.navigate(event.request.url);
-            }
-          });
-        });
-      });
-    return;
-  }
-
-  // Handle navigation requests differently
-  if (event.request.mode === 'navigate') {
-    log('Navigation request:', url.pathname);
-    // Don't cache navigation requests - let the browser handle them
-    return;
-  }
-
-  // Only handle static assets
-  if (!url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|ico|json|woff2?)$/)) {
-    return;
-  }
-
-  log('Handling fetch for:', url.pathname);
 
   event.respondWith(
-    (async () => {
-      try {
-        // Try network first for fresh content
-        const networkResponse = await fetch(event.request);
-        
-        if (networkResponse.ok) {
-          // Cache successful responses
-          const cache = await caches.open(CACHE_NAME);
-          cache.put(event.request, networkResponse.clone());
-          log('Cached fresh response for:', url.pathname);
-          return networkResponse;
+    caches.match(event.request)
+      .then(response => response || fetch(event.request))
+      .catch(() => {
+        if (event.request.mode === 'navigate') {
+          return caches.match('/offline.html');
         }
-
-        // If network fails, try cache
-        const cachedResponse = await caches.match(event.request);
-        if (cachedResponse) {
-          log('Serving from cache:', url.pathname);
-          return cachedResponse;
-        }
-
-        // If both fail, return network response anyway
-        return networkResponse;
-
-      } catch (error) {
-        log('Fetch error:', error);
-        // Last resort - check cache
-        const cachedResponse = await caches.match(event.request);
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        // If all fails, show offline response
-        return new Response('Offline', { status: 503 });
-      }
-    })()
+      })
   );
 });
 
