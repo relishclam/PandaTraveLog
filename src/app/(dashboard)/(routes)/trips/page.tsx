@@ -12,6 +12,7 @@ import TripChoiceCard from '@/components/trips/TripChoiceCard';
 import ManualTripEntryModal from '@/components/trips/ManualTripEntryModal';
 import TripTabs from '@/components/trips/TripTabs';
 import { usePOAssistant } from '@/contexts/POAssistantContext';
+import { InteractiveMapModal } from '@/components/map/InteractiveMapModal';
 
 interface Trip {
   id: string;
@@ -34,6 +35,8 @@ export default function TripsPage() {
   const [error, setError] = useState<string | null>(null);
   const [showTripChoice, setShowTripChoice] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const [destination, setDestination] = useState('');
   const { showPO, setContext } = usePOAssistant();
 
   // ✅ SIMPLIFIED - Only check auth state from AuthContext
@@ -255,6 +258,13 @@ export default function TripsPage() {
           onClose={() => setShowManualEntry(false)}
         />
       )}
+
+      {/* Interactive Map Modal */}
+      <InteractiveMapModal 
+        isOpen={showMap}
+        onClose={() => setShowMap(false)}
+        destination={destination}
+      />
     </div>
   );
 }

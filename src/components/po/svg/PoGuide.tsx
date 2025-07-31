@@ -2,17 +2,19 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 
 interface PoGuideProps {
-  message: string;
-  type?: 'happy' | 'thinking' | 'excited' | 'sad';
+  message?: string;  // Make message optional
+  type?: 'happy' | 'thinking' | 'excited' | 'sad' | 'guide' | 'map' | 'assistant';
   size?: 'small' | 'medium' | 'large';
   animated?: boolean;
+  className?: string; // Add className prop
 }
 
 export const PoGuide: React.FC<PoGuideProps> = ({ 
   message, 
   type = 'happy', 
   size = 'medium',
-  animated = true 
+  animated = true,
+  className = '' // Add default empty string
 }) => {
   const [isAnimated, setIsAnimated] = useState(false);
   
@@ -74,6 +76,10 @@ export const PoGuide: React.FC<PoGuideProps> = ({
   // Speech bubble color
   const getBubbleColor = () => {
     switch (type) {
+      case 'guide':
+      case 'map':
+      case 'assistant':
+        return 'bg-backpack-orange/10 border-backpack-orange';
       case 'happy':
         return 'bg-bamboo-light border-green-500';
       case 'excited':
@@ -87,8 +93,32 @@ export const PoGuide: React.FC<PoGuideProps> = ({
     }
   };
   
+  // Add default messages based on type
+  const getDefaultMessage = () => {
+    switch (type) {
+      case 'guide':
+        return "Let me help you explore!";
+      case 'map':
+        return "Click to add locations";
+      case 'assistant':
+        return "I'm your travel buddy!";
+      case 'happy':
+        return "Ready for adventure!";
+      case 'thinking':
+        return "Hmm, let me think...";
+      case 'excited':
+        return "This is exciting!";
+      case 'sad':
+        return "Oh no...";
+      default:
+        return "Hi, I'm PO!";
+    }
+  };
+
+  const displayMessage = message || getDefaultMessage();
+
   return (
-    <div className={`flex flex-col items-center ${sizeClasses[size].container}`}>
+    <div className={`flex flex-col items-center ${sizeClasses[size].container} ${className}`}>
       {/* Speech bubble */}
       <div 
         className={`
@@ -96,7 +126,7 @@ export const PoGuide: React.FC<PoGuideProps> = ({
           ${sizeClasses[size].bubble} w-full
         `}
       >
-        <p className="text-center">{message}</p>
+        <p className="text-center">{displayMessage}</p>
         {/* Triangle pointer */}
         <div 
           className={`
