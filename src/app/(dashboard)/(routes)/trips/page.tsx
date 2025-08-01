@@ -55,13 +55,20 @@ export default function TripsPage() {
 
   // ✅ SIMPLIFIED - Only check auth state from AuthContext
   useEffect(() => {
-    if (authLoading) return;
+    // Wait for auth to be ready
+    if (authLoading) {
+      console.log("Auth is loading...");
+      return;
+    }
     
+    // If no user after loading completes, redirect to login
     if (!user) {
+      console.log("No user found, redirecting to login");
       router.push('/login');
       return;
     }
 
+    console.log("User authenticated, fetching trips");
     fetchTrips();
   }, [user, authLoading, router]);
 
@@ -146,41 +153,6 @@ export default function TripsPage() {
     }
   };
 
-  // Enhanced loading and auth check logic
-  useEffect(() => {
-    if (authLoading) return;
-    
-    const checkAuthAndFetch = async () => {
-      try {
-        // Double-check session status
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (!session) {
-          console.log("No active session found, redirecting to login");
-          router.push('/login');
-          return;
-        }
-        
-        // If we have a session but no user in context, wait briefly and retry
-        if (!user) {
-          console.log("Session found but no user in context, waiting...");
-          setTimeout(() => {
-            if (!user) router.push('/login');
-          }, 2000);
-          return;
-        }
-        
-        // We have both session and user, fetch trips
-        await fetchTrips();
-      } catch (err) {
-        console.error("Error in auth check:", err);
-        router.push('/login');
-      }
-    };
-    
-    checkAuthAndFetch();
-  }, [user, authLoading]);
-
   const [isCreating, setIsCreating] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [showTripOptions, setShowTripOptions] = useState(false);
@@ -218,6 +190,18 @@ export default function TripsPage() {
       <div className="flex flex-col items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mb-4"></div>
         <div className="text-gray-600">Loading your trips...</div>
+      </div>
+    );
+  }
+
+  // Show loading during authentication check
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-backpack-orange mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking authentication...</p>
+        </div>
       </div>
     );
   }
