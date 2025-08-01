@@ -8,15 +8,24 @@ import { Badge } from '@/components/ui/Badge';
 import { MapPin, Calendar, Users, Star, ArrowRight, Plane, Camera, Map } from "lucide-react";
 import UnifiedPOAssistant from '@/components/po/UnifiedPOAssistant';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 import { useCallback } from 'react';
 
 export default function Home() {
   const { user } = useAuth();
+  const router = useRouter();
   
-  // Handle direct navigation
+  // Handle direct navigation using Next.js router
   const handleNavigation = useCallback((path: string) => {
-    window.location.href = path;
-  }, []);
+    console.log('🔄 Navigation requested to:', path);
+    try {
+      router.push(path);
+    } catch (error) {
+      console.error('Navigation error:', error);
+      // Fallback to window.location if router fails
+      window.location.href = path;
+    }
+  }, [router]);
   return (
     <div className="min-h-screen flex flex-col bg-bamboo-light">
       {/* PO Logo at Top */}
@@ -46,14 +55,24 @@ export default function Home() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
               <button 
-                onClick={() => handleNavigation('/register')} 
-                className="inline-flex items-center justify-center rounded-md text-sm font-bold h-11 px-8 bg-backpack-orange hover:bg-backpack-orange/90 text-white"
+                onClick={(e) => {
+                  e.preventDefault();
+                  console.log('Start Planning button clicked');
+                  handleNavigation('/register');
+                }} 
+                className="inline-flex items-center justify-center rounded-md text-sm font-bold h-11 px-8 bg-backpack-orange hover:bg-backpack-orange/90 text-white cursor-pointer"
+                type="button"
               >
                 Start Planning
               </button>
               <button 
-                onClick={() => handleNavigation('/login')} 
-                className="inline-flex items-center justify-center rounded-md text-sm font-medium h-11 px-8 border border-backpack-orange text-backpack-orange hover:bg-accent hover:text-accent-foreground"
+                onClick={(e) => {
+                  e.preventDefault();
+                  console.log('Sign In button clicked');
+                  handleNavigation('/login');
+                }} 
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium h-11 px-8 border border-backpack-orange text-backpack-orange hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                type="button"
               >
                 Sign In
               </button>
@@ -115,8 +134,13 @@ export default function Home() {
           <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Plan Your Next Adventure?</h2>
           <p className="text-xl mb-8 max-w-2xl mx-auto">Let PO the Travel Panda help you create unforgettable travel experiences with personalized itineraries.</p>
           <button 
-            onClick={() => handleNavigation('/register')} 
-            className="inline-flex items-center justify-center rounded-md text-sm font-bold h-11 px-8 bg-backpack-orange hover:bg-backpack-orange/90 text-white"
+            onClick={(e) => {
+              e.preventDefault();
+              console.log('Start Planning for Free button clicked');
+              handleNavigation('/register');
+            }} 
+            className="inline-flex items-center justify-center rounded-md text-sm font-bold h-11 px-8 bg-backpack-orange hover:bg-backpack-orange/90 text-white cursor-pointer"
+            type="button"
           >
             Start Planning for Free
           </button>

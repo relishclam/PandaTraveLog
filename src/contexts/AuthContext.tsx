@@ -398,14 +398,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Wait for client-side hydration before rendering
   const [hydrated, setHydrated] = useState(false);
+  
+  // Handle hydration
   useEffect(() => {
     setHydrated(true);
   }, []);
   
-  // During hydration, provide a loading context instead of null
+  // Provide consistent context value
   const value = {
-    user: hydrated ? user : null,
-    isLoading: hydrated ? isLoading : true, // Always loading during hydration
+    user: user,
+    isLoading: !hydrated || isLoading, // Show loading until hydrated and auth ready
     signIn, 
     signUp, 
     signOut, 
@@ -416,11 +418,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <AuthContext.Provider value={value}>
-      {hydrated ? children : (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-backpack-orange"></div>
-        </div>
-      )}
+      {children}
     </AuthContext.Provider>
   );
 };

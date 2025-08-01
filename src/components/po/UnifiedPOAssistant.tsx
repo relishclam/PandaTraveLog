@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback, memo, useMemo } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IoClose, IoSend, IoContract, IoExpand } from 'react-icons/io5';
+import { X as IoClose, Send as IoSend, Minimize as IoContract, Maximize as IoExpand } from 'lucide-react';
 import { Sparkles, MapPin, DollarSign } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';

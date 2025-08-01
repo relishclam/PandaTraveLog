@@ -206,6 +206,7 @@ export default function TripsPage() {
     );
   }
 
+  // Show sign-in prompt if not authenticated
   if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen">

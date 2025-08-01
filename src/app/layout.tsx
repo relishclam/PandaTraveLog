@@ -1,14 +1,6 @@
 import type { Metadata } from "next";
-// Remove next/font/google import that might be causing build issues
-// import { Nunito } from "next/font/google";
 import { Providers } from "@/app/providers";
 import "./globals.css";
-import { preloadPandaImages } from "@/utils/imagePaths";
-
-// Preload panda images on the client side
-if (typeof window !== 'undefined') {
-  preloadPandaImages();
-}
 
 export const metadata: Metadata = {
   title: "PandaTraveLog - Your AI Travel Planner",
@@ -18,16 +10,11 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "PandaTraveLog",
-    startupImage: [
-      '/images/logo/apple-icon-180x180.png'
-    ]
+    title: "PandaTraveLog"
   },
   formatDetection: {
     telephone: true
   },
-  themeColor: "#f97316",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover",
   icons: {
     icon: [
       { url: "/images/logo/logo-icon.png", sizes: "256x256", type: "image/png" },
@@ -52,18 +39,16 @@ export function generateViewport() {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en">
       <head>
-        {/* Add Nunito font using standard link method */}
         <link 
           href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap" 
           rel="stylesheet"
         />
-        {/* PWA and Favicon Configuration */}
         <meta name="theme-color" content="#f97316" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />
