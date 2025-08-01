@@ -4,16 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { formatDate } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
-
-type Trip = {
-  id: string;
-  title: string;
-  destination: string;
-  start_date: string;
-  end_date: string;
-  description?: string;
-  created_at: string;
-};
+import type { Trip } from '@/types/trip';
 
 interface TripTabsProps {
   trips: Trip[];

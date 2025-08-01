@@ -24,7 +24,7 @@ interface Message {
 
 interface POAssistantProps {
   tripId?: string;
-  context?: 'marketing' | 'trip_creation' | 'diary' | 'manual_entry' | 'dashboard';
+  context?: 'marketing' | 'trip_creation' | 'diary' | 'manual_entry' | 'dashboard' | 'trip_enhancement' | 'trip_planning';
   isMinimized?: boolean;
   onMinimize?: () => void;
   onTripCreated?: (tripId: string) => void;
@@ -122,7 +122,29 @@ This helps me suggest appropriate accommodations and activities.
 Just start by telling me where you'd like to go, and I'll guide you through the rest! 🗺️✈️`,
       diary: `Welcome back! I'm here to help you with any questions about your trip. Need suggestions for activities, restaurants, or places to visit? 🗺️`,
       manual_entry: `Hi! I'm PO, your travel assistant. I can help you find great places to visit, restaurants to try, and accommodations to book! 🏨✈️`,
-      dashboard: `Hello! I'm PO, your personal travel assistant. Ready to plan your next adventure? 🌍`
+      dashboard: `Hello! I'm PO, your personal travel assistant. Ready to plan your next adventure? 🌍`,
+      trip_enhancement: `🚀 **Let's Enhance Your Trip!** 🚀
+
+I'm PO, and I'm here to help make your existing trip even better! I can help you with:
+
+- **Add new destinations** or activities to your itinerary
+- **Find better accommodations** or upgrade your current bookings  
+- **Discover hidden gems** and local experiences
+- **Optimize your schedule** and travel routes
+- **Get recommendations** for restaurants, attractions, and activities
+
+What would you like to improve about your trip? Just tell me what you're looking for! ✨`,
+      trip_planning: `📅 **Trip Planning Mode!** 📅
+
+I'm PO, your travel planning expert! I'm here to help you organize and plan every detail of your trip:
+
+- **Create detailed itineraries** day by day
+- **Plan your route** and transportation
+- **Schedule activities** and make reservations
+- **Budget planning** and expense tracking
+- **Weather considerations** and packing suggestions
+
+What aspect of your trip would you like to plan together? 🗺️✈️`
     };
     
     return greetings[currentContext] || greetings.dashboard;

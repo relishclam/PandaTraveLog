@@ -66,11 +66,13 @@ interface AccommodationDetails {
 interface ManualTripEntryModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: (tripId: string) => void;
 }
 
 const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({ 
   isOpen, 
-  onClose 
+  onClose,
+  onSuccess
 }) => {
   const { user } = useAuth();
   const router = useRouter();
@@ -227,18 +229,20 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
         throw new Error('Please add at least one day schedule');
       }
 
-      // Prepare trip data
+      // Prepare trip data according to actual database schema
       const tripData = {
         title: tripName,
         destination: destinations.map(d => d.name).join(', '),
         start_date: startDate,
         end_date: endDate,
-        manual_entry_data: {
-          destinations: destinations,
-          daySchedules: daySchedules,
-          travelDetails: travelDetails,
-          accommodations: accommodations
-        }
+        description: `Manual entry trip with ${destinations.length} destination(s)`,
+        interests: 'Manual Entry',
+        currency: 'USD',
+        // Additional manual entry data for related tables
+        destinations: destinations,
+        daySchedules: daySchedules,
+        travelDetails: travelDetails,
+        accommodations: accommodations
       };
 
       console.log('📤 Prepared trip data:', JSON.stringify(tripData, null, 2));
@@ -278,13 +282,16 @@ const ManualTripEntryModal: React.FC<ManualTripEntryModalProps> = ({
       
       if (result.success && (result.tripId || result.trip?.id)) {
         const tripId = result.tripId || result.trip.id;
-        console.log('🧭 Navigating to trip:', `/trips/${tripId}/diary`);
+        console.log('🧭 Trip created successfully:', tripId);
         
-        // Close modal first
-        onClose();
-        
-        // Then navigate
-        router.push(`/trips/${tripId}/diary`);
+        // Call onSuccess callback if provided
+        if (onSuccess) {
+          onSuccess(tripId);
+        } else {
+          // Fallback: Close modal and navigate
+          onClose();
+          router.push(`/trips/${tripId}/diary`);
+        }
       } else {
         throw new Error('Invalid response from server - missing trip ID');
       }

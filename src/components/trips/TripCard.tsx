@@ -6,19 +6,10 @@ import { MapPin, Calendar, Book, ExternalLink, Loader2, Trash2, Home } from 'luc
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useState } from 'react';
-
-interface Trip {
-  id: string;
-  title: string;
-  destination: string;
-  start_date: string;
-  end_date: string;
-  status: string;
-  accommodation?: string;
-}
+import type { Trip } from '@/types/trip';
 
 interface TripCardProps {
-  trip: Trip;  // Use the full Trip interface
+  trip: Trip;  // Use the shared Trip interface
   onEnhance: () => void;
   onDelete: (id: string) => Promise<void>;
   isDeleting: boolean;

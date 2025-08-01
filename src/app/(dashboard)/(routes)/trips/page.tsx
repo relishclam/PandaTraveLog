@@ -11,32 +11,14 @@ import TripChoiceCard from '@/components/trips/TripChoiceCard';
 import ManualTripEntryModal from '@/components/trips/ManualTripEntryModal';
 import TripTabs from '@/components/trips/TripTabs';
 import { InteractiveMapModal } from '@/components/map/InteractiveMapModal';
-import { CreateTripModal } from '@/components/trips';
+import AITripCreationModal from '@/components/modals/AITripCreationModal';
 import { usePOAssistant } from '@/contexts/POAssistantContext';
 import type { POContext } from '@/contexts/POAssistantContext';  // Import type properly
 import { PoGuide } from '@/components/po/svg/PoGuide';
+import type { Trip } from '@/types/trip';
 
 // Initialize Supabase client for this component
 const supabase = createClient();
-
-// Update Trip interface to match Supabase schema
-interface Trip {
-  id: string;
-  title: string;
-  destination: string;
-  start_date: string;
-  end_date: string;
-  description: string;
-  accommodation: string;
-  transportation: string;
-  activities: string[];
-  notes: string;
-  status: 'planning' | 'active' | 'completed';
-  user_id: string;
-  created_at: string;
-  updated_at: string;
-  is_ai_generated: boolean;
-}
 
 interface EmptyStateProps {
   onCreateClick: () => void;
@@ -66,6 +48,7 @@ export default function TripsPage() {
   const [error, setError] = useState<string | null>(null);
   const [showTripChoice, setShowTripChoice] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
+  const [showAITripModal, setShowAITripModal] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [destination, setDestination] = useState('');
   const { showPO, setContext } = usePOAssistant();
@@ -95,13 +78,18 @@ export default function TripsPage() {
 
       if (error) throw error;
 
-      // Ensure we're getting all fields
+      // Map database fields to interface and provide computed fields for UI compatibility
       setTrips(data?.map(trip => ({
         ...trip,
-        activities: trip.activities || [],
-        accommodation: trip.accommodation || '',
-        transportation: trip.transportation || '',
-        notes: trip.notes || ''
+        destination: trip.destination || 'Unknown Destination', // Ensure destination is always a string
+        start_date: trip.start_date || new Date().toISOString().split('T')[0], // Provide fallback date
+        end_date: trip.end_date || new Date().toISOString().split('T')[0], // Provide fallback date
+        // Computed fields from related tables (will be null for now, could be enhanced later)
+        accommodation: '', // Could fetch from trip_accommodations table
+        transportation: '', // Could fetch from trip_travel_details table
+        activities: [], // Could fetch from activities table
+        notes: trip.description || '', // Use description as notes fallback
+        is_ai_generated: trip.interests?.includes('AI-generated') || false // Basic heuristic
       })) || []);
     } catch (err) {
       console.error('Error fetching trips:', err);
@@ -140,17 +128,22 @@ export default function TripsPage() {
     if (choice === 'manual') {
       setShowManualEntry(true);
     } else {
-      // Open unified PO assistant
-      setContext('trip_creation');
-      showPO();
+      // Open the detailed AI Trip Creation Modal
+      setShowAITripModal(true);
     }
   };
 
   // ✅ Function to handle successful trip creation from modal
-  const handleTripCreated = () => {
+  const handleTripCreated = (tripId?: string) => {
     // Refresh trips list when a trip is successfully created
     fetchTrips();
     setShowManualEntry(false);
+    setShowAITripModal(false);
+    
+    // If tripId is provided, could navigate to trip details or show success message
+    if (tripId) {
+      console.log('Trip created successfully:', tripId);
+    }
   };
 
   // Enhanced loading and auth check logic
@@ -190,7 +183,6 @@ export default function TripsPage() {
 
   const [isCreating, setIsCreating] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showTripOptions, setShowTripOptions] = useState(false);
 
   // Add error state component
@@ -261,7 +253,7 @@ export default function TripsPage() {
           <Button
             onClick={() => {
               setShowTripOptions(false);
-              setShowCreateModal(true);
+              setShowManualEntry(true);
             }}
             className="w-full justify-start text-left p-4 h-auto"
           >
@@ -274,8 +266,7 @@ export default function TripsPage() {
           <Button
             onClick={() => {
               setShowTripOptions(false);
-              setContext('trip_creation');
-              showPO();
+              setShowAITripModal(true);
             }}
             className="w-full justify-start text-left p-4 h-auto"
           >
@@ -337,16 +328,6 @@ export default function TripsPage() {
 
       {/* Modals */}
       {showTripOptions && <TripOptionsMenu />}
-      {showCreateModal && (
-        <CreateTripModal
-          open={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
-          onSuccess={() => {
-            setShowCreateModal(false);
-            fetchTrips();
-          }}
-        />
-      )}
       
       {/* Trip Choice Modal */}
       {showTripChoice && (
@@ -370,8 +351,7 @@ export default function TripsPage() {
               }}
               onAiPlanning={() => {
                 setShowTripChoice(false);
-                setContext('trip_creation');
-                showPO();
+                setShowAITripModal(true);
               }}
             />
           </div>
@@ -383,6 +363,16 @@ export default function TripsPage() {
         <ManualTripEntryModal
           isOpen={showManualEntry}
           onClose={() => setShowManualEntry(false)}
+          onSuccess={handleTripCreated}
+        />
+      )}
+
+      {/* AI Trip Creation Modal */}
+      {showAITripModal && (
+        <AITripCreationModal
+          isOpen={showAITripModal}
+          onClose={() => setShowAITripModal(false)}
+          onSuccess={handleTripCreated}
         />
       )}
 
