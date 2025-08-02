@@ -108,13 +108,6 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/trips', request.url));
     }
 
-    // Ensure /trips redirects to dashboard trips page
-    if (pathname === '/trips' && hasSession) {
-      console.log('[MIDDLEWARE] Authenticated access to /trips - ensuring dashboard route');
-      // This should hit the (dashboard)/(routes)/trips/page.tsx
-      return response;
-    }
-
     // Block unauthorized access to protected pages
     if (isProtected && !hasSession) {
       const loginUrl = new URL('/login', request.url)
