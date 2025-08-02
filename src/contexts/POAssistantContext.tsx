@@ -49,8 +49,11 @@ export const POAssistantProvider: React.FC<{ children: ReactNode }> = ({ childre
   const pathname = usePathname();
   const [state, setState] = useState<POAssistantState>(initialState);
 
-  // ✅ NEW: Modal detection using MutationObserver
+  // ✅ NEW: Modal detection using MutationObserver - NUCLEAR DISABLED
   useEffect(() => {
+    // 🚨 NUCLEAR: COMPLETELY DISABLE MODAL DETECTION
+    console.log('🚨 NUCLEAR: Modal detection COMPLETELY DISABLED');
+    return;
     const detectModals = () => {
       // 🚨 EMERGENCY KILL SWITCH: Disable modal detection on trips page
       const currentPath = window.location.pathname;

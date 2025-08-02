@@ -10,7 +10,7 @@ import TripCard from '@/components/trips/TripCard';  // Use default import
 import TripChoiceCard from '@/components/trips/TripChoiceCard';
 import ManualTripEntryModal from '@/components/trips/ManualTripEntryModal';
 import TripTabs from '@/components/trips/TripTabs';
-import { InteractiveMapModal } from '@/components/map/InteractiveMapModal';
+import InteractiveMapModal from '@/components/maps/InteractiveMapModal';
 import AITripCreationModal from '@/components/modals/AITripCreationModal';
 import { usePOAssistant } from '@/contexts/POAssistantContext';
 import type { POContext } from '@/contexts/POAssistantContext';  // Import type properly
@@ -49,26 +49,10 @@ export default function TripsPage() {
   const [showTripChoice, setShowTripChoice] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [showAITripModal, setShowAITripModal] = useState(false);
-  const [showMap, setShowMap] = useState(false);
-  const [destination, setDestination] = useState('');
   const { showPO, setContext } = usePOAssistant();
-
-  // 🔍 DEBUG: Log what's happening with the modal
-  useEffect(() => {
-    console.log('🚨 TRIPS PAGE: showMap state is:', showMap);
-    console.log('🚨 TRIPS PAGE: destination is:', destination);
-    console.log('🚨 TRIPS PAGE: user:', user?.email);
-    console.log('🚨 TRIPS PAGE: authLoading:', authLoading);
-  }, [showMap, destination, user, authLoading]);
 
   // ✅ SIMPLIFIED - Only check auth state from AuthContext
   useEffect(() => {
-    // 🚨 EMERGENCY: Force showMap to false if somehow it gets set to true
-    if (showMap) {
-      console.log('🚨 EMERGENCY: Forcing showMap to false!');
-      setShowMap(false);
-    }
-    
     // Wait for auth to be ready
     if (authLoading) {
       console.log("Auth is loading...");
@@ -84,7 +68,7 @@ export default function TripsPage() {
 
     console.log("User authenticated, fetching trips");
     fetchTrips();
-  }, [user, authLoading, router, showMap]);
+  }, [user, authLoading, router]);
 
   const fetchTrips = async () => {
     try {
@@ -375,12 +359,6 @@ export default function TripsPage() {
         />
       )}
 
-      {/* Interactive Map Modal */}
-      <InteractiveMapModal 
-        isOpen={showMap}
-        onClose={() => setShowMap(false)}
-        destination={destination}
-      />
     </div>
   );
 }
