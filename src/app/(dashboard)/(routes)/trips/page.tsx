@@ -53,8 +53,22 @@ export default function TripsPage() {
   const [destination, setDestination] = useState('');
   const { showPO, setContext } = usePOAssistant();
 
+  // 🔍 DEBUG: Log what's happening with the modal
+  useEffect(() => {
+    console.log('🚨 TRIPS PAGE: showMap state is:', showMap);
+    console.log('🚨 TRIPS PAGE: destination is:', destination);
+    console.log('🚨 TRIPS PAGE: user:', user?.email);
+    console.log('🚨 TRIPS PAGE: authLoading:', authLoading);
+  }, [showMap, destination, user, authLoading]);
+
   // ✅ SIMPLIFIED - Only check auth state from AuthContext
   useEffect(() => {
+    // 🚨 EMERGENCY: Force showMap to false if somehow it gets set to true
+    if (showMap) {
+      console.log('🚨 EMERGENCY: Forcing showMap to false!');
+      setShowMap(false);
+    }
+    
     // Wait for auth to be ready
     if (authLoading) {
       console.log("Auth is loading...");
@@ -70,7 +84,7 @@ export default function TripsPage() {
 
     console.log("User authenticated, fetching trips");
     fetchTrips();
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, showMap]);
 
   const fetchTrips = async () => {
     try {

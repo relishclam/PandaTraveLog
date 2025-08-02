@@ -53,3 +53,4 @@ netlify.toml
 **/supabase/.temp
 **/supabase/.branches
 **/supabase/.backups
+.vercel

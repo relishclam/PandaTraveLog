@@ -75,9 +75,20 @@ export async function middleware(request: NextRequest) {
     )
     
     // Get the session
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    
+    if (sessionError) {
+      console.error('[MIDDLEWARE] Session error:', sessionError);
+    }
     
     const hasSession = !!session
+    
+    console.log('[MIDDLEWARE] Auth check:', { 
+      pathname, 
+      hasSession, 
+      userId: session?.user?.id,
+      sessionError: sessionError?.message 
+    });
 
     const isProtected = protectedPaths.some((path) => pathname.startsWith(path))
     const isAuthRoute = authPaths.some((path) => pathname.startsWith(path))
@@ -89,8 +100,19 @@ export async function middleware(request: NextRequest) {
 
     // Special redirect on landing page
     if (pathname === '/') {
-      if (!hasSession) return response
-      return NextResponse.redirect(new URL('/trips', request.url))
+      if (!hasSession) {
+        console.log('[MIDDLEWARE] No session on root, staying on landing page');
+        return response;
+      }
+      console.log('[MIDDLEWARE] Authenticated user on root, redirecting to trips');
+      return NextResponse.redirect(new URL('/trips', request.url));
+    }
+
+    // Ensure /trips redirects to dashboard trips page
+    if (pathname === '/trips' && hasSession) {
+      console.log('[MIDDLEWARE] Authenticated access to /trips - ensuring dashboard route');
+      // This should hit the (dashboard)/(routes)/trips/page.tsx
+      return response;
     }
 
     // Block unauthorized access to protected pages

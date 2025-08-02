@@ -52,6 +52,13 @@ export const POAssistantProvider: React.FC<{ children: ReactNode }> = ({ childre
   // ✅ NEW: Modal detection using MutationObserver
   useEffect(() => {
     const detectModals = () => {
+      // 🚨 EMERGENCY KILL SWITCH: Disable modal detection on trips page
+      const currentPath = window.location.pathname;
+      if (currentPath === '/trips' || currentPath.includes('/trips')) {
+        console.log('🚨 PO Assistant: Modal detection DISABLED on trips page');
+        return;
+      }
+      
       // Check for common modal selectors
       const modalSelectors = [
         '.fixed.inset-0', // Your modal backdrop

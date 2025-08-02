@@ -13,6 +13,12 @@ interface InteractiveMapModalProps {
 }
 
 export function InteractiveMapModal({ isOpen, onClose, destination }: InteractiveMapModalProps) {
+  // 🔍 DEBUG: Log when this modal is rendered
+  console.log('🚨 INTERACTIVE MAP MODAL: Rendering with isOpen:', isOpen, 'destination:', destination);
+  
+  useEffect(() => {
+    console.log('🚨 INTERACTIVE MAP MODAL: Modal state changed - isOpen:', isOpen);
+  }, [isOpen]);
   const {
     selectedLocations,
     mapCenter,
