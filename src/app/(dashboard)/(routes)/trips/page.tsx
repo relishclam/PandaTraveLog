@@ -10,7 +10,6 @@ import TripCard from '@/components/trips/TripCard';  // Use default import
 import TripChoiceCard from '@/components/trips/TripChoiceCard';
 import ManualTripEntryModal from '@/components/trips/ManualTripEntryModal';
 import TripTabs from '@/components/trips/TripTabs';
-import InteractiveMapModal from '@/components/maps/InteractiveMapModal';
 import AITripCreationModal from '@/components/modals/AITripCreationModal';
 import { usePOAssistant } from '@/contexts/POAssistantContext';
 import type { POContext } from '@/contexts/POAssistantContext';  // Import type properly
