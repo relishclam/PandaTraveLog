@@ -25,9 +25,8 @@ export async function middleware(request: NextRequest) {
   log('Processing request for:', pathname)
   log('User-Agent:', request.headers.get('user-agent') || 'Unknown')
 
-  // Ignore static files, API routes
+  // Ignore static files, API routes (but NOT auth API routes)
   if (
-    pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
     pathname.startsWith('/images/') ||
     pathname === '/favicon.ico' ||
@@ -44,6 +43,11 @@ export async function middleware(request: NextRequest) {
     }
 
     return staticRes
+  }
+
+  // Handle API routes separately (except auth API)
+  if (pathname.startsWith('/api/') && !pathname.startsWith('/api/auth')) {
+    return NextResponse.next()
   }
 
   // Prevent redirect loops

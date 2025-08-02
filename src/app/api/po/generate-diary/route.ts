@@ -7,7 +7,10 @@ export async function POST(request: NextRequest) {
   try {
     const { conversationId, userId, tripId } = await request.json();
 
+    console.log('Generate diary request:', { conversationId, userId, tripId });
+
     if (!userId) {
+      console.error('No user ID provided');
       return NextResponse.json(
         { error: 'User ID is required' },
         { status: 401 }
@@ -18,6 +21,7 @@ export async function POST(request: NextRequest) {
     let conversation = [];
     
     if (conversationId) {
+      console.log('Fetching conversation by ID:', conversationId);
       // Get specific conversation by ID
       const { data: messages, error } = await supabaseAdmin
         .from('assistant_conversations')
@@ -27,6 +31,7 @@ export async function POST(request: NextRequest) {
         .order('created_at', { ascending: true });
 
       if (error) {
+        console.error('Error fetching conversation:', error);
         throw new Error(`Failed to fetch conversation: ${error.message}`);
       }
 
@@ -37,9 +42,11 @@ export async function POST(request: NextRequest) {
         timestamp: new Date(msg.created_at)
       }));
     } else if (tripId) {
+      console.log('Fetching conversation for trip ID:', tripId);
       // Get conversation for specific trip
       conversation = await AIDiaryGenerator.getTripConversation(tripId, userId);
     } else {
+      console.log('Fetching recent general conversation for user:', userId);
       // Get recent general conversation
       const { data: messages, error } = await supabaseAdmin
         .from('assistant_conversations')
@@ -50,6 +57,7 @@ export async function POST(request: NextRequest) {
         .limit(20);
 
       if (error) {
+        console.error('Error fetching recent conversation:', error);
         throw new Error(`Failed to fetch recent conversation: ${error.message}`);
       }
 
@@ -61,13 +69,17 @@ export async function POST(request: NextRequest) {
       }));
     }
 
+    console.log('Conversation length:', conversation.length);
+
     if (conversation.length === 0) {
+      console.log('No conversation found');
       return NextResponse.json(
         { error: 'No conversation found to generate diary from' },
         { status: 404 }
       );
     }
 
+    console.log('Generating trip diary from conversation...');
     // Generate trip diary from conversation
     const tripDiary = await AIDiaryGenerator.generateTripDiaryFromConversation(
       conversation,
@@ -75,12 +87,14 @@ export async function POST(request: NextRequest) {
     );
 
     if (!tripDiary) {
+      console.error('Failed to generate trip diary');
       return NextResponse.json(
         { error: 'Failed to generate trip diary from conversation' },
         { status: 500 }
       );
     }
 
+    console.log('Trip diary generated successfully');
     return NextResponse.json({
       success: true,
       tripDiary,
@@ -90,8 +104,9 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error in generate-diary API:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: `Internal server error: ${errorMessage}` },
       { status: 500 }
     );
   }

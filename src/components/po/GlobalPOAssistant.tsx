@@ -33,7 +33,7 @@ export const GlobalPOAssistant: React.FC = () => {
   if (state.currentContext === 'diary' || state.currentContext === 'manual_entry') {
     // For trip diary and manual entry, show as persistent bottom chat (Cascade-style)
     return (
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-lg">
+      <div className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 shadow-lg">
         <div className={`transition-all duration-300 ${state.isMinimized ? 'h-16' : 'h-96'}`}>
           {state.isMinimized ? (
             // Minimized header bar
