@@ -20,10 +20,16 @@ export default function DashboardLayout({
     // Only check once when loading completes
     if (!isLoading && !authChecked) {
       setAuthChecked(true);
-      console.log("✅ Dashboard Layout: Auth check complete");
-      // No need to handle redirects here, middleware will handle it
+      console.log("✅ Dashboard Layout: Auth check complete", { 
+        hasUser: !!user, 
+        userEmail: user?.email 
+      });
+      // Middleware handles redirects - we just need to verify user exists
+      if (!user) {
+        console.log("❌ Dashboard Layout: No authenticated user found");
+      }
     }
-  }, [isLoading, authChecked]);
+  }, [isLoading, authChecked, user]);
 
   // Show loading spinner during initial load or when auth is being checked
   if (isLoading) {

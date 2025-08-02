@@ -30,6 +30,49 @@ function convertSupabaseUser(supabaseUser: SupabaseUser): User {
   };
 }
 
+// Proper authentication validation function
+async function validateAuthentication() {
+  try {
+    // 1. Check for valid session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) {
+      console.log('❌ No valid session found');
+      return false;
+    }
+    
+    // 2. Verify session hasn't expired
+    if (session.expires_at && new Date(session.expires_at * 1000) <= new Date()) {
+      console.log('❌ Session has expired');
+      return false;
+    }
+    
+    // 3. Verify user exists and is active
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.log('❌ User validation failed:', userError?.message);
+      return false;
+    }
+    
+    // 4. Verify user profile exists in database
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', user.id)
+      .single();
+    
+    if (profileError || !profile) {
+      console.log('❌ User profile not found in database');
+      return false;
+    }
+    
+    console.log('✅ Authentication validation successful');
+    return { user, session, profile };
+  } catch (error) {
+    console.error('❌ Authentication validation failed:', error);
+    return false;
+  }
+}
+
 type AuthContextType = {
   user: User | null;
   isLoading: boolean;
@@ -267,9 +310,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log('🔐 Sign in successful, updating user state');
       await updateUserState(data.user);
       
-      // Use router.push instead of window.location to prevent hard refresh
-      console.log('📍 Redirecting to dashboard');
-      router.push('/trips');
+      // DON'T automatically redirect - let the calling component handle navigation
+      console.log('✅ Authentication successful - user state updated');
       return;
     } else {
       throw new Error("No session data returned from authentication");

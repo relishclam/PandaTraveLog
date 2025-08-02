@@ -74,19 +74,32 @@ export async function middleware(request: NextRequest) {
       }
     )
     
-    // Get the session
+    // Get the session and validate it properly
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
     
     if (sessionError) {
       console.error('[MIDDLEWARE] Session error:', sessionError);
     }
     
-    const hasSession = !!session
+    // ENHANCED: Proper session validation
+    let hasValidSession = false;
+    if (session) {
+      // Check if session has expired
+      const isExpired = session.expires_at && new Date(session.expires_at * 1000) <= new Date();
+      if (!isExpired && session.access_token) {
+        // Verify user is actually authenticated
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (!userError && user) {
+          hasValidSession = true;
+        }
+      }
+    }
     
     console.log('[MIDDLEWARE] Auth check:', { 
       pathname, 
-      hasSession, 
+      hasValidSession, 
       userId: session?.user?.id,
+      sessionExpired: session?.expires_at ? new Date(session.expires_at * 1000) <= new Date() : 'no expiry',
       sessionError: sessionError?.message 
     });
 
@@ -98,26 +111,26 @@ export async function middleware(request: NextRequest) {
     response.headers.set('Pragma', 'no-cache')
     response.headers.set('Expires', '0')
 
-    // Special redirect on landing page
+    // Special redirect on landing page - with PROPER validation
     if (pathname === '/') {
-      if (!hasSession) {
-        console.log('[MIDDLEWARE] No session on root, staying on landing page');
+      if (!hasValidSession) {
+        console.log('[MIDDLEWARE] No valid session on root, staying on landing page');
         return response;
       }
       console.log('[MIDDLEWARE] Authenticated user on root, redirecting to trips');
       return NextResponse.redirect(new URL('/trips', request.url));
     }
 
-    // Block unauthorized access to protected pages
-    if (isProtected && !hasSession) {
+    // Block unauthorized access to protected pages - with PROPER validation
+    if (isProtected && !hasValidSession) {
       const loginUrl = new URL('/login', request.url)
       loginUrl.searchParams.set('returnUrl', encodeURIComponent(pathname))
       loginUrl.searchParams.set('rc', String(redirectCount + 1))
       return NextResponse.redirect(loginUrl)
     }
 
-    // If already authenticated and trying to visit auth pages, redirect
-    if (isAuthRoute && hasSession) {
+    // If already authenticated and trying to visit auth pages, redirect - with PROPER validation
+    if (isAuthRoute && hasValidSession) {
       const fromAuthAction = url.searchParams.get('fromAuthAction') === 'true'
       const authTime = url.searchParams.get('auth_time')
       const returnUrl = url.searchParams.get('returnUrl') || '/trips'

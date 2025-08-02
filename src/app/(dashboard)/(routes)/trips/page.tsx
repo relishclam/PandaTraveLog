@@ -50,22 +50,23 @@ export default function TripsPage() {
   const [showAITripModal, setShowAITripModal] = useState(false);
   const { showPO, setContext } = usePOAssistant();
 
-  // ✅ SIMPLIFIED - Only check auth state from AuthContext
+  // ✅ ENHANCED - Proper authentication validation
   useEffect(() => {
     // Wait for auth to be ready
     if (authLoading) {
-      console.log("Auth is loading...");
+      console.log("⏳ Auth is loading...");
       return;
     }
     
-    // If no user after loading completes, redirect to login
+    // If no user after loading completes, this should not happen due to middleware
+    // but we'll log it for debugging
     if (!user) {
-      console.log("No user found, redirecting to login");
+      console.error("❌ CRITICAL: No user found in trips page - middleware should have prevented this");
       router.push('/login');
       return;
     }
 
-    console.log("User authenticated, fetching trips");
+    console.log("✅ User authenticated in trips page:", user.email);
     fetchTrips();
   }, [user, authLoading, router]);
 

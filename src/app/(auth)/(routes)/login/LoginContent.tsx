@@ -38,32 +38,67 @@ export default function LoginContent() {
   const [pandaEmotion, setPandaEmotion] = useState<'happy' | 'thinking' | 'excited' | 'confused'>('happy');
   const [pandaMessage, setPandaMessage] = useState('Welcome back! Sign in to continue your adventures.');
 
-  // Enhanced redirect logic with session check
+  // Enhanced redirect logic with PROPER session validation
   useEffect(() => {
     const checkAndRedirect = async () => {
       try {
-        // Check if we already have a valid session
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Session check error:', error);
+        // Only proceed if auth is not loading and we have a user from AuthContext
+        if (authLoading || !user) {
           return;
         }
 
-        if (session?.user && !authLoading) {
-          console.log("✅ Valid session detected, redirecting to trips page");
-          // Use window.location.href for a clean navigation
-          window.location.href = '/trips';
+        // Perform comprehensive authentication validation
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('❌ Session check error:', sessionError);
+          return;
         }
+
+        // Verify session is valid and not expired
+        if (!session || !session.access_token) {
+          console.log('❌ No valid session or access token');
+          return;
+        }
+
+        if (session.expires_at && new Date(session.expires_at * 1000) <= new Date()) {
+          console.log('❌ Session has expired');
+          return;
+        }
+
+        // Verify user exists in auth system
+        const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
+        if (userError || !authUser) {
+          console.error('❌ User validation failed:', userError?.message);
+          return;
+        }
+
+        // Verify user profile exists in database
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', authUser.id)
+          .single();
+
+        if (profileError || !profile) {
+          console.log('❌ User profile not found in database');
+          return;
+        }
+
+        // ALL validations passed - safe to redirect
+        console.log("✅ Full authentication validation passed, redirecting to trips page");
+        router.push('/trips');
+        
       } catch (err) {
-        console.error('Error checking session:', err);
+        console.error('❌ Error during authentication validation:', err);
       }
     };
 
+    // Only check if we have a user from AuthContext and auth is not loading
     if (user && !authLoading) {
       checkAndRedirect();
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, router]);
 
   // Debug auth state
   useEffect(() => {
@@ -140,58 +175,16 @@ export default function LoginContent() {
       setPandaEmotion('thinking');
       setPandaMessage('Checking your credentials...');
 
-      console.log('🔄 Starting login process...');
+      console.log('🔄 Starting login process via AuthContext...');
       
-      // Attempt to sign in without clearing existing session
-      console.log('🔄 Attempting to sign in...');
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password
-      });
+      // Use AuthContext signIn method for proper authentication flow
+      await signIn(data.email, data.password);
 
-      if (signInError) {
-        console.error('❌ Sign in error:', signInError);
-        throw signInError;
-      }
-
-      if (!signInData?.session) {
-        console.error('❌ No session after sign in');
-        throw new Error('Failed to get session after login');
-      }
-
-      console.log('✅ Login successful, session established');
+      console.log('✅ Login successful via AuthContext');
       setPandaEmotion('excited');
       setPandaMessage("Welcome back! Let's continue planning your adventures!");
       
-      // Enhanced redirect with session verification
-      console.log('🔄 Starting redirect process...');
-      
-      try {
-        // Verify session immediately after login
-        const { data: { session: verifiedSession } } = await supabase.auth.getSession();
-        if (!verifiedSession) {
-          console.error('❌ Session verification failed');
-          throw new Error('Session verification failed');
-        }
-        
-        console.log('✅ Session verified, preparing redirect');
-        
-        // Construct redirect URL with auth parameters
-        const returnUrl = searchParams?.get('returnUrl') || '/trips';
-        const redirectUrl = new URL(returnUrl, window.location.origin);
-        
-        // Add auth parameters
-        redirectUrl.searchParams.set('fromAuthAction', 'true');
-        redirectUrl.searchParams.set('auth_time', Date.now().toString());
-        
-        // Force reload to ensure fresh state
-        console.log("✈️ Redirecting to:", redirectUrl.toString());
-        window.location.replace(redirectUrl.toString());
-      } catch (redirectError) {
-        console.error('❌ Redirect error:', redirectError);
-        // Fallback to trips page on error
-        window.location.replace('/trips');
-      }
+      // AuthContext will handle user state, useEffect will handle redirect
 
     } catch (err: any) {
       console.error('❌ Login error:', err);
