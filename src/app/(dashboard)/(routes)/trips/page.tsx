@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import TripCard from '@/components/trips/TripCard';  // Use default import
 import TripChoiceCard from '@/components/trips/TripChoiceCard';
 import ManualTripEntryModal from '@/components/trips/ManualTripEntryModal';
+import AIContextAwareTripModal from '@/components/trips/AIContextAwareTripModal';
 import TripTabs from '@/components/trips/TripTabs';
 import AITripCreationModal from '@/components/modals/AITripCreationModal';
 import { usePOAssistant } from '@/contexts/POAssistantContext';
@@ -47,6 +48,7 @@ export default function TripsPage() {
   const [error, setError] = useState<string | null>(null);
   const [showTripChoice, setShowTripChoice] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
+  const [showAIContextModal, setShowAIContextModal] = useState(false);
   const [showAITripModal, setShowAITripModal] = useState(false);
   const { showPO, setContext } = usePOAssistant();
 
@@ -330,7 +332,7 @@ export default function TripsPage() {
             <TripChoiceCard 
               onManualEntry={() => {
                 setShowTripChoice(false);
-                setShowManualEntry(true);
+                setShowAIContextModal(true);
               }}
               onAiPlanning={() => {
                 setShowTripChoice(false);
@@ -346,6 +348,15 @@ export default function TripsPage() {
         <ManualTripEntryModal
           isOpen={showManualEntry}
           onClose={() => setShowManualEntry(false)}
+          onSuccess={handleTripCreated}
+        />
+      )}
+
+      {/* AI Context-Aware Trip Creation Modal */}
+      {showAIContextModal && (
+        <AIContextAwareTripModal
+          isOpen={showAIContextModal}
+          onClose={() => setShowAIContextModal(false)}
           onSuccess={handleTripCreated}
         />
       )}

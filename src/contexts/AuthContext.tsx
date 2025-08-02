@@ -268,22 +268,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     if (session?.user) {
-      // We have a valid session
-      await updateUserState(session.user);
-    } else {
-      // No session - try to get user anyway (for cases where session might be stale)
-      const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError && userError.message !== 'Auth session missing!') {
-        console.error("Error getting authenticated user:", userError);
-      }
-      
-      if (authUser) {
-        await updateUserState(authUser);
+      // ONLY update user state if we have a VALID session with expiry check
+      const isSessionValid = !session.expires_at || new Date(session.expires_at * 1000) > new Date();
+      if (isSessionValid) {
+        console.log("✅ Valid session found, updating user state");
+        await updateUserState(session.user);
       } else {
+        console.log("❌ Session has expired, clearing auth state");
         setUser(null);
         setIsLoading(false);
       }
+    } else {
+      // NO SESSION - Do NOT try to get user, this creates false authentication
+      console.log("❌ No session found - user is not authenticated");
+      setUser(null);
+      setIsLoading(false);
     }
   } catch (err) {
     console.error("Exception in initAuth:", err);

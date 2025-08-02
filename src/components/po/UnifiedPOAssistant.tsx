@@ -341,6 +341,13 @@ Where would you like to go?`,
     if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault();
       sendMessage();
+      return;
+    }
+    
+    // Allow normal Enter key to create new line (do nothing, let default behavior happen)
+    if (e.key === 'Enter' && !e.shiftKey) {
+      // Don't prevent default - this allows new line creation
+      return;
     }
     
     // Adjust textarea height on input
@@ -506,7 +513,7 @@ Where would you like to go?`,
             onKeyDown={handleKeyPress}
             onFocus={handleFocus}
             onBlur={handleBlur}
-            placeholder="Ask PO anything about your trip... (Shift+Enter to send)"
+            placeholder="Ask PO anything about your trip... (Enter for new line, Shift+Enter to send)"
             className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-base resize-none min-h-[45px] max-h-[120px] overflow-y-auto"
             disabled={isLoading}
             rows={1}

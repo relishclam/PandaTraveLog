@@ -81,7 +81,7 @@ export async function middleware(request: NextRequest) {
       console.error('[MIDDLEWARE] Session error:', sessionError);
     }
     
-    // ENHANCED: Proper session validation
+    // ENHANCED: Proper session validation with cleanup
     let hasValidSession = false;
     if (session) {
       // Check if session has expired
@@ -91,7 +91,15 @@ export async function middleware(request: NextRequest) {
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         if (!userError && user) {
           hasValidSession = true;
+        } else {
+          // Invalid user but session exists - force cleanup
+          console.log('[MIDDLEWARE] Invalid user with session, forcing sign out');
+          await supabase.auth.signOut();
         }
+      } else {
+        // Expired session - force cleanup
+        console.log('[MIDDLEWARE] Expired session, forcing sign out');
+        await supabase.auth.signOut();
       }
     }
     
