@@ -14,6 +14,14 @@ export const GlobalPOAssistant: React.FC = () => {
     return null;
   }
 
+  // DEBUG: Log the current state
+  console.log('🐼 PO Assistant State:', {
+    isVisible: state.isVisible,
+    isMinimized: state.isMinimized,
+    currentContext: state.currentContext,
+    currentTripId: state.currentTripId
+  });
+
   const handleTripCreated = (tripId: string) => {
     // Navigate to the trip diary
     router.push(`/trips/${tripId}/diary`);
@@ -32,7 +40,13 @@ export const GlobalPOAssistant: React.FC = () => {
   // Render based on context and minimized state
   // For most contexts, show as proper modal overlay (floating assistant)
   // Only diary and manual_entry should use bottom chat
+  console.log('🐼 PO Assistant Render Logic:', {
+    currentContext: state.currentContext,
+    shouldShowAsModal: state.currentContext !== 'diary' && state.currentContext !== 'manual_entry'
+  });
+  
   if (state.currentContext !== 'diary' && state.currentContext !== 'manual_entry') {
+    console.log('🐼 PO Assistant: Rendering as MODAL');
     return (
       <UnifiedPOAssistant
         tripId={state.currentTripId}
@@ -45,6 +59,7 @@ export const GlobalPOAssistant: React.FC = () => {
   }
 
   // For diary and manual entry, show as persistent bottom chat
+  console.log('🐼 PO Assistant: Rendering as BOTTOM CHAT');
   return (
     <div className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 shadow-lg">
       <div className={`transition-all duration-300 ${state.isMinimized ? 'h-16' : 'h-96'}`}>
