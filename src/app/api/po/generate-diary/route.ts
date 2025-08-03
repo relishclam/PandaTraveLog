@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
         throw new Error(`Failed to fetch recent conversation: ${error.message}`);
       }
 
-      conversation = messages.reverse().map(msg => ({
+      conversation = (messages || []).reverse().map(msg => ({
         id: msg.id,
         role: msg.role,
         content: msg.message,
