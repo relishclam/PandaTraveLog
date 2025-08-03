@@ -1,7 +1,7 @@
 // Service Worker for PandaTraveLog PWA
-const CACHE_NAME = 'pandatravelog-v4';
-const ASSETS_CACHE = 'assets-v4';
-const API_CACHE = 'api-v4';
+const CACHE_NAME = 'pandatravelog-v5';
+const ASSETS_CACHE = 'assets-v5';
+const API_CACHE = 'api-v5';
 
 // Debug mode
 const DEBUG = true;
