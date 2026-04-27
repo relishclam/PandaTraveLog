@@ -50,7 +50,7 @@ export class EmergencyContactsAI {
       }
 
       const response = await axios.post(OPENROUTER_API_URL, {
-        model: 'anthropic/claude-3.5-sonnet',
+        model: 'anthropic/claude-sonnet-4.5',
         messages: [
           {
             role: 'system',
@@ -101,7 +101,7 @@ export class EmergencyContactsAI {
       }
 
       const response = await axios.post(OPENROUTER_API_URL, {
-        model: 'anthropic/claude-3.5-sonnet',
+        model: 'anthropic/claude-sonnet-4.5',
         messages: [
           {
             role: 'system',
@@ -356,7 +356,7 @@ Return in JSON format:
     }
 
     const response = await axios.post(OPENROUTER_API_URL, {
-      model: 'anthropic/claude-3.5-sonnet',
+      model: 'anthropic/claude-sonnet-4.5',
       messages: [
         {
           role: 'system',

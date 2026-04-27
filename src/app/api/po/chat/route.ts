@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
         'X-Title': 'PandaTraveLog PO Assistant'
       },
       body: JSON.stringify({
-        model: 'anthropic/claude-3.5-sonnet',
+        model: 'anthropic/claude-sonnet-4.5',
         messages: [
           {
             role: 'system',

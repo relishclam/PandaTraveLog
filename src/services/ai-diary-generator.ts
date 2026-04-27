@@ -65,7 +65,7 @@ export class AIDiaryGenerator {
           'X-Title': 'PandaTraveLog AI Diary Generator'
         },
         body: JSON.stringify({
-          model: 'anthropic/claude-3.5-sonnet',
+          model: 'anthropic/claude-sonnet-4.5',
           messages: [
             {
               role: 'system',

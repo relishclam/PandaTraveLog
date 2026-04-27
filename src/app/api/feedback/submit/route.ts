@@ -107,7 +107,7 @@ Focus on actionable insights that can help improve the PandaTravelLog applicatio
         'X-Title': 'PandaTravelLog Feedback Analysis'
       },
       body: JSON.stringify({
-        model: 'anthropic/claude-3.5-sonnet',
+        model: 'anthropic/claude-sonnet-4.5',
         messages: [
           {
             role: 'system',
