@@ -134,9 +134,10 @@ export async function POST(request: NextRequest) {
     });
     
     if (!openRouterResponse.ok) {
-      console.error('OpenRouter API error:', await openRouterResponse.text());
+      const errorBody = await openRouterResponse.text();
+      console.error('OpenRouter API error status:', openRouterResponse.status, 'body:', errorBody);
       return NextResponse.json(
-        { error: 'Failed to get AI response' },
+        { error: 'Failed to get AI response', openrouter_status: openRouterResponse.status, openrouter_error: errorBody },
         { status: 500 }
       );
     }
