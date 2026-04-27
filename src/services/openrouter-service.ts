@@ -319,7 +319,7 @@ export const openRouterService = {
         {
           headers: {
             'Authorization': `Bearer ${effectiveApiKey}`,
-            'HTTP-Referer': 'https://pandatravelog.netlify.app', // Your site URL for attribution
+            'HTTP-Referer': 'https://travelpanda.vercel.app', // Your site URL for attribution
             'X-Title': 'PandaTraveLog', // Your site name for attribution
             'Content-Type': 'application/json'
           }
@@ -660,7 +660,7 @@ export const openRouterService = {
         {
           headers: {
             'Authorization': `Bearer ${effectiveApiKey}`,
-            'HTTP-Referer': 'https://pandatravelog.netlify.app', // Your site URL for attribution
+            'HTTP-Referer': 'https://travelpanda.vercel.app', // Your site URL for attribution
             'X-Title': 'PandaTraveLog', // Your site name for attribution
             'Content-Type': 'application/json'
           }

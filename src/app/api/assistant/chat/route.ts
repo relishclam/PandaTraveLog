@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
         'Authorization': `Bearer ${effectiveApiKey}`,
         'Content-Type': 'application/json',
         'X-Title': 'PandaTraveLog PO Assistant',
-        'HTTP-Referer': 'https://pandatravelog.netlify.app',
+        'HTTP-Referer': 'https://travelpanda.vercel.app',
       },
       body: JSON.stringify({
         model: 'anthropic/claude-3.5-sonnet',

@@ -72,7 +72,7 @@ async function callOpenRouterDirectly(tripDetails: TripDetails, apiKey: string) 
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://pandatravelog.netlify.app',
+        'HTTP-Referer': 'https://travelpanda.vercel.app',
         'X-Title': 'PandaTraveLog Itinerary Generator'
       }
     }

@@ -259,7 +259,7 @@ export const geminiService = {
         {
           headers: {
             'Authorization': `Bearer ${apiKey}`,
-            'HTTP-Referer': 'https://pandatravelog.netlify.app', // Your site URL for attribution
+            'HTTP-Referer': 'https://travelpanda.vercel.app', // Your site URL for attribution
             'X-Title': 'PandaTraveLog', // Your site name for attribution
             'Content-Type': 'application/json'
           }
@@ -457,7 +457,7 @@ export const geminiService = {
         {
           headers: {
             'Authorization': `Bearer ${apiKey}`,
-            'HTTP-Referer': 'https://pandatravelog.netlify.app', // Your site URL for attribution
+            'HTTP-Referer': 'https://travelpanda.vercel.app', // Your site URL for attribution
             'X-Title': 'PandaTraveLog', // Your site name for attribution
             'Content-Type': 'application/json'
           }
