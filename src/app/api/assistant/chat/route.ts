@@ -165,19 +165,26 @@ export async function POST(request: NextRequest) {
         { role: 'assistant', content: assistantMessage, timestamp: new Date().toISOString() }
       ];
 
-      // Upsert conversation history
-      await supabase
-        .from('assistant_conversations')
-        .upsert({
-          user_id: currentUserId,
-          context: context || 'general',
-          messages: updatedHistory,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id,context'
-        });
-      
-      console.log('Updated conversation history with', updatedHistory.length, 'messages');
+      // Upsert conversation history — wrapped so a DB error won't fail the response
+      try {
+        const { error: upsertError } = await supabase
+          .from('assistant_conversations')
+          .upsert({
+            user_id: currentUserId,
+            context: context || 'general',
+            messages: updatedHistory,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id,context'
+          });
+        if (upsertError) {
+          console.warn('Failed to persist conversation history (non-fatal):', upsertError.message);
+        } else {
+          console.log('Updated conversation history with', updatedHistory.length, 'messages');
+        }
+      } catch (persistErr: any) {
+        console.warn('Exception persisting conversation history (non-fatal):', persistErr.message);
+      }
     }
     
     console.log('PO Assistant response generated successfully');
